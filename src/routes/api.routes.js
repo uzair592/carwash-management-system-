@@ -9,6 +9,7 @@ const { updateJobCardStatusHandler, listJobCardsHandler, getJobCardHandler } = r
 const { checkoutHandler, listInvoicesHandler } = require('../controllers/invoice.controller');
 const { createExpenseHandler, listExpensesHandler } = require('../controllers/expense.controller');
 const { processPayment, recordExpense } = require('../services/ledger.service');
+const dashboardRoutes = require('./dashboard.routes');
 
 // ---------------------------------------------------------------------------
 // 1. Health & Service Diagnostics
@@ -22,10 +23,11 @@ router.get('/health', (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. Dynamic Feature Flags
+// 2. Dynamic Feature Flags & Investor Dashboard
 // ---------------------------------------------------------------------------
 router.get('/settings', getSettingsHandler);
 router.patch('/settings', updateSettingsHandler);
+router.use('/dashboard', dashboardRoutes);
 
 // ---------------------------------------------------------------------------
 // 3. Vehicles & Intake ("No-Ticket, No-Work" Entry Point)

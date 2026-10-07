@@ -62,6 +62,7 @@ app.use((err, req, res, next) => {
 
 const { initSettings } = require('./services/settings.service');
 const cameraController = require('./hardware/camera.controller');
+const { initEodCron } = require('./cron/eod.cron');
 
 // Server Initialization
 let server;
@@ -69,6 +70,9 @@ if (process.env.NODE_ENV !== 'test') {
   initSettings().then(() => {
     // Initialize Hardware Camera controller with current feature flag
     cameraController.init();
+
+    // Initialize 23:59 EOD Financial Settlement Daemon
+    initEodCron();
 
     server = app.listen(PORT, () => {
       console.log(`=======================================================`);

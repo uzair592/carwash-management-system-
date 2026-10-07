@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { Car, LayoutGrid, Trophy, Sliders, Vault, RefreshCw, Sparkles, Activity } from 'lucide-react';
+import { Car, LayoutGrid, Trophy, Sliders, Vault, RefreshCw, Sparkles, Activity, Eye } from 'lucide-react';
 import axios from 'axios';
 
 import IntakeForm from './components/IntakeForm';
@@ -7,6 +6,7 @@ import BayGrid from './components/BayGrid';
 import CheckoutModal from './components/CheckoutModal';
 import SettingsToggle from './components/SettingsToggle';
 import Leaderboard from './components/Leaderboard';
+import InvestorDashboard from './pages/InvestorDashboard';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('intake'); // 'intake' | 'bays' | 'leaderboard' | 'settings'
@@ -151,6 +151,18 @@ export default function App() {
             <Sliders className="w-4 h-4" />
             4. System Settings
           </button>
+
+          <button
+            onClick={() => setActiveTab('investor')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap ${
+              activeTab === 'investor'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20'
+                : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/40'
+            }`}
+          >
+            <Eye className="w-4 h-4" />
+            5. Investor Portal
+          </button>
         </div>
       </nav>
 
@@ -160,6 +172,7 @@ export default function App() {
         {activeTab === 'bays' && <BayGrid onCheckoutTrigger={(card) => setCheckoutTarget(card)} />}
         {activeTab === 'leaderboard' && <Leaderboard />}
         {activeTab === 'settings' && <SettingsToggle />}
+        {activeTab === 'investor' && <InvestorDashboard />}
       </main>
 
       {/* Cashier Checkout Modal */}
