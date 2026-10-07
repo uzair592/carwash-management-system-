@@ -20,6 +20,7 @@ snapshots/
 recordings/
 dist/
 build/
+*.traineddata
 
 # OS specific
 .DS_Store

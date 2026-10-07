@@ -1,4 +1,8 @@
 const prisma = require('../prisma');
+const EventEmitter = require('events');
+
+// Event bus for dynamic hardware and service lifecycle triggers
+const settingsEmitter = new EventEmitter();
 
 // In-memory cache for O(1) synchronous flag evaluations
 const settingsCache = new Map();
@@ -68,6 +72,9 @@ async function updateSetting(key, booleanValue) {
   // Mutate in-memory cache immediately
   settingsCache.set(key, updated.value);
 
+  // Notify hardware controllers and background listeners
+  settingsEmitter.emit('settingsUpdated', { key, value: updated.value });
+
   return { key: updated.key, value: updated.value };
 }
 
@@ -84,4 +91,5 @@ module.exports = {
   getSetting,
   updateSetting,
   getAllSettings,
+  settingsEmitter,
 };

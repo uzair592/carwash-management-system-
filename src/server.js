@@ -61,11 +61,15 @@ app.use((err, req, res, next) => {
 });
 
 const { initSettings } = require('./services/settings.service');
+const cameraController = require('./hardware/camera.controller');
 
 // Server Initialization
 let server;
 if (process.env.NODE_ENV !== 'test') {
   initSettings().then(() => {
+    // Initialize Hardware Camera controller with current feature flag
+    cameraController.init();
+
     server = app.listen(PORT, () => {
       console.log(`=======================================================`);
       console.log(` Car Wash Management System - Core API`);
@@ -79,6 +83,7 @@ if (process.env.NODE_ENV !== 'test') {
 // Graceful Shutdown
 const handleShutdown = async (signal) => {
   console.log(`\nReceived ${signal}. Shutting down gracefully...`);
+  cameraController.stopListener();
   if (server) {
     server.close(async () => {
       console.log('HTTP server closed.');
