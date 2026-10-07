@@ -1,0 +1,179 @@
+// Prisma Schema for Car Wash & Detailing Management System
+// Target Database: PostgreSQL (Local-First ACID Relational Storage)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------------------------------------------------
+// ENUMS
+// -------------------------------------------------------------
+
+enum UserRole {
+  Admin
+  Cashier
+  Worker
+}
+
+enum ServiceCategory {
+  Wash
+  Detailing
+  PPF
+}
+
+enum JobCardStatus {
+  Intake
+  In_Progress
+  Completed
+}
+
+enum PaymentMethod {
+  Cash
+  Card
+}
+
+enum UnitType {
+  Roll
+  ML
+  Unit
+}
+
+enum AccountType {
+  Cash_Drawer
+  Main_Bank
+}
+
+// -------------------------------------------------------------
+// MODELS
+// -------------------------------------------------------------
+
+model User {
+  id              String      @id @default(uuid())
+  name            String      @db.VarChar(100)
+  role            UserRole    @default(Worker)
+  pin_code        String      @db.VarChar(10)
+  commission_rate Decimal     @default(0.00) @db.Decimal(5, 2)
+  is_active       Boolean     @default(true)
+  created_at      DateTime    @default(now())
+  updated_at      DateTime    @updatedAt
+
+  job_cards       JobCard[]   @relation("WorkerJobCards")
+  invoices        Invoice[]   @relation("CashierInvoices")
+  expenses        Expense[]   @relation("UserExpenses")
+
+  @@map("users")
+}
+
+model Vehicle {
+  id                  String      @id @default(uuid())
+  registration_number String      @unique @db.VarChar(30)
+  make                String?     @db.VarChar(50)
+  model               String?     @db.VarChar(50)
+  visits              Int         @default(0)
+  customer_phone      String      @db.VarChar(25)
+  created_at          DateTime    @default(now())
+  updated_at          DateTime    @updatedAt
+
+  job_cards           JobCard[]
+
+  @@map("vehicles")
+}
+
+model Service {
+  id             String          @id @default(uuid())
+  name           String          @db.VarChar(100)
+  category       ServiceCategory @default(Wash)
+  price          Decimal         @db.Decimal(10, 2)
+  estimated_time Int             // In minutes
+  is_active      Boolean         @default(true)
+  created_at     DateTime        @default(now())
+  updated_at     DateTime        @updatedAt
+
+  job_card_items JobCardService[]
+
+  @@map("services")
+}
+
+model JobCard {
+  id           String        @id @default(uuid())
+  ticket_number String?      @unique @db.VarChar(30)
+  vehicle_id   String
+  vehicle      Vehicle       @relation(fields: [vehicle_id], references: [id], onDelete: Restrict)
+  worker_id    String?
+  worker       User?         @relation("WorkerJobCards", fields: [worker_id], references: [id], onDelete: SetNull)
+  status       JobCardStatus @default(Intake)
+  intake_notes String?       @db.Text
+  photos_url   String?       @db.Text
+  created_at   DateTime      @default(now())
+  updated_at   DateTime      @updatedAt
+
+  services     JobCardService[]
+  invoice      Invoice?
+
+  @@map("job_cards")
+}
+
+model JobCardService {
+  id            String   @id @default(uuid())
+  job_card_id   String
+  job_card      JobCard  @relation(fields: [job_card_id], references: [id], onDelete: Cascade)
+  service_id    String
+  service       Service  @relation(fields: [service_id], references: [id], onDelete: Restrict)
+  price_charged Decimal  @db.Decimal(10, 2)
+
+  @@unique([job_card_id, service_id])
+  @@map("job_card_services")
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  invoice_number String?       @unique @db.VarChar(30)
+  job_card_id    String        @unique
+  job_card       JobCard       @relation(fields: [job_card_id], references: [id], onDelete: Restrict)
+  cashier_id     String?
+  cashier        User?         @relation("CashierInvoices", fields: [cashier_id], references: [id], onDelete: SetNull)
+  total_amount   Decimal       @db.Decimal(10, 2)
+  payment_method PaymentMethod @default(Cash)
+  created_at     DateTime      @default(now())
+
+  @@map("invoices")
+}
+
+model Inventory {
+  id            String   @id @default(uuid())
+  item_name     String   @db.VarChar(100)
+  unit_type     UnitType @default(Unit)
+  current_stock Decimal  @db.Decimal(10, 2)
+  cost_per_unit Decimal  @db.Decimal(10, 2)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@map("inventory")
+}
+
+model Expense {
+  id             String        @id @default(uuid())
+  category       String        @db.VarChar(100)
+  amount         Decimal       @db.Decimal(10, 2)
+  payment_method PaymentMethod @default(Cash)
+  description    String?       @db.Text
+  recorded_by_id String?
+  recorded_by    User?         @relation("UserExpenses", fields: [recorded_by_id], references: [id], onDelete: SetNull)
+  created_at     DateTime      @default(now())
+
+  @@map("expenses")
+}
+
+model Ledger {
+  id              String      @id @default(uuid())
+  account_type    AccountType @unique
+  current_balance Decimal     @default(0.00) @db.Decimal(12, 2)
+  last_updated    DateTime    @default(now()) @updatedAt
+
+  @@map("ledger")
+}

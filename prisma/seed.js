@@ -1,0 +1,85 @@
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+async function main() {
+  console.log('Seeding initial database records...');
+
+  // 1. Initialize Ledger Accounts
+  const cashDrawer = await prisma.ledger.upsert({
+    where: { account_type: 'Cash_Drawer' },
+    update: {},
+    create: {
+      account_type: 'Cash_Drawer',
+      current_balance: 0.00,
+    },
+  });
+
+  const mainBank = await prisma.ledger.upsert({
+    where: { account_type: 'Main_Bank' },
+    update: {},
+    create: {
+      account_type: 'Main_Bank',
+      current_balance: 0.00,
+    },
+  });
+
+  console.log('Initialized Ledger Accounts:', {
+    Cash_Drawer: cashDrawer.current_balance,
+    Main_Bank: mainBank.current_balance,
+  });
+
+  // 2. Initialize Default Admin & Cashier Users
+  const admin = await prisma.user.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000001' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000001',
+      name: 'System Administrator',
+      role: 'Admin',
+      pin_code: '1234',
+      commission_rate: 0.00,
+    },
+  });
+
+  const cashier = await prisma.user.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000002' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000002',
+      name: 'Main Cashier',
+      role: 'Cashier',
+      pin_code: '5678',
+      commission_rate: 0.00,
+    },
+  });
+
+  console.log('Provisioned Users:', [admin.name, cashier.name]);
+
+  // 3. Initialize Baseline Wash & Detailing Services
+  const services = [
+    { name: 'Express Body Foam Wash', category: 'Wash', price: 1000.00, estimated_time: 25 },
+    { name: 'Premium Wash & Undercarriage', category: 'Wash', price: 1800.00, estimated_time: 40 },
+    { name: 'Interior Deep Shampoo & Vacuum', category: 'Detailing', price: 4500.00, estimated_time: 90 },
+    { name: '3-Stage Compound & Paint Correction', category: 'Detailing', price: 12000.00, estimated_time: 240 },
+    { name: 'Front Bumper & Hood PPF Installation', category: 'PPF', price: 35000.00, estimated_time: 360 },
+  ];
+
+  for (const s of services) {
+    const existing = await prisma.service.findFirst({ where: { name: s.name } });
+    if (!existing) {
+      await prisma.service.create({ data: s });
+    }
+  }
+
+  console.log(`Configured ${services.length} baseline services.`);
+  console.log('Seeding completed successfully.');
+}
+
+main()
+  .catch((e) => {
+    console.error('Error seeding database:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
