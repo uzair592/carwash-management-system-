@@ -41,7 +41,7 @@ router.get('/ledger', async (req, res, next) => {
  */
 router.post('/payment', async (req, res, next) => {
   try {
-    const { amount, payment_method } = req.body;
+    const { amount, payment_method, customer_phone, invoice_number, vehicle_plate, services_summary, notes } = req.body;
 
     if (amount === undefined || amount === null || !payment_method) {
       return res.status(400).json({
@@ -50,7 +50,13 @@ router.post('/payment', async (req, res, next) => {
       });
     }
 
-    const result = await processPayment(amount, payment_method);
+    const result = await processPayment(amount, payment_method, {
+      customer_phone,
+      invoice_number,
+      vehicle_plate,
+      services_summary,
+      description: notes,
+    });
 
     return res.status(200).json({
       status: 'success',
@@ -73,7 +79,7 @@ router.post('/payment', async (req, res, next) => {
  */
 router.post('/expense', async (req, res, next) => {
   try {
-    const { amount, payment_method } = req.body;
+    const { amount, payment_method, category, description } = req.body;
 
     if (amount === undefined || amount === null || !payment_method) {
       return res.status(400).json({
@@ -82,7 +88,10 @@ router.post('/expense', async (req, res, next) => {
       });
     }
 
-    const result = await recordExpense(amount, payment_method);
+    const result = await recordExpense(amount, payment_method, {
+      category,
+      description,
+    });
 
     return res.status(200).json({
       status: 'success',
