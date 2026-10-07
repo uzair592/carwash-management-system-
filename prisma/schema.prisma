@@ -27,9 +27,25 @@ enum ServiceCategory {
 }
 
 enum JobCardStatus {
+  QUEUED
+  IN_PROGRESS
+  READY_FOR_BILLING
+  COMPLETED
   Intake
   In_Progress
   Completed
+}
+
+enum WorkLocation {
+  JACK_1
+  JACK_2
+  DETAILING_CENTER
+}
+
+enum OutboxStatus {
+  PENDING
+  SENT
+  FAILED
 }
 
 enum PaymentMethod {
@@ -92,6 +108,7 @@ model Vehicle {
   make                String?     @db.VarChar(50)
   model               String?     @db.VarChar(50)
   visits              Int         @default(0)
+  customer_name       String      @default("Walk-in Customer") @db.VarChar(100)
   customer_phone      String      @db.VarChar(25)
   created_at          DateTime    @default(now())
   updated_at          DateTime    @updatedAt
@@ -120,21 +137,26 @@ model Service {
 }
 
 model JobCard {
-  id            String        @id @default(uuid())
-  ticket_number String?       @unique @db.VarChar(30)
-  vehicle_id    String
-  vehicle       Vehicle       @relation(fields: [vehicle_id], references: [id], onDelete: Restrict)
-  worker_id     String?
-  worker        User?         @relation("WorkerJobCards", fields: [worker_id], references: [id], onDelete: SetNull)
-  status        JobCardStatus @default(Intake)
-  intake_notes  String?       @db.Text
-  photos_url    String?       @db.Text
-  created_at    DateTime      @default(now())
-  updated_at    DateTime      @updatedAt
+  id                String        @id @default(uuid())
+  ticket_number     String?       @unique @db.VarChar(30)
+  vehicle_id        String
+  vehicle           Vehicle       @relation(fields: [vehicle_id], references: [id], onDelete: Restrict)
+  customer_name     String?       @db.VarChar(100)
+  worker_id         String?
+  worker            User?         @relation("WorkerJobCards", fields: [worker_id], references: [id], onDelete: SetNull)
+  status            JobCardStatus @default(QUEUED)
+  assigned_location WorkLocation?
+  assigned_team     String?       @db.VarChar(50)
+  started_at        DateTime?
+  completed_at      DateTime?
+  intake_notes      String?       @db.Text
+  photos_url        String?       @db.Text
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
 
-  services      JobCardService[]
-  invoice       Invoice?
-  media         VehicleMedia[]
+  services          JobCardService[]
+  invoice           Invoice?
+  media             VehicleMedia[]
 
   @@map("job_cards")
 }
@@ -175,7 +197,33 @@ model Invoice {
   payment_method  PaymentMethod @default(Cash)
   created_at      DateTime      @default(now())
 
+  refunds         Refund[]
+
   @@map("invoices")
+}
+
+model Refund {
+  id                String   @id @default(uuid())
+  invoice_id        String
+  invoice           Invoice  @relation(fields: [invoice_id], references: [id], onDelete: Restrict)
+  amount            Decimal  @db.Decimal(10, 2)
+  reason            String   @db.Text
+  authorized_by_pin String   @db.VarChar(10)
+  created_at        DateTime @default(now())
+
+  @@map("refunds")
+}
+
+model AlertOutbox {
+  id            String       @id @default(uuid())
+  type          String       @default("TELEGRAM")
+  payload       Json
+  status        OutboxStatus @default(PENDING)
+  error_message String?      @db.Text
+  created_at    DateTime     @default(now())
+  processed_at  DateTime?
+
+  @@map("alert_outbox")
 }
 
 model Inventory {

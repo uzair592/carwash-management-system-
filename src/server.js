@@ -75,6 +75,7 @@ app.use((err, req, res, next) => {
 const { initSettings } = require('./services/settings.service');
 const cameraController = require('./hardware/camera.controller');
 const { initEodCron } = require('./cron/eod.cron');
+const { initOutboxWorker, stopOutboxWorker } = require('./workers/outbox.worker');
 
 // Server Initialization
 let server;
@@ -85,6 +86,9 @@ if (process.env.NODE_ENV !== 'test') {
 
     // Initialize 23:59 EOD Financial Settlement Daemon
     initEodCron();
+
+    // Initialize Decoupled Telegram Alert Outbox Daemon (5s poll)
+    initOutboxWorker();
 
     server = app.listen(PORT, () => {
       console.log(`=======================================================`);
@@ -100,6 +104,7 @@ if (process.env.NODE_ENV !== 'test') {
 const handleShutdown = async (signal) => {
   console.log(`\nReceived ${signal}. Shutting down gracefully...`);
   cameraController.stopListener();
+  stopOutboxWorker();
   if (server) {
     server.close(async () => {
       console.log('HTTP server closed.');

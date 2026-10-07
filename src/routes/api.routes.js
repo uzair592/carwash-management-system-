@@ -24,6 +24,14 @@ const {
   getJobCardMediaHandler,
   deleteJobCardMediaHandler,
 } = require('../controllers/media.controller');
+const {
+  rapidIntakeHandler,
+  startJobCardHandler,
+  completeJobCardHandler,
+  getLiveBayStatusHandler,
+  verifyAdminPinHandler,
+  issueRefundHandler,
+} = require('../controllers/physical-bays.controller');
 
 // ---------------------------------------------------------------------------
 // 1. Health & Service Diagnostics
@@ -44,17 +52,23 @@ router.patch('/settings', updateSettingsHandler);
 router.use('/dashboard', dashboardRoutes);
 
 // ---------------------------------------------------------------------------
-// 3. Vehicles & Intake ("No-Ticket, No-Work" Entry Point)
+// 3. Vehicles & Physical Intake ("No-Ticket, No-Work" Entry Point)
 // ---------------------------------------------------------------------------
-router.post('/vehicles/intake', vehicleIntakeHandler);
+router.post('/intake', rapidIntakeHandler);
+router.post('/vehicles/intake', rapidIntakeHandler); // backward compatibility alias
 router.get('/vehicles/:registration', getVehicleHandler);
 
 // ---------------------------------------------------------------------------
-// 4. Job Card State Machine
+// 4. Physical Work Areas (Jack 1, Jack 2, Detailing Center) & Job Cards
 // ---------------------------------------------------------------------------
+router.get('/bays/live-status', getLiveBayStatusHandler);
+router.patch('/job-cards/:id/start', startJobCardHandler);
+router.patch('/job-cards/:id/complete', completeJobCardHandler);
 router.get('/job-cards', listJobCardsHandler);
 router.get('/job-cards/:id', getJobCardHandler);
 router.patch('/job-cards/:id/status', updateJobCardStatusHandler);
+router.post('/admin/verify-pin', verifyAdminPinHandler);
+router.post('/invoices/:id/refund', issueRefundHandler);
 
 // ---------------------------------------------------------------------------
 // 5. Checkout & Invoicing

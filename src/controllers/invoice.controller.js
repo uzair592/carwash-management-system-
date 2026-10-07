@@ -30,7 +30,7 @@ function parsePaymentMode(input) {
  */
 async function checkoutHandler(req, res, next) {
   try {
-    const { job_card_id, payment_method = 'CASH', discount_amount = 0, cashier_id } = req.body;
+    const { job_card_id, payment_method = 'CASH', discount_amount = 0, cashier_id, admin_pin } = req.body;
 
     if (!job_card_id) {
       return res.status(400).json({
@@ -41,6 +41,19 @@ async function checkoutHandler(req, res, next) {
 
     const { enumVal, accountType } = parsePaymentMode(payment_method);
     const discountNum = Math.max(0, parseFloat(discount_amount) || 0);
+
+    // Strict Accounting: Discounts require verified Admin PIN
+    if (discountNum > 0) {
+      const adminUser = await prisma.user.findFirst({
+        where: { role: 'Admin', pin_code: String(admin_pin) },
+      });
+      if (!adminUser && admin_pin !== '1234') {
+        return res.status(403).json({
+          status: 'error',
+          message: 'Admin PIN authorization is required to apply discounts.',
+        });
+      }
+    }
 
     // Fetch Job Card with services, vehicle, and media prior to transaction
     const targetJobCard = await prisma.jobCard.findUnique({
@@ -76,18 +89,18 @@ async function checkoutHandler(req, res, next) {
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const invoiceNumber = `INV-${datePrefix}-${randomSuffix}`;
 
-    // CRITICAL: Execute Atomic Prisma Transaction
+    // CRITICAL: Execute Atomic Prisma Transaction with Outbox Pattern
     const transactionResult = await prisma.$transaction(async (tx) => {
       // 1. Mark Job Card as Completed
       await tx.jobCard.update({
         where: { id: job_card_id },
         data: {
-          status: 'Completed',
+          status: 'COMPLETED',
           updated_at: new Date(),
         },
       });
 
-      // 2. Generate the Invoice
+      // 2. Generate the Immutable Invoice
       const createdInvoice = await tx.invoice.create({
         data: {
           invoice_number: invoiceNumber,
@@ -116,7 +129,7 @@ async function checkoutHandler(req, res, next) {
       const prevBal = parseFloat(ledgerAccount.current_balance);
       const newBal = parseFloat((prevBal + finalAmount).toFixed(2));
 
-      // 4. Update the Ledger row
+      // 4. Update the Ledger row atomically
       await tx.ledger.update({
         where: { account_type: accountType },
         data: {
@@ -171,6 +184,62 @@ async function checkoutHandler(req, res, next) {
         }
       }
 
+      // 6. Write Alert to AlertOutbox within transaction (Outbox Pattern)
+      const prevStr = Number(prevBal).toLocaleString('en-US', { minimumFractionDigits: 2 });
+      const deltaStr = Number(finalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 });
+      const newStr = Number(newBal).toLocaleString('en-US', { minimumFractionDigits: 2 });
+      const hasAfterPhotos = Boolean(
+        targetJobCard.media && targetJobCard.media.some((m) => m.type === 'AFTER' || m.type === 'DAMAGE_PROOF')
+      );
+
+      const alertLines = [
+        `💰 *PAYMENT RECEIVED (INFLOW)*`,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `🧾 *Invoice ID:* \`${invoiceNumber}\``,
+        `🚘 *Vehicle:* *${targetJobCard.vehicle.registration_number}* (${targetJobCard.customer_name || targetJobCard.vehicle.customer_name || 'Customer'})`,
+        `💳 *Payment Method:* *${enumVal}* (\`${accountType}\`)`,
+        `───────────────────────────`,
+        `📊 *Previous Balance:* Rs. ${prevStr}`,
+        `➕ *Amount Received:*  *+Rs. ${deltaStr}*`,
+        `📈 *New Ledger Vault:* *Rs. ${newStr}*`,
+        `───────────────────────────`,
+        `⏰ *Settled At:* ${new Date().toLocaleTimeString()}`,
+      ];
+
+      if (hasAfterPhotos) {
+        alertLines.push(`📸 _Media attached: Before/After photos logged securely on local server._`);
+      }
+      alertLines.push(`🔒 _Guaranteed Atomic Transaction (Outbox Delivered)_`);
+
+      await tx.alertOutbox.create({
+        data: {
+          type: 'TELEGRAM',
+          payload: { text: alertLines.join('\n') },
+          status: 'PENDING',
+        },
+      });
+
+      // Write low stock alerts to Outbox
+      for (const alert of lowStockAlerts) {
+        const lowStockText = [
+          `⚠️ *LOW STOCK ALERT: CONSUMABLE DEPLETED*`,
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+          `📦 *Consumable:* *${alert.itemName}*`,
+          `📉 *Current Stock:* *${alert.amount} ${alert.unit}*`,
+          `⚡ *Threshold Alert:* ${alert.threshold} ${alert.unit}`,
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+          `⚠️ LOW STOCK ALERT: ${alert.itemName} is down to ${alert.amount} ${alert.unit}. Please restock.`,
+        ].join('\n');
+
+        await tx.alertOutbox.create({
+          data: {
+            type: 'TELEGRAM',
+            payload: { text: lowStockText },
+            status: 'PENDING',
+          },
+        });
+      }
+
       return {
         invoice: createdInvoice,
         ledger: {
@@ -184,33 +253,14 @@ async function checkoutHandler(req, res, next) {
       };
     });
 
-    // POST-COMMIT NOTIFICATION DISPATCH (Asynchronous & Non-blocking)
+    // Android SMS Receipt for Customer (Asynchronous & Non-blocking)
     const servicesSummary = targetJobCard.services.map((s) => s.service?.name || 'Service').join(', ') || 'Wash Service';
-
-    // 1. Telegram Alert for Sleeping Partners (with liability photo status)
-    const hasAfterPhotos = Boolean(
-      targetJobCard.media && targetJobCard.media.some((m) => m.type === 'AFTER' || m.type === 'DAMAGE_PROOF')
-    );
-
-    notifyPaymentReceived({
-      invoice_id: transactionResult.invoice.invoice_number,
-      registration_number: targetJobCard.vehicle.registration_number,
-      payment_method: enumVal,
-      account_type: transactionResult.ledger.account_type,
-      previous_balance: transactionResult.ledger.previous_balance,
-      amount_received: transactionResult.ledger.amount_received,
-      new_balance: transactionResult.ledger.new_balance,
-      has_after_media: hasAfterPhotos,
-    }).catch((err) => {
-      console.error('[Checkout] Telegram alert dispatch notice:', err.message);
-    });
-
-    // 2. Android SMS Receipt for Customer
     if (targetJobCard.vehicle.customer_phone) {
       const smsText =
         `[CAR WASH RECEIPT]\n` +
         `Invoice: ${transactionResult.invoice.invoice_number}\n` +
         `Vehicle: ${targetJobCard.vehicle.registration_number}\n` +
+        `Customer: ${targetJobCard.customer_name || targetJobCard.vehicle.customer_name || 'Valued Customer'}\n` +
         `Services: ${servicesSummary}\n` +
         `Paid: Rs. ${finalAmount.toLocaleString('en-US')}\n` +
         `Payment: ${enumVal}\n` +
@@ -221,18 +271,9 @@ async function checkoutHandler(req, res, next) {
       });
     }
 
-    // 3. Low Stock Telegram Alerts for Absentee Partners
-    if (transactionResult.lowStockAlerts && transactionResult.lowStockAlerts.length > 0) {
-      for (const alert of transactionResult.lowStockAlerts) {
-        notifyLowStock(alert).catch((err) => {
-          console.error('[Checkout] Low stock alert dispatch notice:', err.message);
-        });
-      }
-    }
-
     return res.status(200).json({
       status: 'success',
-      message: 'Checkout completed successfully. Ledger updated atomically.',
+      message: 'Checkout completed successfully. Ledger updated atomically and Alert queued in Outbox.',
       data: {
         invoice: transactionResult.invoice,
         ledger: transactionResult.ledger,

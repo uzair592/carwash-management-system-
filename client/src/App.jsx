@@ -1,11 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Car, LayoutGrid, Trophy, Sliders, Vault, RefreshCw, Sparkles, Activity, Eye, ShieldCheck, Boxes } from 'lucide-react';
+import {
+  Car,
+  Layers,
+  Receipt,
+  Trophy,
+  Sliders,
+  Vault,
+  RefreshCw,
+  Activity,
+  Eye,
+  ShieldCheck,
+  Clock,
+  Sparkles
+} from 'lucide-react';
 import axios from 'axios';
 
 import IntakeForm from './components/IntakeForm';
-import BayGrid from './components/BayGrid';
+import PhysicalBayDashboard from './components/PhysicalBayDashboard';
+import BillingQueue from './components/BillingQueue';
 import CheckoutModal from './components/CheckoutModal';
-import SettingsToggle from './components/SettingsToggle';
 import Leaderboard from './components/Leaderboard';
 import InvestorDashboard from './pages/InvestorDashboard';
 import AdminManagement from './pages/AdminManagement';
@@ -19,47 +32,60 @@ export default function App() {
   });
   const [checkoutTarget, setCheckoutTarget] = useState(null);
   const [vaultBalance, setVaultBalance] = useState({ cash: 0, bank: 0 });
+  const [readyCount, setReadyCount] = useState(0);
+  const [queuedCount, setQueuedCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Sync Ledger Balances for Top Bar
-  const syncLedger = async () => {
+  // Sync Ledger Balances & Counts for Top Bar
+  const syncLedgerAndCounts = async () => {
     setIsSyncing(true);
     try {
-      const res = await axios.get('/api/ledger');
-      if (res.data?.data) {
-        const cashAcct = res.data.data.find((a) => a.account_type === 'Cash_Drawer');
-        const bankAcct = res.data.data.find((a) => a.account_type === 'Main_Bank');
+      const [ledgerRes, bayRes] = await axios.all([
+        axios.get('/api/ledger'),
+        axios.get('/api/bays/live-status'),
+      ]);
+
+      if (ledgerRes.data?.data) {
+        const cashAcct = ledgerRes.data.data.find((a) => a.account_type === 'Cash_Drawer');
+        const bankAcct = ledgerRes.data.data.find((a) => a.account_type === 'Main_Bank');
         setVaultBalance({
           cash: parseFloat(cashAcct?.current_balance || 0),
           bank: parseFloat(bankAcct?.current_balance || 0),
         });
       }
+
+      if (bayRes.data?.ready_for_billing) {
+        setReadyCount(bayRes.data.ready_for_billing.length);
+      }
+      if (bayRes.data?.queue) {
+        setQueuedCount(bayRes.data.queue.length);
+      }
     } catch (err) {
-      console.warn('Ledger top bar sync notice:', err.message);
+      console.warn('Top bar sync notice:', err.message);
     } finally {
       setIsSyncing(false);
     }
   };
 
   useEffect(() => {
-    syncLedger();
-    const interval = setInterval(syncLedger, 15000); // 15s poll
+    syncLedgerAndCounts();
+    const interval = setInterval(syncLedgerAndCounts, 8000); // 8s poll
     return () => clearInterval(interval);
   }, []);
 
   const handleJobCreated = () => {
-    syncLedger();
-    // Auto-switch to Bays to watch new vehicle progress
+    syncLedgerAndCounts();
     setActiveTab('bays');
   };
 
   const handleCheckoutSuccess = () => {
-    syncLedger();
+    syncLedgerAndCounts();
+    setCheckoutTarget(null);
   };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]">
-      {/* Top Header & Live Financial Bar */}
+      {/* Top Header & Financial Transparency Bar */}
       <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-xl border-b border-slate-800/80 px-4 sm:px-8 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
@@ -67,12 +93,14 @@ export default function App() {
           </div>
           <div>
             <h1 className="font-extrabold text-base sm:text-lg text-white tracking-tight flex items-center gap-2">
-              AUTOWASH POS
+              AUTOWASH MANAGEMENT SYSTEM
               <span className="text-[10px] font-mono bg-sky-950 text-sky-300 px-2 py-0.5 rounded border border-sky-800 uppercase">
-                Phase 3 Terminal
+                Physical Bay MVP
               </span>
             </h1>
-            <p className="text-[11px] text-slate-400">Local-First Car Wash & Detailing Management</p>
+            <p className="text-[11px] text-slate-400">
+              Jack 1 • Jack 2 • Detailing Center • Decoupled Alert Outbox
+            </p>
           </div>
         </div>
 
@@ -81,7 +109,7 @@ export default function App() {
           <div className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-1.5 flex items-center gap-2.5 shadow-inner">
             <Vault className="w-4 h-4 text-emerald-400" />
             <div>
-              <span className="text-[10px] text-slate-400 uppercase font-bold block">Cash Drawer Vault</span>
+              <span className="text-[10px] text-slate-400 uppercase font-bold block">Cash Drawer</span>
               <span className="font-mono text-sm font-black text-emerald-400">
                 Rs. {vaultBalance.cash.toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </span>
@@ -99,8 +127,8 @@ export default function App() {
           </div>
 
           <button
-            onClick={syncLedger}
-            title="Refresh Vault Balances"
+            onClick={syncLedgerAndCounts}
+            title="Refresh Ledger Vaults"
             className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
           >
             <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin text-sky-400' : ''}`} />
@@ -108,9 +136,10 @@ export default function App() {
         </div>
       </header>
 
-      {/* Navigation Tabs */}
-      <nav className="bg-slate-900/60 border-b border-slate-800/80 px-4 sm:px-8 py-2">
+      {/* Navigation Tabs (Strictly mapping the 3 Physical Screens + Management) */}
+      <nav className="bg-slate-900/60 border-b border-slate-800/80 px-4 sm:px-8 py-2 sticky top-[69px] z-30 backdrop-blur-md">
         <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          {/* Screen 1: Rapid Intake */}
           <button
             onClick={() => setActiveTab('intake')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap ${
@@ -120,21 +149,46 @@ export default function App() {
             }`}
           >
             <Car className="w-4 h-4" />
-            1. Intake & POS
+            1. Rapid Intake
           </button>
 
+          {/* Screen 2: Physical Bays */}
           <button
             onClick={() => setActiveTab('bays')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap relative ${
               activeTab === 'bays'
                 ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
             }`}
           >
-            <LayoutGrid className="w-4 h-4" />
-            2. Active Bays
+            <Layers className="w-4 h-4" />
+            <span>2. Physical Bays (Jack 1 • Jack 2 • Detailing)</span>
+            {queuedCount > 0 && (
+              <span className="font-mono text-[10px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.2 rounded-full">
+                {queuedCount} queued
+              </span>
+            )}
           </button>
 
+          {/* Screen 3: Ready for Billing */}
+          <button
+            onClick={() => setActiveTab('billing')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap relative ${
+              activeTab === 'billing'
+                ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 font-black'
+                : 'text-amber-400 hover:text-amber-300 hover:bg-amber-950/40'
+            }`}
+          >
+            <Receipt className="w-4 h-4" />
+            <span>3. Ready for Billing</span>
+            {readyCount > 0 && (
+              <span className="font-mono text-[10px] bg-emerald-500 text-white font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse">
+                {readyCount}
+              </span>
+            )}
+          </button>
+
+          {/* Tab 4: Staff Leaderboard */}
           <button
             onClick={() => setActiveTab('leaderboard')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap ${
@@ -144,21 +198,10 @@ export default function App() {
             }`}
           >
             <Trophy className="w-4 h-4" />
-            3. Staff Leaderboard
+            4. Staff Leaderboard
           </button>
 
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap ${
-              activeTab === 'settings'
-                ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-            }`}
-          >
-            <Sliders className="w-4 h-4" />
-            4. System Settings
-          </button>
-
+          {/* Tab 5: Investor Portal */}
           <button
             onClick={() => setActiveTab('investor')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap ${
@@ -171,6 +214,7 @@ export default function App() {
             5. Investor Portal
           </button>
 
+          {/* Tab 6: Admin Portal */}
           <button
             onClick={() => setActiveTab('admin')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap ${
@@ -180,17 +224,21 @@ export default function App() {
             }`}
           >
             <ShieldCheck className="w-4 h-4" />
-            6. Admin Portal (Yield & Payroll)
+            6. Admin Portal
           </button>
         </div>
       </nav>
 
-      {/* Main Content Area */}
+      {/* Main Screen Layout */}
       <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto">
         {activeTab === 'intake' && <IntakeForm onJobCreated={handleJobCreated} />}
-        {activeTab === 'bays' && <BayGrid onCheckoutTrigger={(card) => setCheckoutTarget(card)} />}
+        {activeTab === 'bays' && (
+          <PhysicalBayDashboard onGoToBilling={() => setActiveTab('billing')} />
+        )}
+        {activeTab === 'billing' && (
+          <BillingQueue onOpenCheckout={(card) => setCheckoutTarget(card)} />
+        )}
         {activeTab === 'leaderboard' && <Leaderboard />}
-        {activeTab === 'settings' && <SettingsToggle />}
         {activeTab === 'investor' && <InvestorDashboard />}
         {activeTab === 'admin' && <AdminManagement />}
       </main>
@@ -200,9 +248,7 @@ export default function App() {
         <CheckoutModal
           jobCard={checkoutTarget}
           onClose={() => setCheckoutTarget(null)}
-          onCheckoutSuccess={(data) => {
-            handleCheckoutSuccess();
-          }}
+          onCheckoutSuccess={handleCheckoutSuccess}
         />
       )}
     </div>
