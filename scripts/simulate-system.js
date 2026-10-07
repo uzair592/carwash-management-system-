@@ -83,10 +83,18 @@ async function runSimulation() {
       fail('STEP 1', `Expected 10000, got ${cashAccount.current_balance}`);
     }
 
-    // Clean up test vehicle if present from previous run
-    await prisma.vehicle.deleteMany({
+    // Clean up test vehicle & relations if present from previous run
+    const prevVehicle = await prisma.vehicle.findUnique({
       where: { registration_number: 'LEB-1234' },
     });
+    if (prevVehicle) {
+      const prevJobs = await prisma.jobCard.findMany({ where: { vehicle_id: prevVehicle.id } });
+      const prevJobIds = prevJobs.map((j) => j.id);
+      await prisma.invoice.deleteMany({ where: { job_card_id: { in: prevJobIds } } });
+      await prisma.jobCardService.deleteMany({ where: { job_card_id: { in: prevJobIds } } });
+      await prisma.jobCard.deleteMany({ where: { id: { in: prevJobIds } } });
+      await prisma.vehicle.delete({ where: { id: prevVehicle.id } });
+    }
 
     // -----------------------------------------------------------------------
     // STEP 2: Customer Intake for Vehicle LEB-1234

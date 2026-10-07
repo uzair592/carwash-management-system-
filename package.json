@@ -6,7 +6,10 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
+    "dev": "concurrently -n \"API,UI\" -c \"cyan,green\" \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "nodemon src/server.js",
+    "dev:client": "npm --prefix client run dev",
+    "build:client": "npm --prefix client run build",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:migrate": "prisma migrate dev",
@@ -32,6 +35,7 @@
     "node-telegram-bot-api": "^2.1.0"
   },
   "devDependencies": {
+    "concurrently": "^10.0.5",
     "nodemon": "^3.1.9",
     "prisma": "^5.22.0"
   },

@@ -72,7 +72,43 @@ async function main() {
     },
   });
 
-  console.log('Provisioned Users:', [admin.name, cashier.name]);
+  const worker1 = await prisma.user.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000003' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000003',
+      name: 'Ali Hassan (Lead Detailer)',
+      role: 'Worker',
+      pin_code: '1111',
+      commission_rate: 10.00,
+    },
+  });
+
+  const worker2 = await prisma.user.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000004' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000004',
+      name: 'Hamza Tariq (Bay 1 Tech)',
+      role: 'Worker',
+      pin_code: '2222',
+      commission_rate: 8.00,
+    },
+  });
+
+  const worker3 = await prisma.user.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000005' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000005',
+      name: 'Bilal Ahmed (Bay 2 Tech)',
+      role: 'Worker',
+      pin_code: '3333',
+      commission_rate: 8.00,
+    },
+  });
+
+  console.log('Provisioned Users:', [admin.name, cashier.name, worker1.name, worker2.name, worker3.name]);
 
   // 4. Initialize Baseline Wash & Detailing Services
   const services = [

@@ -53,7 +53,7 @@ router.post('/expenses', createExpenseHandler);
 router.get('/expenses', listExpensesHandler);
 
 // ---------------------------------------------------------------------------
-// 7. Services Catalog
+// 7. Services & Users Catalog
 // ---------------------------------------------------------------------------
 router.get('/services', async (req, res, next) => {
   try {
@@ -62,6 +62,85 @@ router.get('/services', async (req, res, next) => {
       orderBy: { name: 'asc' },
     });
     res.status(200).json({ status: 'success', data: services });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/users', async (req, res, next) => {
+  try {
+    const { role } = req.query;
+    const where = { is_active: true };
+    if (role) {
+      where.role = role;
+    }
+    const users = await prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        commission_rate: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+    res.status(200).json({ status: 'success', data: users });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// 7.1 Gamified Staff Leaderboard
+// ---------------------------------------------------------------------------
+router.get('/leaderboard', async (req, res, next) => {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const workers = await prisma.user.findMany({
+      where: { role: 'Worker', is_active: true },
+    });
+
+    const completedJobsToday = await prisma.jobCard.findMany({
+      where: {
+        status: 'Completed',
+        updated_at: { gte: startOfDay },
+        worker_id: { not: null },
+      },
+      include: {
+        services: true,
+      },
+    });
+
+    const leaderboard = workers.map((worker) => {
+      const workerJobs = completedJobsToday.filter((j) => j.worker_id === worker.id);
+      const totalServicesRevenue = workerJobs.reduce((sum, job) => {
+        const jobTotal = job.services.reduce((sSum, s) => sSum + parseFloat(s.price_charged), 0);
+        return sum + jobTotal;
+      }, 0);
+
+      const commissionRate = parseFloat(worker.commission_rate) || 0;
+      const commissionEarned = parseFloat(((totalServicesRevenue * commissionRate) / 100).toFixed(2));
+
+      return {
+        id: worker.id,
+        name: worker.name,
+        role: worker.role,
+        commission_rate: commissionRate,
+        cars_completed: workerJobs.length,
+        total_revenue_generated: totalServicesRevenue,
+        estimated_commission: commissionEarned,
+      };
+    });
+
+    leaderboard.sort((a, b) => b.cars_completed - a.cars_completed || b.estimated_commission - a.estimated_commission);
+
+    res.status(200).json({
+      status: 'success',
+      data: leaderboard,
+      as_of: new Date().toISOString(),
+    });
   } catch (err) {
     next(err);
   }

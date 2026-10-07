@@ -37,6 +37,18 @@ app.get('/', (req, res) => {
 // Mount API routes
 app.use('/api', apiRoutes);
 
+// Static Client Serving (Single-Port Local Mode)
+const path = require('path');
+const fs = require('fs');
+const clientDistPath = path.join(__dirname, '../client/dist');
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
+
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error('Unhandled API Error:', err);
