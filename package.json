@@ -10,9 +10,16 @@
     "dev:server": "nodemon src/server.js",
     "dev:client": "npm --prefix client run dev",
     "build:client": "npm --prefix client run build",
+    "build:ui": "npm --prefix client install && npm --prefix client run build",
+    "prod:start": "pm2 start ecosystem.config.js",
+    "prod:stop": "pm2 stop ecosystem.config.js",
+    "prod:restart": "pm2 restart ecosystem.config.js",
+    "prod:logs": "pm2 logs",
+    "prod:status": "pm2 status",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "node prisma/seed.js",
     "prisma:studio": "prisma studio",
     "test:alerts": "node scripts/test-alerts.js",
     "test:camera": "node scripts/test-camera.js",
@@ -41,7 +48,9 @@
   "devDependencies": {
     "concurrently": "^10.0.5",
     "nodemon": "^3.1.9",
-    "prisma": "^5.22.0"
+    "pm2": "^7.0.4",
+    "prisma": "^5.22.0",
+    "serve": "^14.2.6"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

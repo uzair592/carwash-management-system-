@@ -2,7 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding initial database records...');
+  console.log('Starting Production Database Seeder for Car Wash System...');
 
   // 1. Initialize System Feature Flags
   const defaultSettings = [
@@ -21,9 +21,9 @@ async function main() {
       },
     });
   }
-  console.log('Provisioned System Feature Flags:', defaultSettings);
+  console.log('✔ Feature Flags initialized:', defaultSettings.map((s) => s.key).join(', '));
 
-  // 2. Initialize Ledger Accounts
+  // 2. Initialize Ledger Vault Accounts (Cash_Drawer: 0, Main_Bank: 0)
   const cashDrawer = await prisma.ledger.upsert({
     where: { account_type: 'Cash_Drawer' },
     update: {},
@@ -42,25 +42,29 @@ async function main() {
     },
   });
 
-  console.log('Initialized Ledger Accounts:', {
-    Cash_Drawer: cashDrawer.current_balance,
-    Main_Bank: mainBank.current_balance,
+  console.log('✔ Ledger Accounts initialized:', {
+    Cash_Drawer: parseFloat(cashDrawer.current_balance),
+    Main_Bank: parseFloat(mainBank.current_balance),
   });
 
-  // 3. Initialize Default Admin & Cashier Users
-  const admin = await prisma.user.upsert({
+  // 3. Seed Users: Initial Shop Admin (PIN: 1234) + Staff
+  const adminUser = await prisma.user.upsert({
     where: { id: '00000000-0000-0000-0000-000000000001' },
-    update: {},
+    update: {
+      name: 'Shop Admin',
+      role: 'Admin',
+      pin_code: '1234',
+    },
     create: {
       id: '00000000-0000-0000-0000-000000000001',
-      name: 'System Administrator',
+      name: 'Shop Admin',
       role: 'Admin',
       pin_code: '1234',
       commission_rate: 0.00,
     },
   });
 
-  const cashier = await prisma.user.upsert({
+  const cashierUser = await prisma.user.upsert({
     where: { id: '00000000-0000-0000-0000-000000000002' },
     update: {},
     create: {
@@ -72,67 +76,53 @@ async function main() {
     },
   });
 
-  const worker1 = await prisma.user.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000003' },
-    update: {},
-    create: {
-      id: '00000000-0000-0000-0000-000000000003',
-      name: 'Ali Hassan (Lead Detailer)',
-      role: 'Worker',
-      pin_code: '1111',
-      commission_rate: 10.00,
-    },
-  });
-
-  const worker2 = await prisma.user.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000004' },
-    update: {},
-    create: {
-      id: '00000000-0000-0000-0000-000000000004',
-      name: 'Hamza Tariq (Bay 1 Tech)',
-      role: 'Worker',
-      pin_code: '2222',
-      commission_rate: 8.00,
-    },
-  });
-
-  const worker3 = await prisma.user.upsert({
-    where: { id: '00000000-0000-0000-0000-000000000005' },
-    update: {},
-    create: {
-      id: '00000000-0000-0000-0000-000000000005',
-      name: 'Bilal Ahmed (Bay 2 Tech)',
-      role: 'Worker',
-      pin_code: '3333',
-      commission_rate: 8.00,
-    },
-  });
-
-  console.log('Provisioned Users:', [admin.name, cashier.name, worker1.name, worker2.name, worker3.name]);
-
-  // 4. Initialize Baseline Wash & Detailing Services
-  const services = [
-    { name: 'Express Body Foam Wash', category: 'Wash', price: 1000.00, estimated_time: 25 },
-    { name: 'Premium Wash & Undercarriage', category: 'Wash', price: 1800.00, estimated_time: 40 },
-    { name: 'Interior Deep Shampoo & Vacuum', category: 'Detailing', price: 4500.00, estimated_time: 90 },
-    { name: '3-Stage Compound & Paint Correction', category: 'Detailing', price: 12000.00, estimated_time: 240 },
-    { name: 'Front Bumper & Hood PPF Installation', category: 'PPF', price: 35000.00, estimated_time: 360 },
+  const workers = [
+    { id: '00000000-0000-0000-0000-000000000003', name: 'Ali Hassan (Lead Detailer)', role: 'Worker', pin: '1111', commission: 10.00 },
+    { id: '00000000-0000-0000-0000-000000000004', name: 'Hamza Tariq (Bay 1 Tech)', role: 'Worker', pin: '2222', commission: 8.00 },
+    { id: '00000000-0000-0000-0000-000000000005', name: 'Bilal Ahmed (Bay 2 Tech)', role: 'Worker', pin: '3333', commission: 8.00 },
   ];
 
-  for (const s of services) {
+  for (const w of workers) {
+    await prisma.user.upsert({
+      where: { id: w.id },
+      update: {},
+      create: {
+        id: w.id,
+        name: w.name,
+        role: w.role,
+        pin_code: w.pin,
+        commission_rate: w.commission,
+      },
+    });
+  }
+
+  console.log('✔ Users Provisioned: Shop Admin, Cashier, and 3 Shop Floor Technicians');
+
+  // 4. Seed Standard Services
+  const standardServices = [
+    { name: 'Standard Wash', category: 'Wash', price: 1000.00, estimated_time: 25 },
+    { name: 'Full Detailing', category: 'Detailing', price: 15000.00, estimated_time: 180 },
+    { name: 'Ceramic Coating', category: 'Detailing', price: 25000.00, estimated_time: 300 },
+    { name: 'Front PPF', category: 'PPF', price: 40000.00, estimated_time: 360 },
+  ];
+
+  for (const s of standardServices) {
     const existing = await prisma.service.findFirst({ where: { name: s.name } });
     if (!existing) {
       await prisma.service.create({ data: s });
     }
   }
 
-  console.log(`Configured ${services.length} baseline services.`);
-  console.log('Seeding completed successfully.');
+  console.log(`✔ Standard Services Seeded: ${standardServices.map((s) => s.name).join(', ')}`);
+  console.log('========================================================');
+  console.log(' Production database seed completed successfully!');
+  console.log(' Ready for Day 1 operations.');
+  console.log('========================================================');
 }
 
 main()
   .catch((e) => {
-    console.error('Error seeding database:', e);
+    console.error('Fatal error seeding database:', e);
     process.exit(1);
   })
   .finally(async () => {
