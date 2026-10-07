@@ -127,6 +127,7 @@ async function listJobCardsHandler(req, res, next) {
         vehicle: true,
         services: { include: { service: true } },
         invoice: true,
+        media: true,
       },
     });
 
@@ -152,6 +153,7 @@ async function getJobCardHandler(req, res, next) {
         vehicle: true,
         services: { include: { service: true } },
         invoice: true,
+        media: true,
       },
     });
 

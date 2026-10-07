@@ -37,14 +37,26 @@ app.get('/', (req, res) => {
 // Mount API routes
 app.use('/api', apiRoutes);
 
-// Static Client Serving (Single-Port Local Mode)
+// Static Asset Serving (Digital Vehicle Inspection Uploads)
 const path = require('path');
 const fs = require('fs');
+const publicPath = path.join(__dirname, '../public');
+if (!fs.existsSync(publicPath)) {
+  fs.mkdirSync(publicPath, { recursive: true });
+}
+const uploadsVehiclesPath = path.join(publicPath, 'uploads/vehicles');
+if (!fs.existsSync(uploadsVehiclesPath)) {
+  fs.mkdirSync(uploadsVehiclesPath, { recursive: true });
+}
+app.use('/public', express.static(publicPath));
+app.use('/uploads', express.static(path.join(publicPath, 'uploads')));
+
+// Static Client Serving (Single-Port Local Mode)
 const clientDistPath = path.join(__dirname, '../client/dist');
 if (fs.existsSync(clientDistPath)) {
   app.use(express.static(clientDistPath));
   app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) return next();
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/public')) return next();
     res.sendFile(path.join(clientDistPath, 'index.html'));
   });
 }

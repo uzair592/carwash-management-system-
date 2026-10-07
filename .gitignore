@@ -25,3 +25,7 @@ build/
 # OS specific
 .DS_Store
 Thumbs.db
+
+# Local Media Uploads (Heavy customer photos)
+public/uploads/
+/public/uploads/

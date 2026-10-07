@@ -18,6 +18,12 @@ const {
   restockInventoryHandler,
   linkServiceInventoryHandler,
 } = require('../controllers/inventory.controller');
+const { upload } = require('../services/upload.service');
+const {
+  uploadJobCardMediaHandler,
+  getJobCardMediaHandler,
+  deleteJobCardMediaHandler,
+} = require('../controllers/media.controller');
 
 // ---------------------------------------------------------------------------
 // 1. Health & Service Diagnostics
@@ -237,5 +243,12 @@ router.post('/inventory', createInventoryHandler);
 router.patch('/inventory/:id', updateInventoryHandler);
 router.post('/inventory/:id/restock', restockInventoryHandler);
 router.patch('/services/:id/link-inventory', linkServiceInventoryHandler);
+
+// ---------------------------------------------------------------------------
+// 11. Digital Vehicle Inspection & Liability Media Uploads
+// ---------------------------------------------------------------------------
+router.post('/job-cards/:id/media', upload.single('image'), uploadJobCardMediaHandler);
+router.get('/job-cards/:id/media', getJobCardMediaHandler);
+router.delete('/job-cards/media/:mediaId', deleteJobCardMediaHandler);
 
 module.exports = router;

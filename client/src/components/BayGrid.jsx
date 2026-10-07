@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Play, CheckCircle, Receipt, ArrowRight, User, AlertCircle, RefreshCw } from 'lucide-react';
+import { Clock, Play, CheckCircle, Receipt, ArrowRight, User, AlertCircle, RefreshCw, Camera } from 'lucide-react';
 import axios from 'axios';
+import InspectionMediaModal from './InspectionMediaModal';
 
 export default function BayGrid({ onCheckoutTrigger }) {
   const [jobCards, setJobCards] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [mediaModalTarget, setMediaModalTarget] = useState(null);
 
   // Real-time ticking clock for elapsed counters
   useEffect(() => {
@@ -97,7 +99,7 @@ export default function BayGrid({ onCheckoutTrigger }) {
           </div>
 
           {/* Worker & Live Timer */}
-          <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-800/80 mb-3">
+          <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-800/80 mb-2.5">
             <span className="flex items-center gap-1 truncate text-slate-300">
               <User className="w-3.5 h-3.5 text-sky-400 shrink-0" />
               {card.worker?.name || 'Unassigned'}
@@ -106,6 +108,22 @@ export default function BayGrid({ onCheckoutTrigger }) {
               <Clock className="w-3.5 h-3.5" />
               {calculateElapsed(card.created_at)}
             </span>
+          </div>
+
+          {/* Digital Inspection Photos Button */}
+          <div className="mb-2">
+            <button
+              onClick={() => setMediaModalTarget(card)}
+              className="w-full bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800/80 hover:border-amber-500/50 py-1.5 px-2.5 rounded-lg text-[11px] font-semibold flex items-center justify-between transition"
+            >
+              <span className="flex items-center gap-1.5 text-amber-400">
+                <Camera className="w-3.5 h-3.5" />
+                Inspection Media
+              </span>
+              <span className="font-mono bg-slate-900 px-1.5 py-0.5 rounded text-[10px] text-slate-400 border border-slate-800">
+                {card.media?.length || 0} Photos
+              </span>
+            </button>
           </div>
         </div>
 
@@ -230,6 +248,15 @@ export default function BayGrid({ onCheckoutTrigger }) {
           </div>
         </div>
       </div>
+
+      {/* Digital Inspection & Liability Protection Media Modal */}
+      {mediaModalTarget && (
+        <InspectionMediaModal
+          jobCard={mediaModalTarget}
+          onClose={() => setMediaModalTarget(null)}
+          onMediaUpdated={loadJobCards}
+        />
+      )}
     </div>
   );
 }

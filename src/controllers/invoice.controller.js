@@ -42,13 +42,14 @@ async function checkoutHandler(req, res, next) {
     const { enumVal, accountType } = parsePaymentMode(payment_method);
     const discountNum = Math.max(0, parseFloat(discount_amount) || 0);
 
-    // Fetch Job Card with services and vehicle prior to transaction
+    // Fetch Job Card with services, vehicle, and media prior to transaction
     const targetJobCard = await prisma.jobCard.findUnique({
       where: { id: job_card_id },
       include: {
         services: { include: { service: true } },
         vehicle: true,
         invoice: true,
+        media: true,
       },
     });
 
@@ -186,7 +187,11 @@ async function checkoutHandler(req, res, next) {
     // POST-COMMIT NOTIFICATION DISPATCH (Asynchronous & Non-blocking)
     const servicesSummary = targetJobCard.services.map((s) => s.service?.name || 'Service').join(', ') || 'Wash Service';
 
-    // 1. Telegram Alert for Sleeping Partners
+    // 1. Telegram Alert for Sleeping Partners (with liability photo status)
+    const hasAfterPhotos = Boolean(
+      targetJobCard.media && targetJobCard.media.some((m) => m.type === 'AFTER' || m.type === 'DAMAGE_PROOF')
+    );
+
     notifyPaymentReceived({
       invoice_id: transactionResult.invoice.invoice_number,
       registration_number: targetJobCard.vehicle.registration_number,
@@ -195,6 +200,7 @@ async function checkoutHandler(req, res, next) {
       previous_balance: transactionResult.ledger.previous_balance,
       amount_received: transactionResult.ledger.amount_received,
       new_balance: transactionResult.ledger.new_balance,
+      has_after_media: hasAfterPhotos,
     }).catch((err) => {
       console.error('[Checkout] Telegram alert dispatch notice:', err.message);
     });

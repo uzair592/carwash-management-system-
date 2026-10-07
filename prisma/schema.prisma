@@ -49,6 +49,12 @@ enum AccountType {
   Main_Bank
 }
 
+enum VehicleMediaType {
+  BEFORE
+  AFTER
+  DAMAGE_PROOF
+}
+
 // -------------------------------------------------------------
 // MODELS
 // -------------------------------------------------------------
@@ -128,8 +134,21 @@ model JobCard {
 
   services      JobCardService[]
   invoice       Invoice?
+  media         VehicleMedia[]
 
   @@map("job_cards")
+}
+
+model VehicleMedia {
+  id          String           @id @default(uuid())
+  job_card_id String
+  job_card    JobCard          @relation(fields: [job_card_id], references: [id], onDelete: Cascade)
+  file_path   String
+  type        VehicleMediaType @default(BEFORE)
+  notes       String?          @db.Text
+  uploaded_at DateTime         @default(now())
+
+  @@map("vehicle_media")
 }
 
 model JobCardService {

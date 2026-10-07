@@ -126,13 +126,14 @@ async function notifyPaymentReceived({
   previous_balance = 0,
   amount_received = 0,
   new_balance = 0,
+  has_after_media = false,
 }) {
   const prevStr = Number(previous_balance).toLocaleString('en-US', { minimumFractionDigits: 2 });
   const deltaStr = Number(amount_received).toLocaleString('en-US', { minimumFractionDigits: 2 });
   const newStr = Number(new_balance).toLocaleString('en-US', { minimumFractionDigits: 2 });
   const timeStr = new Date().toLocaleTimeString();
 
-  const message = [
+  const messageLines = [
     `💰 *PAYMENT RECEIVED (INFLOW)*`,
     `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     `🧾 *Invoice ID:* \`${invoice_id}\``,
@@ -144,10 +145,15 @@ async function notifyPaymentReceived({
     `📈 *New Ledger Vault:* *Rs. ${newStr}*`,
     `───────────────────────────`,
     `⏰ *Settled At:* ${timeStr}`,
-    `🔒 _Guaranteed Atomic Transaction_`,
-  ].join('\n');
+  ];
 
-  return await sendTelegramMessage(message);
+  if (has_after_media) {
+    messageLines.push(`📸 _Media attached: Before/After photos logged securely on local server._`);
+  }
+
+  messageLines.push(`🔒 _Guaranteed Atomic Transaction_`);
+
+  return await sendTelegramMessage(messageLines.join('\n'));
 }
 
 /**
