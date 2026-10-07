@@ -73,47 +73,148 @@ async function main() {
       role: 'Cashier',
       pin_code: '5678',
       commission_rate: 0.00,
+      base_salary: 45000.00,
     },
   });
 
+  // Ensure Admin and Cashier base salaries are set
+  await prisma.user.update({
+    where: { id: '00000000-0000-0000-0000-000000000001' },
+    data: { base_salary: 80000.00 },
+  });
+  await prisma.user.update({
+    where: { id: '00000000-0000-0000-0000-000000000002' },
+    data: { base_salary: 45000.00 },
+  });
+
   const workers = [
-    { id: '00000000-0000-0000-0000-000000000003', name: 'Ali Hassan (Lead Detailer)', role: 'Worker', pin: '1111', commission: 10.00 },
-    { id: '00000000-0000-0000-0000-000000000004', name: 'Hamza Tariq (Bay 1 Tech)', role: 'Worker', pin: '2222', commission: 8.00 },
-    { id: '00000000-0000-0000-0000-000000000005', name: 'Bilal Ahmed (Bay 2 Tech)', role: 'Worker', pin: '3333', commission: 8.00 },
+    { id: '00000000-0000-0000-0000-000000000003', name: 'Ali Hassan (Lead Detailer)', role: 'Worker', pin: '1111', commission: 10.00, salary: 35000.00 },
+    { id: '00000000-0000-0000-0000-000000000004', name: 'Hamza Tariq (Bay 1 Tech)', role: 'Worker', pin: '2222', commission: 8.00, salary: 28000.00 },
+    { id: '00000000-0000-0000-0000-000000000005', name: 'Bilal Ahmed (Bay 2 Tech)', role: 'Worker', pin: '3333', commission: 8.00, salary: 28000.00 },
   ];
 
   for (const w of workers) {
     await prisma.user.upsert({
       where: { id: w.id },
-      update: {},
+      update: {
+        base_salary: w.salary,
+        commission_rate: w.commission,
+      },
       create: {
         id: w.id,
         name: w.name,
         role: w.role,
         pin_code: w.pin,
         commission_rate: w.commission,
+        base_salary: w.salary,
       },
     });
   }
 
-  console.log('✔ Users Provisioned: Shop Admin, Cashier, and 3 Shop Floor Technicians');
+  console.log('✔ Users Provisioned: Shop Admin, Cashier, and 3 Shop Floor Technicians with Base Salaries');
 
-  // 4. Seed Standard Services
+  // 4. Seed Detailing Consumables & High-Value Inventory
+  const inventoryItems = [
+    {
+      id: '10000000-0000-0000-0000-000000000001',
+      item_name: 'Gyeon Q2 Syncro Ceramic Coating (50ml)',
+      unit_type: 'ML',
+      current_stock: 250.00, // 5 bottles (50ml each)
+      cost_per_unit: 120.00, // Rs. 120 per ml
+      low_stock_threshold: 60.00,
+    },
+    {
+      id: '10000000-0000-0000-0000-000000000002',
+      item_name: 'XPEL Ultimate Plus TPU PPF Roll (15m)',
+      unit_type: 'Roll',
+      current_stock: 3.50,
+      cost_per_unit: 45000.00,
+      low_stock_threshold: 1.00,
+    },
+    {
+      id: '10000000-0000-0000-0000-000000000003',
+      item_name: 'Meguiar Hyper Wash High Foam Shampoo',
+      unit_type: 'ML',
+      current_stock: 5000.00,
+      cost_per_unit: 2.50,
+      low_stock_threshold: 800.00,
+    },
+    {
+      id: '10000000-0000-0000-0000-000000000004',
+      item_name: 'Koch Chemie Heavy Cut H9 Compound',
+      unit_type: 'ML',
+      current_stock: 1000.00,
+      cost_per_unit: 8.00,
+      low_stock_threshold: 200.00,
+    },
+  ];
+
+  for (const item of inventoryItems) {
+    await prisma.inventory.upsert({
+      where: { id: item.id },
+      update: {
+        item_name: item.item_name,
+        unit_type: item.unit_type,
+        cost_per_unit: item.cost_per_unit,
+        low_stock_threshold: item.low_stock_threshold,
+      },
+      create: item,
+    });
+  }
+  console.log('✔ Consumable Inventory Seeded: Ceramic Coatings, PPF Rolls, Foam Shampoos');
+
+  // 5. Seed Standard Services & Link Yield Consumables
   const standardServices = [
-    { name: 'Standard Wash', category: 'Wash', price: 1000.00, estimated_time: 25 },
-    { name: 'Full Detailing', category: 'Detailing', price: 15000.00, estimated_time: 180 },
-    { name: 'Ceramic Coating', category: 'Detailing', price: 25000.00, estimated_time: 300 },
-    { name: 'Front PPF', category: 'PPF', price: 40000.00, estimated_time: 360 },
+    {
+      name: 'Standard Wash',
+      category: 'Wash',
+      price: 1000.00,
+      estimated_time: 25,
+      linked_inventory_id: '10000000-0000-0000-0000-000000000003',
+      inventory_deduction_amount: 100.00, // 100 ML shampoo per wash
+    },
+    {
+      name: 'Full Detailing',
+      category: 'Detailing',
+      price: 15000.00,
+      estimated_time: 180,
+      linked_inventory_id: '10000000-0000-0000-0000-000000000004',
+      inventory_deduction_amount: 150.00, // 150 ML compound per detailing
+    },
+    {
+      name: 'Ceramic Coating',
+      category: 'Detailing',
+      price: 25000.00,
+      estimated_time: 300,
+      linked_inventory_id: '10000000-0000-0000-0000-000000000001',
+      inventory_deduction_amount: 50.00, // 50 ML bottle per car
+    },
+    {
+      name: 'Front PPF',
+      category: 'PPF',
+      price: 40000.00,
+      estimated_time: 360,
+      linked_inventory_id: '10000000-0000-0000-0000-000000000002',
+      inventory_deduction_amount: 0.25, // 0.25 roll per front bumper/hood
+    },
   ];
 
   for (const s of standardServices) {
     const existing = await prisma.service.findFirst({ where: { name: s.name } });
     if (!existing) {
       await prisma.service.create({ data: s });
+    } else {
+      await prisma.service.update({
+        where: { id: existing.id },
+        data: {
+          linked_inventory_id: s.linked_inventory_id,
+          inventory_deduction_amount: s.inventory_deduction_amount,
+        },
+      });
     }
   }
 
-  console.log(`✔ Standard Services Seeded: ${standardServices.map((s) => s.name).join(', ')}`);
+  console.log(`✔ Standard Services Seeded & Linked to Consumables: ${standardServices.map((s) => s.name).join(', ')}`);
   console.log('========================================================');
   console.log(' Production database seed completed successfully!');
   console.log(' Ready for Day 1 operations.');

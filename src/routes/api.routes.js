@@ -10,6 +10,14 @@ const { checkoutHandler, listInvoicesHandler } = require('../controllers/invoice
 const { createExpenseHandler, listExpensesHandler } = require('../controllers/expense.controller');
 const { processPayment, recordExpense } = require('../services/ledger.service');
 const dashboardRoutes = require('./dashboard.routes');
+const payrollRoutes = require('./payroll.routes');
+const {
+  listInventoryHandler,
+  createInventoryHandler,
+  updateInventoryHandler,
+  restockInventoryHandler,
+  linkServiceInventoryHandler,
+} = require('../controllers/inventory.controller');
 
 // ---------------------------------------------------------------------------
 // 1. Health & Service Diagnostics
@@ -215,5 +223,19 @@ router.post('/expense', async (req, res, next) => {
     next(err);
   }
 });
+
+// ---------------------------------------------------------------------------
+// 9. Monthly Staff Payroll Engine
+// ---------------------------------------------------------------------------
+router.use('/payroll', payrollRoutes);
+
+// ---------------------------------------------------------------------------
+// 10. Consumables & Inventory Yield Management
+// ---------------------------------------------------------------------------
+router.get('/inventory', listInventoryHandler);
+router.post('/inventory', createInventoryHandler);
+router.patch('/inventory/:id', updateInventoryHandler);
+router.post('/inventory/:id/restock', restockInventoryHandler);
+router.patch('/services/:id/link-inventory', linkServiceInventoryHandler);
 
 module.exports = router;

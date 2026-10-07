@@ -1,4 +1,5 @@
-import { Car, LayoutGrid, Trophy, Sliders, Vault, RefreshCw, Sparkles, Activity, Eye } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Car, LayoutGrid, Trophy, Sliders, Vault, RefreshCw, Sparkles, Activity, Eye, ShieldCheck, Boxes } from 'lucide-react';
 import axios from 'axios';
 
 import IntakeForm from './components/IntakeForm';
@@ -7,9 +8,15 @@ import CheckoutModal from './components/CheckoutModal';
 import SettingsToggle from './components/SettingsToggle';
 import Leaderboard from './components/Leaderboard';
 import InvestorDashboard from './pages/InvestorDashboard';
+import AdminManagement from './pages/AdminManagement';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('intake'); // 'intake' | 'bays' | 'leaderboard' | 'settings'
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined' && window.location.pathname === '/admin') {
+      return 'admin';
+    }
+    return 'intake';
+  });
   const [checkoutTarget, setCheckoutTarget] = useState(null);
   const [vaultBalance, setVaultBalance] = useState({ cash: 0, bank: 0 });
   const [isSyncing, setIsSyncing] = useState(false);
@@ -163,6 +170,18 @@ export default function App() {
             <Eye className="w-4 h-4" />
             5. Investor Portal
           </button>
+
+          <button
+            onClick={() => setActiveTab('admin')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap ${
+              activeTab === 'admin'
+                ? 'bg-gradient-to-r from-indigo-500 to-sky-600 text-white shadow-lg shadow-indigo-500/20'
+                : 'text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/40'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            6. Admin Portal (Yield & Payroll)
+          </button>
         </div>
       </nav>
 
@@ -173,6 +192,7 @@ export default function App() {
         {activeTab === 'leaderboard' && <Leaderboard />}
         {activeTab === 'settings' && <SettingsToggle />}
         {activeTab === 'investor' && <InvestorDashboard />}
+        {activeTab === 'admin' && <AdminManagement />}
       </main>
 
       {/* Cashier Checkout Modal */}

@@ -14,11 +14,14 @@ async function vehicleIntakeHandler(req, res, next) {
       make,
       model,
       customer_phone,
-      services = [], // Array of service IDs or service objects { service_id, price }
+      services, // Array of service IDs or service objects { service_id, price }
+      service_ids,
       intake_notes,
       worker_id,
       photos_url,
     } = req.body;
+
+    const targetServices = Array.isArray(services) && services.length > 0 ? services : (Array.isArray(service_ids) ? service_ids : []);
 
     if (!registration_number || !customer_phone) {
       return res.status(400).json({
@@ -77,8 +80,8 @@ async function vehicleIntakeHandler(req, res, next) {
 
     // 4. Attach Requested Services
     const assignedServices = [];
-    if (Array.isArray(services) && services.length > 0) {
-      for (const item of services) {
+    if (Array.isArray(targetServices) && targetServices.length > 0) {
+      for (const item of targetServices) {
         let serviceRecord = null;
         const serviceIdOrName = typeof item === 'string' ? item : (item.service_id || item.id || item.name);
 

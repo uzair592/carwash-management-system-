@@ -1,5 +1,5 @@
 const prisma = require('../prisma');
-const { notifyPaymentReceived, sendSMSReceipt } = require('../services/notification.service');
+const { notifyPaymentReceived, sendSMSReceipt, notifyLowStock } = require('../services/notification.service');
 
 /**
  * Normalizes payment method string to Prisma enum & target ledger account.
@@ -25,7 +25,8 @@ function parsePaymentMode(input) {
  * 2. Marks JobCard Completed
  * 3. Creates Invoice
  * 4. Mutates Ledger row atomically
- * 5. Dispatches post-commit Telegram alert & SMS receipt
+ * 5. Deducts linked consumables from Inventory (Yield Engine)
+ * 6. Dispatches post-commit Telegram alert, SMS receipt, & Low Stock warnings
  */
 async function checkoutHandler(req, res, next) {
   try {
@@ -123,6 +124,52 @@ async function checkoutHandler(req, res, next) {
         },
       });
 
+      // 5. Yield Engine: Automatic Consumable Inventory Deduction
+      const lowStockAlerts = [];
+      const deductedItems = [];
+
+      for (const item of targetJobCard.services) {
+        const srv = item.service;
+        if (srv && srv.linked_inventory_id && srv.inventory_deduction_amount) {
+          const deductAmount = parseFloat(srv.inventory_deduction_amount);
+          if (deductAmount > 0) {
+            const invItem = await tx.inventory.findUnique({
+              where: { id: srv.linked_inventory_id },
+            });
+            if (invItem) {
+              const curStock = parseFloat(invItem.current_stock);
+              const newStock = Math.max(0, parseFloat((curStock - deductAmount).toFixed(2)));
+              const threshold = parseFloat(invItem.low_stock_threshold || 10);
+
+              const updatedInv = await tx.inventory.update({
+                where: { id: srv.linked_inventory_id },
+                data: {
+                  current_stock: newStock,
+                  updated_at: new Date(),
+                },
+              });
+
+              deductedItems.push({
+                inventory_id: updatedInv.id,
+                item_name: updatedInv.item_name,
+                deducted: deductAmount,
+                remaining: newStock,
+                unit: updatedInv.unit_type,
+              });
+
+              if (newStock <= threshold) {
+                lowStockAlerts.push({
+                  itemName: updatedInv.item_name,
+                  amount: newStock,
+                  unit: updatedInv.unit_type,
+                  threshold: threshold,
+                });
+              }
+            }
+          }
+        }
+      }
+
       return {
         invoice: createdInvoice,
         ledger: {
@@ -131,6 +178,8 @@ async function checkoutHandler(req, res, next) {
           amount_received: finalAmount,
           new_balance: newBal,
         },
+        deductedItems,
+        lowStockAlerts,
       };
     });
 
@@ -166,12 +215,22 @@ async function checkoutHandler(req, res, next) {
       });
     }
 
+    // 3. Low Stock Telegram Alerts for Absentee Partners
+    if (transactionResult.lowStockAlerts && transactionResult.lowStockAlerts.length > 0) {
+      for (const alert of transactionResult.lowStockAlerts) {
+        notifyLowStock(alert).catch((err) => {
+          console.error('[Checkout] Low stock alert dispatch notice:', err.message);
+        });
+      }
+    }
+
     return res.status(200).json({
       status: 'success',
       message: 'Checkout completed successfully. Ledger updated atomically.',
       data: {
         invoice: transactionResult.invoice,
         ledger: transactionResult.ledger,
+        inventory_deductions: transactionResult.deductedItems,
       },
     });
   } catch (error) {

@@ -185,10 +185,29 @@ async function notifyExpenseRecorded({
   return await sendTelegramMessage(message);
 }
 
+/**
+ * Format and trigger: Low Stock Consumable Alert
+ * Prompt: "⚠️ LOW STOCK ALERT: [Item Name] is down to [Amount] [Unit]. Please restock."
+ */
+async function notifyLowStock({ itemName, amount, unit, threshold }) {
+  const message = [
+    `⚠️ *LOW STOCK ALERT: CONSUMABLE DEPLETED*`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `📦 *Consumable:* *${itemName}*`,
+    `📉 *Current Stock:* *${amount} ${unit}*`,
+    `⚡ *Threshold Alert:* ${threshold} ${unit}`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `⚠️ LOW STOCK ALERT: ${itemName} is down to ${amount} ${unit}. Please restock.`,
+  ].join('\n');
+
+  return await sendTelegramMessage(message);
+}
+
 module.exports = {
   sendTelegramMessage,
   sendSMSReceipt,
   notifyJobCardCreated,
   notifyPaymentReceived,
   notifyExpenseRecorded,
+  notifyLowStock,
 };

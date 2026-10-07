@@ -68,6 +68,7 @@ model User {
   role            UserRole    @default(Worker)
   pin_code        String      @db.VarChar(10)
   commission_rate Decimal     @default(0.00) @db.Decimal(5, 2)
+  base_salary     Decimal     @default(0.00) @db.Decimal(10, 2)
   is_active       Boolean     @default(true)
   created_at      DateTime    @default(now())
   updated_at      DateTime    @updatedAt
@@ -95,14 +96,17 @@ model Vehicle {
 }
 
 model Service {
-  id             String          @id @default(uuid())
-  name           String          @db.VarChar(100)
-  category       ServiceCategory @default(Wash)
-  price          Decimal         @db.Decimal(10, 2)
-  estimated_time Int             // In minutes
-  is_active      Boolean         @default(true)
-  created_at     DateTime        @default(now())
-  updated_at     DateTime        @updatedAt
+  id                         String          @id @default(uuid())
+  name                       String          @db.VarChar(100)
+  category                   ServiceCategory @default(Wash)
+  price                      Decimal         @db.Decimal(10, 2)
+  estimated_time             Int             // In minutes
+  is_active                  Boolean         @default(true)
+  linked_inventory_id        String?
+  linked_inventory           Inventory?      @relation(fields: [linked_inventory_id], references: [id], onDelete: SetNull)
+  inventory_deduction_amount Decimal?        @db.Decimal(10, 2)
+  created_at                 DateTime        @default(now())
+  updated_at                 DateTime        @updatedAt
 
   job_card_items JobCardService[]
 
@@ -156,13 +160,16 @@ model Invoice {
 }
 
 model Inventory {
-  id            String   @id @default(uuid())
-  item_name     String   @db.VarChar(100)
-  unit_type     UnitType @default(Unit)
-  current_stock Decimal  @db.Decimal(10, 2)
-  cost_per_unit Decimal  @db.Decimal(10, 2)
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  id                  String    @id @default(uuid())
+  item_name           String    @db.VarChar(100)
+  unit_type           UnitType  @default(Unit)
+  current_stock       Decimal   @db.Decimal(10, 2)
+  cost_per_unit       Decimal   @db.Decimal(10, 2)
+  low_stock_threshold Decimal   @default(10.00) @db.Decimal(10, 2)
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  services            Service[]
 
   @@map("inventory")
 }
