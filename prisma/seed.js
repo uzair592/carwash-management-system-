@@ -4,7 +4,26 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding initial database records...');
 
-  // 1. Initialize Ledger Accounts
+  // 1. Initialize System Feature Flags
+  const defaultSettings = [
+    { key: 'ENABLE_SMS_GATEWAY', value: false },
+    { key: 'ENABLE_CAMERA_ANPR', value: false },
+    { key: 'ENABLE_TELEGRAM_ALERTS', value: true },
+  ];
+
+  for (const setting of defaultSettings) {
+    await prisma.systemSetting.upsert({
+      where: { key: setting.key },
+      update: {},
+      create: {
+        key: setting.key,
+        value: setting.value,
+      },
+    });
+  }
+  console.log('Provisioned System Feature Flags:', defaultSettings);
+
+  // 2. Initialize Ledger Accounts
   const cashDrawer = await prisma.ledger.upsert({
     where: { account_type: 'Cash_Drawer' },
     update: {},
@@ -28,7 +47,7 @@ async function main() {
     Main_Bank: mainBank.current_balance,
   });
 
-  // 2. Initialize Default Admin & Cashier Users
+  // 3. Initialize Default Admin & Cashier Users
   const admin = await prisma.user.upsert({
     where: { id: '00000000-0000-0000-0000-000000000001' },
     update: {},
@@ -55,7 +74,7 @@ async function main() {
 
   console.log('Provisioned Users:', [admin.name, cashier.name]);
 
-  // 3. Initialize Baseline Wash & Detailing Services
+  // 4. Initialize Baseline Wash & Detailing Services
   const services = [
     { name: 'Express Body Foam Wash', category: 'Wash', price: 1000.00, estimated_time: 25 },
     { name: 'Premium Wash & Undercarriage', category: 'Wash', price: 1800.00, estimated_time: 40 },

@@ -48,15 +48,19 @@ app.use((err, req, res, next) => {
   });
 });
 
+const { initSettings } = require('./services/settings.service');
+
 // Server Initialization
 let server;
 if (process.env.NODE_ENV !== 'test') {
-  server = app.listen(PORT, () => {
-    console.log(`=======================================================`);
-    console.log(` Car Wash Management System - Core API`);
-    console.log(` Server running locally on: http://localhost:${PORT}`);
-    console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`=======================================================`);
+  initSettings().then(() => {
+    server = app.listen(PORT, () => {
+      console.log(`=======================================================`);
+      console.log(` Car Wash Management System - Core API`);
+      console.log(` Server running locally on: http://localhost:${PORT}`);
+      console.log(` Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`=======================================================`);
+    });
   });
 }
 
