@@ -70,7 +70,7 @@ export default function App() {
         bank: accounts.find((a) => a.account_type === 'Main_Bank')?.current_balance ?? 0,
         queued: bayRes.data.queue?.length || 0, ready: bayRes.data.ready_for_billing?.length || 0, register });
       setLastSync(new Date()); setSyncState('online');
-      setIsRegisterModalOpen(Boolean(isCashier && register && !register.is_open));
+      setIsRegisterModalOpen(false);
     } catch {
       if (requestRole === roleRef.current) setSyncState('offline');
     } finally { syncInFlight.current = false; }
@@ -98,7 +98,7 @@ export default function App() {
       <div className="app-workspace">
         <header className="app-topbar"><div className="flex items-center gap-3 min-w-0"><button className="icon-button mobile-only" aria-label="Open navigation" onClick={() => setMobileNav(true)}><Menu size={21} /></button><span className="breadcrumb">Main workshop <ChevronRight size={14} /> <strong>{page.title}</strong></span></div><div className="topbar-actions"><span className={`connection ${syncState === 'offline' ? 'connection-error' : ''}`} role="status"><i />{syncState === 'offline' ? 'Server unavailable' : syncState === 'loading' ? 'Connecting…' : 'Shop server connected'}</span><button className="icon-button" onClick={sync} aria-label="Refresh shop data" disabled={syncState === 'loading'}><RefreshCw size={17} className={syncState === 'loading' ? 'animate-spin' : ''} /></button><span className="topbar-date">{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Karachi' })}</span></div></header>
         <main id="workspace-content" className="workspace-content" tabIndex={-1}>
-          <div className="workspace-heading"><div><span className="eyebrow">CAR WASH & DETAILING</span><h1>{page.title}</h1><p>{page.description}</p></div><div className="heading-actions">{isCashier && <button className="btn btn-secondary" disabled={!registerData || syncState === 'offline'} onClick={() => registerData?.is_open ? setIsCloseShiftModalOpen(true) : setIsRegisterModalOpen(true)}><Wallet size={16} />{registerData?.is_open ? 'Close shift' : 'Open shift'}</button>}{isCashier && activeTab !== 'intake' && <button className="btn btn-primary" onClick={() => navigate('intake')}><Plus size={17} />New vehicle</button>}</div></div>
+          <div className="workspace-heading"><div><span className="eyebrow">CAR WASH & DETAILING</span><h1>{page.title}</h1><p>{page.description}</p></div><div className="heading-actions">{isCashier && activeTab !== 'intake' && <button className="btn btn-primary" onClick={() => navigate('intake')}><Plus size={17} />New vehicle</button>}</div></div>
           {syncState === 'offline' && <div className="connection-notice" role="alert">Unable to reach the shop server. {lastSync ? `Showing the last update from ${lastSync.toLocaleTimeString()}.` : 'Check the server and local network.'} <button onClick={sync}>Try again</button></div>}
           {['intake', 'bays', 'billing'].includes(activeTab) && (
             <div className="workspace-summary grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6" id="executive-kpi-bar">
@@ -157,8 +157,7 @@ export default function App() {
               {/* Card 3: Cash Drawer Balance */}
               {isCashier ? (
                 <div
-                  onClick={() => (registerData?.is_open ? setIsCloseShiftModalOpen(true) : setIsRegisterModalOpen(true))}
-                  className="bg-white border border-slate-200/90 hover:border-emerald-400 rounded-xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer group flex items-center justify-between"
+                  className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-sm hover:shadow-md transition-all flex items-center justify-between"
                 >
                   <div className="space-y-1">
                     <p className="text-[11px] font-bold tracking-wider uppercase text-slate-500">
@@ -170,11 +169,11 @@ export default function App() {
                       </span>
                     </div>
                     <p className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${registerData?.is_open ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-                      <span>{registerData?.is_open ? 'Drawer Shift Open' : 'Drawer Closed'}</span>
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>Cashier Active</span>
                     </p>
                   </div>
-                  <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 shadow-xs">
                     <Wallet size={24} />
                   </div>
                 </div>
