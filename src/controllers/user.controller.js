@@ -22,6 +22,7 @@ function sanitizeUser(user) {
     base_salary: parseFloat(user.base_salary || 0),
     is_active: user.is_active,
     has_password: Boolean(user.password_hash),
+    permissions: require('../services/permission.service').effectivePermissions(user),
     has_pin: Boolean(user.pin_code),
     created_at: user.created_at,
     updated_at: user.updated_at
@@ -185,6 +186,10 @@ async function createUserHandler(req, res, next) {
         message: 'Staff member name is required.'
       });
     }
+    if (!['Admin', 'Accountant', 'Manager', 'Cashier', 'Worker', 'Investor'].includes(role)) return res.status(400).json({
+      status: 'error',
+      message: 'Choose a valid role.'
+    });
     const cleanName = String(name).trim();
 
     // Check duplicate name
@@ -202,17 +207,17 @@ async function createUserHandler(req, res, next) {
         message: `A staff member with name "${cleanName}" already exists.`
       });
     }
-    if (!password || String(password).length < 8) return res.status(400).json({
+    if (role !== 'Worker' && !password || password && String(password).length < 8) return res.status(400).json({
       status: 'error',
       message: 'A password of at least 8 characters is required.'
     });
     const initialPassword = password;
     const passwordHash = hashSecret(initialPassword);
-    if (!/^\d{4,8}$/.test(String(pin_code || ''))) return res.status(400).json({
+    if ((['Admin', 'Manager'].includes(role) || pin_code) && !/^\d{4,8}$/.test(String(pin_code || ''))) return res.status(400).json({
       status: 'error',
       message: 'PIN must contain 4 to 8 digits.'
     });
-    const pinHash = hashSecret(pin_code);
+    const pinHash = pin_code ? hashSecret(pin_code) : '';
     const newUser = await prisma.user.create({
       data: {
         name: cleanName,
@@ -255,9 +260,7 @@ async function createUserHandler(req, res, next) {
  */
 async function updateUserHandler(req, res, next) {
   try {
-    const {
-      id
-    } = req.params;
+    const F = require('../services/finance.service');
     const {
       name,
       role,
@@ -266,64 +269,57 @@ async function updateUserHandler(req, res, next) {
       base_salary,
       is_active
     } = req.body;
-    const user = await prisma.user.findUnique({
-      where: {
-        id
-      }
-    });
-    if (!user) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'User not found.'
-      });
+    if (role !== undefined && !['Admin', 'Accountant', 'Manager', 'Cashier', 'Worker', 'Investor'].includes(role)) throw F.error('Choose a valid role.');
+    if (is_active !== undefined && typeof is_active !== 'boolean') throw F.error('Active status must be a switch.');
+    const data = {};
+    if (name !== undefined) {
+      if (!String(name).trim()) throw F.error('Name is required.');
+      data.name = String(name).trim();
     }
-    if (user.role === 'Admin' && (role && role !== 'Admin' || is_active === false) && (await prisma.user.count({
-      where: {
-        role: 'Admin',
-        is_active: true
-      }
-    })) <= 1) return res.status(409).json({
-      status: 'error',
-      message: 'Keep at least one active Admin account.'
+    if (role !== undefined) data.role = role;
+    if (is_active !== undefined) data.is_active = is_active;
+    for (const key of ['commission_rate', 'flat_commission', 'base_salary']) if (req.body[key] !== undefined) data[key] = F.amount(req.body[key], {
+      zero: true
     });
-    const updated = await prisma.user.update({
-      where: {
-        id
-      },
-      data: {
-        name: name ? String(name).trim() : undefined,
-        role: role !== undefined ? role : undefined,
-        commission_rate: commission_rate !== undefined ? parseFloat(commission_rate) : undefined,
-        flat_commission: flat_commission !== undefined ? parseFloat(flat_commission) : undefined,
-        base_salary: base_salary !== undefined ? parseFloat(base_salary) : undefined,
-        is_active: is_active !== undefined ? Boolean(is_active) : undefined,
-        session_version: {
-          increment: 1
+    if (data.commission_rate > 100) throw F.error('Commission percentage cannot exceed 100.');
+    const updated = await F.transact(async tx => {
+      await F.lock(tx, 'user-admins');
+      const user = await tx.user.findUnique({
+        where: {
+          id: req.params.id
         }
-      }
-    });
-    await prisma.auditLog.create({
-      data: {
-        action: 'USER_UPDATED',
-        description: `Staff account "${user.name}" updated (Role: ${user.role} -> ${updated.role}) by ${req.user?.name || 'Admin'}.`,
-        performed_by_user_id: req.user?.id || null,
-        performed_by_name: req.user?.name || 'Shop Admin',
-        metadata: {
-          user_id: id,
-          changes: {
-            role,
-            is_active
+      });
+      if (!user) throw F.error('User not found.', 404);
+      if (user.role === 'Admin' && user.is_active && (role && role !== 'Admin' || is_active === false) && (await tx.user.count({
+        where: {
+          role: 'Admin',
+          is_active: true
+        }
+      })) <= 1) throw F.error('Keep at least one active Admin account.', 409);
+      const result = await tx.user.update({
+        where: {
+          id: user.id
+        },
+        data: {
+          ...data,
+          session_version: {
+            increment: 1
           }
         }
-      }
+      });
+      await F.audit(tx, req, 'USER_UPDATED', 'Staff account updated.', {
+        user_id: user.id,
+        role: result.role,
+        is_active: result.is_active
+      });
+      return result;
     });
-    return res.status(200).json({
+    res.json({
       status: 'success',
-      message: 'Staff account updated successfully.',
       data: sanitizeUser(updated)
     });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 }
 
@@ -477,67 +473,44 @@ async function updatePinHandler(req, res, next) {
  */
 async function toggleUserStatusHandler(req, res, next) {
   try {
-    const {
-      id
-    } = req.params;
-    const targetUser = await prisma.user.findUnique({
-      where: {
-        id
-      }
-    });
-    if (!targetUser) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'User not found.'
+    const F = require('../services/finance.service');
+    const updated = await F.transact(async tx => {
+      await F.lock(tx, 'user-admins');
+      const user = await tx.user.findUnique({
+        where: {
+          id: req.params.id
+        }
       });
-    }
-
-    // Safety check: Don't deactivate the last active admin
-    if (targetUser.role === 'Admin' && targetUser.is_active) {
-      const activeAdmins = await prisma.user.count({
+      if (!user) throw F.error('User not found.', 404);
+      if (user.role === 'Admin' && user.is_active && (await tx.user.count({
         where: {
           role: 'Admin',
           is_active: true
         }
+      })) <= 1) throw F.error('Keep at least one active Admin account.', 409);
+      const value = await tx.user.update({
+        where: {
+          id: user.id
+        },
+        data: {
+          is_active: !user.is_active,
+          session_version: {
+            increment: 1
+          }
+        }
       });
-      if (activeAdmins <= 1) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'Cannot deactivate the sole remaining Admin account.'
-        });
-      }
-    }
-    const newStatus = !targetUser.is_active;
-    const updated = await prisma.user.update({
-      where: {
-        id
-      },
-      data: {
-        is_active: newStatus,
-        session_version: {
-          increment: 1
-        }
-      }
+      await F.audit(tx, req, value.is_active ? 'USER_ACTIVATED' : 'USER_DEACTIVATED', 'Staff access status changed.', {
+        user_id: user.id,
+        is_active: value.is_active
+      });
+      return value;
     });
-    await prisma.auditLog.create({
-      data: {
-        action: newStatus ? 'USER_ACTIVATED' : 'USER_DEACTIVATED',
-        description: `Staff account "${targetUser.name}" was ${newStatus ? 'activated' : 'deactivated'} by ${req.user?.name || 'Admin'}.`,
-        performed_by_user_id: req.user?.id || null,
-        performed_by_name: req.user?.name || 'Shop Admin',
-        metadata: {
-          target_user_id: id,
-          new_status: newStatus
-        }
-      }
-    });
-    return res.status(200).json({
+    res.json({
       status: 'success',
-      message: `Staff member "${targetUser.name}" is now ${newStatus ? 'Active' : 'Deactivated'}.`,
       data: sanitizeUser(updated)
     });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 }
 module.exports = {

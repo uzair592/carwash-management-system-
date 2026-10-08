@@ -15,6 +15,7 @@ datasource db {
 // -------------------------------------------------------------
 
 enum UserRole {
+  Accountant
   Investor
   Admin
   Manager
@@ -115,6 +116,7 @@ model User {
   pin_code        String   @db.VarChar(255)
   password_hash   String?  @db.VarChar(255)
   session_version Int      @default(0)
+  permissions     Json?
   commission_rate Decimal  @default(0.00) @db.Decimal(5, 2)
   flat_commission Decimal  @default(0.00) @db.Decimal(10, 2)
   base_salary     Decimal  @default(0.00) @db.Decimal(10, 2)
@@ -193,6 +195,7 @@ model JobCard {
   media              VehicleMedia[]
   material_issuances MaterialIssuance[]
 
+  services_version    Int     @default(0)
   commission_snapshot Json?
   request_key         String? @unique
 
@@ -523,6 +526,7 @@ model BusinessBranding {
   token_template     String   @default("STANDARD_BOX") @db.VarChar(50)
   vehicle_makes      String?  @db.Text
   show_business_name Boolean  @default(true)
+  ticket_show_prices Boolean  @default(false)
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
 
@@ -574,4 +578,31 @@ model DocumentCounter {
   value Int    @default(0)
 
   @@map("document_counters")
+}
+
+model PrinterSetting {
+  id           String   @id @default("shop")
+  mode         String   @default("BROWSER")
+  host         String?
+  printer_name String?
+  port         Int      @default(9100)
+  auto_cut     Boolean  @default(false)
+  cut_feed     Int      @default(3)
+  paper_width  Int      @default(80)
+  updated_at   DateTime @updatedAt
+
+  @@map("printer_settings")
+}
+
+model PrinterJob {
+  id           String    @id @default(uuid())
+  request_key  String    @unique
+  kind         String
+  document_id  String
+  status       String    @default("SENDING")
+  requested_by String
+  created_at   DateTime  @default(now())
+  completed_at DateTime?
+
+  @@map("printer_jobs")
 }

@@ -60,13 +60,15 @@ async function updateBrandingHandler(req, res, next) {
       invoice_template,
       token_template,
       vehicle_makes,
-      show_business_name
+      show_business_name,
+      ticket_show_prices
     } = req.body;
     const updated = await prisma.businessBranding.update({
       where: {
         id: branding.id
       },
       data: {
+        ticket_show_prices: typeof ticket_show_prices === 'boolean' ? ticket_show_prices : undefined,
         business_name: business_name !== undefined ? String(business_name).trim() : undefined,
         tagline: tagline !== undefined ? String(tagline).trim() : undefined,
         address: address !== undefined ? String(address).trim() : undefined,

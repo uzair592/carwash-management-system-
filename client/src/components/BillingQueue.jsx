@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Receipt, Clock, Car, User, CheckCircle2, AlertCircle, RotateCw, CreditCard, Banknote, Search, Sparkles, ArrowRight, ShieldCheck, RotateCcw, Printer, X } from 'lucide-react';
 import axios from 'axios';
+import ServiceEditorModal from './ServiceEditorModal';
+import { useAuth } from '../context/AuthContext';
 import InvoiceBalanceModal from './InvoiceBalanceModal';
 import PinPadModal from './PinPadModal';
 import { printThermal } from '../utils/print';
@@ -12,6 +14,10 @@ const money = val => Number(val || 0).toLocaleString('en-PK', {
 export default function BillingQueue({
   onOpenCheckout
 }) {
+  const {
+    can
+  } = useAuth();
+  const [editTarget, setEditTarget] = useState(null);
   const [balanceTarget, setBalanceTarget] = useState(null);
   const [historySearch, setHistorySearch] = useState('');
   const [historyOffset, setHistoryOffset] = useState(0);
@@ -66,7 +72,8 @@ export default function BillingQueue({
   };
   const handleRefundInitiate = invoice => {
     setRefundTargetInvoice(invoice);
-    setIsPinModalOpen(true);
+    if (!can('billing.refund')) return;
+    setIsPinModalOpen(false);
   };
   const handlePinSuccess = async adminPin => {
     if (!refundTargetInvoice) return;
@@ -98,6 +105,8 @@ export default function BillingQueue({
     return plate.includes(q) || cust.includes(q) || ticket.includes(q);
   });
   return <div className="billing-workspace space-y-5">
+      {editTarget && <ServiceEditorModal job={editTarget} onClose={() => setEditTarget(null)} onSaved={loadData} />}
+      {refundTargetInvoice && !isPinModalOpen && <div className="dialog-backdrop"><section className="surface p-5 w-full max-w-md"><h2 className="font-bold text-lg">Refund invoice</h2><p>{refundTargetInvoice.invoice_number} · Rs. {money(refundTargetInvoice.paid_amount)}</p><label className="field-label mt-3">Reason<input className="field" value={refundReason} onChange={e => setRefundReason(e.target.value)} /></label><div className="compact-dialog-footer"><button className="btn btn-secondary" onClick={() => setRefundTargetInvoice(null)}>Cancel</button><button className="btn btn-primary" disabled={!refundReason.trim()} onClick={() => handlePinSuccess()}>Confirm refund</button></div></section></div>}
       {/* Header Banner */}
       <div className="billing-toolbar">
         <div className="flex items-center gap-3.5">
@@ -207,7 +216,8 @@ export default function BillingQueue({
                       </span>
                     </div>
 
-                    <button type="button" onClick={() => onOpenCheckout(job)} className="w-full py-3.5 px-4 rounded-lg bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-500 active:scale-[0.98] text-slate-950 font-semibold text-sm flex items-center justify-center gap-2 transition shadow-sm group-hover:shadow-amber-500/30">
+                    {can('job.services') && <button type="button" className="btn btn-secondary mb-2 w-full" onClick={() => setEditTarget(job)}>Edit services</button>}
+                    <button type="button" onClick={() => onOpenCheckout(job)} disabled={!can('billing.manage')} className="w-full py-3.5 px-4 rounded-lg bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-500 active:scale-[0.98] text-slate-950 font-semibold text-sm flex items-center justify-center gap-2 transition shadow-sm group-hover:shadow-amber-500/30">
                       <Receipt className="w-4 h-4 text-slate-950" />
                       <span>Collect payment</span>
                       <ArrowRight className="w-4 h-4 ml-auto text-slate-950" />
@@ -278,11 +288,11 @@ export default function BillingQueue({
                   </td>
                   <td className="py-3 px-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">{Number(inv.balance_due) > 0 && <button className="btn btn-secondary" onClick={() => setBalanceTarget(inv)}>Collect Rs. {money(inv.balance_due)}</button>}
-                      <button type="button" onClick={() => setPrintInvoiceTarget(inv)} className="text-xs font-semibold text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1">
+                      <button type="button" onClick={() => setPrintInvoiceTarget(inv)} className="btn-print text-xs font-semibold text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1">
                         <Printer className="w-3.5 h-3.5" />
                         Print Invoice
                       </button>
-                      {Number(inv.paid_amount) > 0 && <button type="button" onClick={() => handleRefundInitiate(inv)} className="text-xs font-semibold text-rose-700 hover:text-rose-700 bg-rose-50 hover:bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-lg transition">
+                      {Number(inv.paid_amount) > 0 && <button type="button" disabled={!can('billing.refund')} onClick={() => handleRefundInitiate(inv)} className="text-xs font-semibold text-rose-700 hover:text-rose-700 bg-rose-50 hover:bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-lg transition">
                           Refund
                         </button>}
                     </div>
@@ -332,7 +342,7 @@ export default function BillingQueue({
               <button type="button" className="btn btn-secondary px-4 py-2 text-xs rounded-lg" onClick={() => setPrintInvoiceTarget(null)}>
                 Close
               </button>
-              <button type="button" className="btn btn-primary px-5 py-2 text-xs rounded-lg flex items-center gap-1.5 shadow-sm bg-blue-600 hover:bg-blue-700 text-white" onClick={() => printThermal('reprint-invoice-dialog')}>
+              <button type="button" className="btn-print btn btn-primary px-5 py-2 text-xs rounded-lg flex items-center gap-1.5 shadow-sm bg-blue-600 hover:bg-blue-700 text-white" onClick={() => printThermal('reprint-invoice-dialog')}>
                 <Printer className="w-4 h-4" />
                 Print Invoice (80mm)
               </button>

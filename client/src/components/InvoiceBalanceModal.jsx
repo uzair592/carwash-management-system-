@@ -24,7 +24,7 @@ export default function InvoiceBalanceModal({
           amount: Number(value),
           collected_amount: Number(value),
           payment_method: method,
-          bank_account_id: bank || null,
+          bank_account_id: method === 'CASH' ? null : bank || null,
           ...(vehicle ? {
             vehicle_id: vehicle.id,
             customer_name: vehicle.customer_name

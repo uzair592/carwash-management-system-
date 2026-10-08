@@ -117,7 +117,7 @@ async function checkoutHandler(req, res, next) {
     const discount = F.amount(req.body.discount_amount ?? 0, {
       zero: true
     });
-    if (discount && !(await verifyAdminOrManagerPin(req.body.admin_pin)).isValid) throw F.error('Admin approval required for discount.', 403);
+    if (discount && !(await require('../services/permission.service').approval(req, 'billing.discount')).isValid) throw F.error('Admin approval required for discount.', 403);
     const id = await F.transact(async tx => {
       await F.lock(tx, 'checkout:' + job_card_id);
       const job = await tx.jobCard.findUnique({
@@ -308,7 +308,7 @@ async function collectPaymentHandler(req, res, next) {
 }
 async function reversePaymentHandler(req, res, next) {
   try {
-    const approved = await verifyAdminOrManagerPin(req.body.admin_pin);
+    const approved = await require('../services/permission.service').approval(req, 'billing.reverse');
     if (!approved.isValid || !req.body.reason) throw F.error('Admin approval and reason required.', 403);
     const requestKey = F.key(req, 'reverse');
     await F.transact(async tx => {

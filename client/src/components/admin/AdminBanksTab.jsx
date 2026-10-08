@@ -1,25 +1,15 @@
+import { useAuth } from '../../context/AuthContext';
 import React, { useState, useEffect } from 'react';
-import {
-  Landmark,
-  Plus,
-  ArrowRightLeft,
-  DollarSign,
-  Wallet,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Loader2,
-  Edit2,
-  Trash2,
-  History,
-  ArrowUpRight,
-  ArrowDownLeft,
-} from 'lucide-react';
+import { Landmark, Plus, ArrowRightLeft, DollarSign, Wallet, CheckCircle, XCircle, AlertCircle, Loader2, Edit2, Trash2, History, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import axios from 'axios';
-
-const money = (val) => Number(val || 0).toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-
+const money = val => Number(val || 0).toLocaleString('en-PK', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2
+});
 export default function AdminBanksTab() {
+  const {
+    can
+  } = useAuth();
   const [bankAccounts, setBankAccounts] = useState([]);
   const [cashBalance, setCashBalance] = useState(0);
   const [totalBankLedger, setTotalBankLedger] = useState(0);
@@ -36,7 +26,7 @@ export default function AdminBanksTab() {
     account_title: '',
     account_number: '',
     initial_balance: '0',
-    is_active: true,
+    is_active: true
   });
 
   // Transfer Modal
@@ -46,19 +36,14 @@ export default function AdminBanksTab() {
     from_bank_account_id: '',
     to_bank_account_id: '',
     amount: '',
-    notes: '',
+    notes: ''
   });
-
   const [isSaving, setIsSaving] = useState(false);
-
   const loadData = async () => {
     setIsLoading(true);
     setErrorMsg('');
     try {
-      const [bankRes, txRes] = await Promise.all([
-        axios.get('/api/banks?include_inactive=true'),
-        axios.get('/api/ledger/transfers'),
-      ]);
+      const [bankRes, txRes] = await Promise.all([axios.get('/api/banks?include_inactive=true'), axios.get('/api/ledger/transfers')]);
       setBankAccounts(bankRes.data?.data?.accounts || []);
       setCashBalance(bankRes.data?.data?.cash_balance || 0);
       setTotalBankLedger(bankRes.data?.data?.total_bank_ledger || 0);
@@ -69,11 +54,9 @@ export default function AdminBanksTab() {
       setIsLoading(false);
     }
   };
-
   useEffect(() => {
     loadData();
   }, []);
-
   const openAddAccount = () => {
     setEditingAccount(null);
     setAccountForm({
@@ -81,30 +64,27 @@ export default function AdminBanksTab() {
       account_title: '',
       account_number: '',
       initial_balance: '0',
-      is_active: true,
+      is_active: true
     });
     setIsAccountModalOpen(true);
   };
-
-  const openEditAccount = (acc) => {
+  const openEditAccount = acc => {
     setEditingAccount(acc);
     setAccountForm({
       bank_name: acc.bank_name,
       account_title: acc.account_title,
       account_number: acc.account_number,
       initial_balance: String(acc.current_balance),
-      is_active: acc.is_active,
+      is_active: acc.is_active
     });
     setIsAccountModalOpen(true);
   };
-
-  const handleSaveAccount = async (e) => {
+  const handleSaveAccount = async e => {
     e.preventDefault();
     if (!accountForm.bank_name.trim() || !accountForm.account_title.trim() || !accountForm.account_number.trim()) {
       setErrorMsg('Bank Name, Account Title, and Account Number are required.');
       return;
     }
-
     setIsSaving(true);
     setErrorMsg('');
     try {
@@ -113,7 +93,7 @@ export default function AdminBanksTab() {
           bank_name: accountForm.bank_name.trim(),
           account_title: accountForm.account_title.trim(),
           account_number: accountForm.account_number.trim(),
-          is_active: accountForm.is_active,
+          is_active: accountForm.is_active
         });
         setSuccessMsg(`Bank account "${accountForm.bank_name}" updated.`);
       } else {
@@ -121,11 +101,10 @@ export default function AdminBanksTab() {
           bank_name: accountForm.bank_name.trim(),
           account_title: accountForm.account_title.trim(),
           account_number: accountForm.account_number.trim(),
-          initial_balance: parseFloat(accountForm.initial_balance) || 0,
+          initial_balance: parseFloat(accountForm.initial_balance) || 0
         });
         setSuccessMsg(`Bank account "${accountForm.bank_name}" added successfully.`);
       }
-
       setIsAccountModalOpen(false);
       await loadData();
       setTimeout(() => setSuccessMsg(''), 4000);
@@ -135,8 +114,7 @@ export default function AdminBanksTab() {
       setIsSaving(false);
     }
   };
-
-  const handleDeleteAccount = async (acc) => {
+  const handleDeleteAccount = async acc => {
     if (!window.confirm(`Are you sure you want to remove or deactivate "${acc.bank_name}"?`)) return;
     try {
       const res = await axios.delete(`/api/banks/${acc.id}`);
@@ -151,15 +129,13 @@ export default function AdminBanksTab() {
       setErrorMsg(err.response?.data?.message || 'Failed to remove bank account.');
     }
   };
-
-  const handleExecuteTransfer = async (e) => {
+  const handleExecuteTransfer = async e => {
     e.preventDefault();
     const amt = parseFloat(transferForm.amount);
     if (!amt || amt <= 0) {
       setErrorMsg('Transfer amount must be greater than zero.');
       return;
     }
-
     setIsSaving(true);
     setErrorMsg('');
     try {
@@ -168,9 +144,8 @@ export default function AdminBanksTab() {
         amount: amt,
         from_bank_account_id: transferForm.from_bank_account_id || undefined,
         to_bank_account_id: transferForm.to_bank_account_id || undefined,
-        notes: transferForm.notes,
+        notes: transferForm.notes
       });
-
       setSuccessMsg(`Transferred Rs. ${amt.toLocaleString()} successfully.`);
       setIsTransferModalOpen(false);
       setTransferForm({
@@ -178,7 +153,7 @@ export default function AdminBanksTab() {
         from_bank_account_id: '',
         to_bank_account_id: '',
         amount: '',
-        notes: '',
+        notes: ''
       });
       await loadData();
       setTimeout(() => setSuccessMsg(''), 4000);
@@ -188,11 +163,8 @@ export default function AdminBanksTab() {
       setIsSaving(false);
     }
   };
-
-  const activeBanks = bankAccounts.filter((b) => b.is_active);
-
-  return (
-    <div className="space-y-6">
+  const activeBanks = bankAccounts.filter(b => b.is_active);
+  return <div className="space-y-6">
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200">
         <div>
@@ -205,37 +177,27 @@ export default function AdminBanksTab() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsTransferModalOpen(true)}
-            className="btn btn-secondary flex items-center gap-2 text-sm px-4 py-2.5 rounded-lg border border-slate-300"
-          >
+          <button disabled={!can('finance.manage')} onClick={() => setIsTransferModalOpen(true)} className="btn btn-secondary flex items-center gap-2 text-sm px-4 py-2.5 rounded-lg border border-slate-300">
             <ArrowRightLeft className="w-4 h-4 text-purple-600" />
             Transfer Funds
           </button>
-          <button
-            onClick={openAddAccount}
-            className="btn btn-primary flex items-center gap-2 text-sm px-4 py-2.5 rounded-lg shadow-sm"
-          >
+          <button disabled={!can('banks.manage')} onClick={openAddAccount} className="btn btn-primary flex items-center gap-2 text-sm px-4 py-2.5 rounded-lg shadow-sm">
             <Plus className="w-4 h-4" />
             Add Bank Account
           </button>
         </div>
       </div>
 
-      {errorMsg && (
-        <div className="form-error flex items-center gap-2" role="alert">
+      {errorMsg && <div className="form-error flex items-center gap-2" role="alert">
           <AlertCircle className="w-4 h-4 text-red-600" />
           <span>{errorMsg}</span>
           <button className="ml-auto text-xs underline" onClick={() => setErrorMsg('')}>Dismiss</button>
-        </div>
-      )}
+        </div>}
 
-      {successMsg && (
-        <div className="status-badge success flex items-center gap-2 p-3 text-sm rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
+      {successMsg && <div className="status-badge success flex items-center gap-2 p-3 text-sm rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
           <CheckCircle className="w-4 h-4" />
           <span>{successMsg}</span>
-        </div>
-      )}
+        </div>}
 
       {/* Overview Balance Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -280,34 +242,19 @@ export default function AdminBanksTab() {
           <span className="text-xs text-slate-400 font-normal">Selectable during checkout for bank collections</span>
         </h3>
 
-        {isLoading ? (
-          <div className="py-8 text-center text-slate-500">
+        {isLoading ? <div className="py-8 text-center text-slate-500">
             <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-600 mb-2" />
             Loading bank accounts...
-          </div>
-        ) : bankAccounts.length === 0 ? (
-          <div className="py-8 text-center text-slate-400">
+          </div> : bankAccounts.length === 0 ? <div className="py-8 text-center text-slate-400">
             No bank accounts configured. Click "Add Bank Account" above.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {bankAccounts.map((acc) => (
-              <div
-                key={acc.id}
-                className={`p-4 rounded-xl border transition ${
-                  acc.is_active ? 'bg-slate-50/60 border-slate-200' : 'bg-slate-100/60 border-slate-200 opacity-60'
-                }`}
-              >
+          </div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {bankAccounts.map(acc => <div key={acc.id} className={`p-4 rounded-xl border transition ${acc.is_active ? 'bg-slate-50/60 border-slate-200' : 'bg-slate-100/60 border-slate-200 opacity-60'}`}>
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="font-bold text-slate-800 text-base flex items-center gap-1.5">
                     <Landmark className="w-4 h-4 text-blue-600" />
                     {acc.bank_name}
                   </div>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
-                      acc.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
-                    }`}
-                  >
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${acc.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
                     {acc.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </div>
@@ -328,26 +275,16 @@ export default function AdminBanksTab() {
                     </span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => openEditAccount(acc)}
-                      className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded"
-                      title="Edit Account Details"
-                    >
+                    <button disabled={!can('banks.manage')} onClick={() => openEditAccount(acc)} className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded" title="Edit Account Details">
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
-                    <button
-                      onClick={() => handleDeleteAccount(acc)}
-                      className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"
-                      title="Deactivate / Remove"
-                    >
+                    <button disabled={!can('banks.manage')} onClick={() => handleDeleteAccount(acc)} className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded" title="Deactivate / Remove">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              </div>)}
+          </div>}
       </div>
 
       {/* Recent Ledger Transfers Table */}
@@ -372,15 +309,11 @@ export default function AdminBanksTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
-              {transfers.length === 0 ? (
-                <tr>
+              {transfers.length === 0 ? <tr>
                   <td colSpan="6" className="py-6 text-center text-slate-400">
                     No internal transfers recorded yet.
                   </td>
-                </tr>
-              ) : (
-                transfers.slice(0, 15).map((t) => (
-                  <tr key={t.id} className="hover:bg-slate-50/75">
+                </tr> : transfers.slice(0, 15).map(t => <tr key={t.id} className="hover:bg-slate-50/75">
                     <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
                       {new Date(t.created_at).toLocaleString('en-GB')}
                     </td>
@@ -390,14 +323,10 @@ export default function AdminBanksTab() {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-slate-700 font-medium">
-                      {t.from_bank_account
-                        ? `${t.from_bank_account.bank_name} (${t.from_bank_account.account_number.slice(-4)})`
-                        : t.from_account?.replace('_', ' ') || 'Cash Drawer'}
+                      {t.from_bank_account ? `${t.from_bank_account.bank_name} (${t.from_bank_account.account_number.slice(-4)})` : t.from_account?.replace('_', ' ') || 'Cash Drawer'}
                     </td>
                     <td className="py-3 px-4 text-slate-700 font-medium">
-                      {t.to_bank_account
-                        ? `${t.to_bank_account.bank_name} (${t.to_bank_account.account_number.slice(-4)})`
-                        : t.to_account?.replace('_', ' ') || 'Main Bank'}
+                      {t.to_bank_account ? `${t.to_bank_account.bank_name} (${t.to_bank_account.account_number.slice(-4)})` : t.to_account?.replace('_', ' ') || 'Main Bank'}
                     </td>
                     <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
                       Rs. {money(t.amount)}
@@ -405,17 +334,14 @@ export default function AdminBanksTab() {
                     <td className="py-3 px-4 text-slate-500 max-w-xs truncate">
                       {t.notes || '—'}
                     </td>
-                  </tr>
-                ))
-              )}
+                  </tr>)}
             </tbody>
           </table>
         </div>
       </div>
 
       {/* Modal: Add/Edit Bank Account */}
-      {isAccountModalOpen && (
-        <div className="dialog-backdrop">
+      {isAccountModalOpen && <div className="dialog-backdrop">
           <div className="bg-white rounded-xl shadow-2xl border border-slate-200 p-6 max-w-md w-full">
             <h3 className="text-lg font-bold text-slate-900 mb-4 pb-2 border-b border-slate-200 flex items-center gap-2">
               <Landmark className="w-5 h-5 text-blue-600" />
@@ -426,98 +352,66 @@ export default function AdminBanksTab() {
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Bank Name <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Meezan Bank, Bank Alfalah, HBL"
-                  value={accountForm.bank_name}
-                  onChange={(e) => setAccountForm({ ...accountForm, bank_name: e.target.value })}
-                  className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none"
-                />
+                <input type="text" required placeholder="e.g. Meezan Bank, Bank Alfalah, HBL" value={accountForm.bank_name} onChange={e => setAccountForm({
+              ...accountForm,
+              bank_name: e.target.value
+            })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none" />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Account Title <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. DF PRO Auto Care Main"
-                  value={accountForm.account_title}
-                  onChange={(e) => setAccountForm({ ...accountForm, account_title: e.target.value })}
-                  className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none"
-                />
+                <input type="text" required placeholder="e.g. DF PRO Auto Care Main" value={accountForm.account_title} onChange={e => setAccountForm({
+              ...accountForm,
+              account_title: e.target.value
+            })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none" />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Account Number / IBAN <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. PK64MEZN0001234567890101"
-                  value={accountForm.account_number}
-                  onChange={(e) => setAccountForm({ ...accountForm, account_number: e.target.value })}
-                  className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none font-mono"
-                />
+                <input type="text" required placeholder="e.g. PK64MEZN0001234567890101" value={accountForm.account_number} onChange={e => setAccountForm({
+              ...accountForm,
+              account_number: e.target.value
+            })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none font-mono" />
               </div>
 
-              {!editingAccount && (
-                <div>
+              {!editingAccount && <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Initial Balance (PKR)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={accountForm.initial_balance}
-                    onChange={(e) => setAccountForm({ ...accountForm, initial_balance: e.target.value })}
-                    className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none font-mono"
-                  />
-                </div>
-              )}
+                  <input type="number" min="0" placeholder="0" value={accountForm.initial_balance} onChange={e => setAccountForm({
+              ...accountForm,
+              initial_balance: e.target.value
+            })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none font-mono" />
+                </div>}
 
-              {editingAccount && (
-                <div>
+              {editingAccount && <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Status</label>
-                  <select
-                    value={accountForm.is_active ? 'true' : 'false'}
-                    onChange={(e) => setAccountForm({ ...accountForm, is_active: e.target.value === 'true' })}
-                    className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:border-blue-600 focus:outline-none"
-                  >
+                  <select value={accountForm.is_active ? 'true' : 'false'} onChange={e => setAccountForm({
+              ...accountForm,
+              is_active: e.target.value === 'true'
+            })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:border-blue-600 focus:outline-none">
                     <option value="true">Active (Available at Checkout)</option>
                     <option value="false">Deactivated (Hidden from Checkout)</option>
                   </select>
-                </div>
-              )}
+                </div>}
 
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setIsAccountModalOpen(false)}
-                  className="btn btn-secondary px-4 py-2 text-sm rounded-lg"
-                  disabled={isSaving}
-                >
+                <button type="button" onClick={() => setIsAccountModalOpen(false)} className="btn btn-secondary px-4 py-2 text-sm rounded-lg" disabled={isSaving}>
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary px-5 py-2 text-sm rounded-lg flex items-center gap-2"
-                  disabled={isSaving}
-                >
+                <button type="submit" className="btn btn-primary px-5 py-2 text-sm rounded-lg flex items-center gap-2" disabled={isSaving}>
                   {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
                   {editingAccount ? 'Save Changes' : 'Add Account'}
                 </button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+        </div>}
 
       {/* Modal: Transfer Funds */}
-      {isTransferModalOpen && (
-        <div className="dialog-backdrop">
+      {isTransferModalOpen && <div className="dialog-backdrop">
           <div className="bg-white rounded-xl shadow-2xl border border-slate-200 p-6 max-w-lg w-full">
             <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
               <ArrowRightLeft className="w-5 h-5 text-purple-600" />
@@ -530,18 +424,12 @@ export default function AdminBanksTab() {
             <form onSubmit={handleExecuteTransfer} className="space-y-4 text-sm">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Transfer Route</label>
-                <select
-                  value={transferForm.transfer_type}
-                  onChange={(e) =>
-                    setTransferForm({
-                      ...transferForm,
-                      transfer_type: e.target.value,
-                      from_bank_account_id: '',
-                      to_bank_account_id: '',
-                    })
-                  }
-                  className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:border-purple-600 focus:outline-none"
-                >
+                <select value={transferForm.transfer_type} onChange={e => setTransferForm({
+              ...transferForm,
+              transfer_type: e.target.value,
+              from_bank_account_id: '',
+              to_bank_account_id: ''
+            })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:border-purple-600 focus:outline-none">
                   <option value="CASH_TO_BANK">Cash Drawer ➔ Business Bank Account</option>
                   <option value="BANK_TO_CASH">Business Bank Account ➔ Cash Drawer</option>
                   <option value="BANK_TO_BANK">Bank Account A ➔ Bank Account B</option>
@@ -549,100 +437,66 @@ export default function AdminBanksTab() {
               </div>
 
               {/* Source Bank Selector if applicable */}
-              {(transferForm.transfer_type === 'BANK_TO_CASH' || transferForm.transfer_type === 'BANK_TO_BANK') && (
-                <div>
+              {(transferForm.transfer_type === 'BANK_TO_CASH' || transferForm.transfer_type === 'BANK_TO_BANK') && <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     From Bank Account <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    required
-                    value={transferForm.from_bank_account_id}
-                    onChange={(e) => setTransferForm({ ...transferForm, from_bank_account_id: e.target.value })}
-                    className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:border-purple-600 focus:outline-none"
-                  >
+                  <select required value={transferForm.from_bank_account_id} onChange={e => setTransferForm({
+              ...transferForm,
+              from_bank_account_id: e.target.value
+            })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:border-purple-600 focus:outline-none">
                     <option value="">-- Select Source Bank Account --</option>
-                    {activeBanks.map((b) => (
-                      <option key={b.id} value={b.id}>
+                    {activeBanks.map(b => <option key={b.id} value={b.id}>
                         {b.bank_name} - Balance: Rs. {money(b.current_balance)}
-                      </option>
-                    ))}
+                      </option>)}
                   </select>
-                </div>
-              )}
+                </div>}
 
               {/* Destination Bank Selector if applicable */}
-              {(transferForm.transfer_type === 'CASH_TO_BANK' || transferForm.transfer_type === 'BANK_TO_BANK') && (
-                <div>
+              {(transferForm.transfer_type === 'CASH_TO_BANK' || transferForm.transfer_type === 'BANK_TO_BANK') && <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     To Bank Account <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    required
-                    value={transferForm.to_bank_account_id}
-                    onChange={(e) => setTransferForm({ ...transferForm, to_bank_account_id: e.target.value })}
-                    className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:border-purple-600 focus:outline-none"
-                  >
+                  <select required value={transferForm.to_bank_account_id} onChange={e => setTransferForm({
+              ...transferForm,
+              to_bank_account_id: e.target.value
+            })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:border-purple-600 focus:outline-none">
                     <option value="">-- Select Destination Bank Account --</option>
-                    {activeBanks
-                      .filter((b) => b.id !== transferForm.from_bank_account_id)
-                      .map((b) => (
-                        <option key={b.id} value={b.id}>
+                    {activeBanks.filter(b => b.id !== transferForm.from_bank_account_id).map(b => <option key={b.id} value={b.id}>
                           {b.bank_name} - Current: Rs. {money(b.current_balance)}
-                        </option>
-                      ))}
+                        </option>)}
                   </select>
-                </div>
-              )}
+                </div>}
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Amount in PKR <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="1"
-                  required
-                  placeholder="e.g. 25000"
-                  value={transferForm.amount}
-                  onChange={(e) => setTransferForm({ ...transferForm, amount: e.target.value })}
-                  className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-purple-600 focus:outline-none font-mono"
-                />
+                <input type="number" step="0.01" min="1" required placeholder="e.g. 25000" value={transferForm.amount} onChange={e => setTransferForm({
+              ...transferForm,
+              amount: e.target.value
+            })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-purple-600 focus:outline-none font-mono" />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Notes / Reference</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Daily cash deposit to Meezan Bank"
-                  value={transferForm.notes}
-                  onChange={(e) => setTransferForm({ ...transferForm, notes: e.target.value })}
-                  className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-purple-600 focus:outline-none"
-                />
+                <input type="text" placeholder="e.g. Daily cash deposit to Meezan Bank" value={transferForm.notes} onChange={e => setTransferForm({
+              ...transferForm,
+              notes: e.target.value
+            })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-purple-600 focus:outline-none" />
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setIsTransferModalOpen(false)}
-                  className="btn btn-secondary px-4 py-2 text-sm rounded-lg"
-                  disabled={isSaving}
-                >
+                <button type="button" onClick={() => setIsTransferModalOpen(false)} className="btn btn-secondary px-4 py-2 text-sm rounded-lg" disabled={isSaving}>
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary px-5 py-2 text-sm rounded-lg flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
-                  disabled={isSaving}
-                >
+                <button type="submit" className="btn btn-primary px-5 py-2 text-sm rounded-lg flex items-center gap-2 bg-purple-600 hover:bg-purple-700" disabled={isSaving}>
                   {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
                   Execute Transfer
                 </button>
               </div>
             </form>
           </div>
-        </div>
-      )}
-    </div>
-  );
+        </div>}
+    </div>;
 }

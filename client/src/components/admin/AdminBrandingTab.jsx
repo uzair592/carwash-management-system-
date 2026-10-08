@@ -1,22 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Image,
-  Upload,
-  Trash2,
-  CheckCircle,
-  AlertCircle,
-  Loader2,
-  Building2,
-  Printer,
-  Sparkles,
-  Sliders,
-  Receipt,
-  FileText,
-  RotateCcw,
-} from 'lucide-react';
+import { Image, Upload, Trash2, CheckCircle, AlertCircle, Loader2, Building2, Printer, Sparkles, Sliders, Receipt, FileText, RotateCcw } from 'lucide-react';
 import axios from 'axios';
 import { printThermal } from '../../utils/print';
-
 export default function AdminBrandingTab() {
   const [branding, setBranding] = useState({
     business_name: 'DF PRO Car Wash & Detailing Center',
@@ -27,14 +12,12 @@ export default function AdminBrandingTab() {
     ntn_number: '7482910-3',
     logo_url: null,
     logo_size: 120,
-    loyalty_threshold: 5,
+    loyalty_threshold: 5
   });
-
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-
   const loadBranding = async () => {
     setIsLoading(true);
     setErrorMsg('');
@@ -49,12 +32,10 @@ export default function AdminBrandingTab() {
       setIsLoading(false);
     }
   };
-
   useEffect(() => {
     loadBranding();
   }, []);
-
-  const handleSaveSettings = async (e) => {
+  const handleSaveSettings = async e => {
     e.preventDefault();
     setIsSaving(true);
     setErrorMsg('');
@@ -68,7 +49,7 @@ export default function AdminBrandingTab() {
         ntn_number: branding.ntn_number,
         logo_size: parseInt(branding.logo_size, 10) || 120,
         loyalty_threshold: parseInt(branding.loyalty_threshold, 10) || 5,
-        show_business_name: branding.show_business_name !== false,
+        show_business_name: branding.show_business_name !== false
       });
       setSuccessMsg('Branding details and loyalty threshold saved successfully.');
       if (res.data?.data) setBranding(res.data.data);
@@ -81,29 +62,29 @@ export default function AdminBrandingTab() {
   };
 
   // Convert uploaded image file to base64 for reliable local-first persistence
-  const handleLogoFileChange = (e) => {
+  const handleLogoFileChange = e => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     if (!file.type.startsWith('image/')) {
       setErrorMsg('Please upload a valid image file (PNG, JPG, SVG, WebP).');
       return;
     }
-
     if (file.size > 2 * 1024 * 1024) {
       setErrorMsg('Logo file must be smaller than 2MB.');
       return;
     }
-
     const reader = new FileReader();
     reader.onload = async () => {
       const base64 = reader.result;
       try {
         setIsSaving(true);
         const res = await axios.post('/api/branding/logo', {
-          logo_base64: base64,
+          logo_base64: base64
         });
-        setBranding((prev) => ({ ...prev, logo_url: res.data?.data?.logo_url || base64 }));
+        setBranding(prev => ({
+          ...prev,
+          logo_url: res.data?.data?.logo_url || base64
+        }));
         setSuccessMsg('Logo updated and saved successfully.');
         setTimeout(() => setSuccessMsg(''), 4000);
       } catch (err) {
@@ -114,13 +95,15 @@ export default function AdminBrandingTab() {
     };
     reader.readAsDataURL(file);
   };
-
   const handleRemoveLogo = async () => {
     if (!window.confirm('Are you sure you want to remove the business logo?')) return;
     setIsSaving(true);
     try {
       await axios.delete('/api/branding/logo');
-      setBranding((prev) => ({ ...prev, logo_url: null }));
+      setBranding(prev => ({
+        ...prev,
+        logo_url: null
+      }));
       setSuccessMsg('Logo removed.');
       setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err) {
@@ -129,9 +112,7 @@ export default function AdminBrandingTab() {
       setIsSaving(false);
     }
   };
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       {/* Top Banner */}
       <div className="bg-white p-5 rounded-xl border border-slate-200">
         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -143,20 +124,16 @@ export default function AdminBrandingTab() {
         </p>
       </div>
 
-      {errorMsg && (
-        <div className="form-error flex items-center gap-2" role="alert">
+      {errorMsg && <div className="form-error flex items-center gap-2" role="alert">
           <AlertCircle className="w-4 h-4 text-red-600" />
           <span>{errorMsg}</span>
           <button className="ml-auto text-xs underline" onClick={() => setErrorMsg('')}>Dismiss</button>
-        </div>
-      )}
+        </div>}
 
-      {successMsg && (
-        <div className="status-badge success flex items-center gap-2 p-3 text-sm rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
+      {successMsg && <div className="status-badge success flex items-center gap-2 p-3 text-sm rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
           <CheckCircle className="w-4 h-4" />
           <span>{successMsg}</span>
-        </div>
-      )}
+        </div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Form: Settings & Logo Controls (7 cols) */}
@@ -172,18 +149,8 @@ export default function AdminBrandingTab() {
             </h3>
 
             <div className="flex flex-col sm:flex-row items-center gap-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <div
-                className="w-32 h-24 bg-white rounded-lg border border-slate-300 flex items-center justify-center p-2 overflow-hidden shadow-inner flex-shrink-0"
-              >
-                {branding.logo_url ? (
-                  <img
-                    src={branding.logo_url}
-                    alt="Business Logo"
-                    className="max-w-full max-h-full object-contain"
-                  />
-                ) : (
-                  <span className="text-xs text-slate-400 text-center font-medium">No Logo Uploaded</span>
-                )}
+              <div className="w-32 h-24 bg-white rounded-lg border border-slate-300 flex items-center justify-center p-2 overflow-hidden shadow-inner flex-shrink-0">
+                {branding.logo_url ? <img src={branding.logo_url} alt="Business Logo" className="max-w-full max-h-full object-contain" /> : <span className="text-xs text-slate-400 text-center font-medium">No Logo Uploaded</span>}
               </div>
 
               <div className="flex-1 space-y-3 w-full">
@@ -191,23 +158,12 @@ export default function AdminBrandingTab() {
                   <label className="btn btn-primary text-xs px-3 py-2 rounded-lg cursor-pointer flex items-center gap-2 shadow-sm">
                     <Upload className="w-3.5 h-3.5" />
                     {branding.logo_url ? 'Replace Logo' : 'Upload Logo'}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleLogoFileChange}
-                    />
+                    <input type="file" accept="image/*" className="hidden" onChange={handleLogoFileChange} />
                   </label>
-                  {branding.logo_url && (
-                    <button
-                      type="button"
-                      onClick={handleRemoveLogo}
-                      className="btn btn-secondary text-xs px-3 py-2 rounded-lg text-rose-600 border-rose-200 hover:bg-rose-50 flex items-center gap-1.5"
-                    >
+                  {branding.logo_url && <button type="button" onClick={handleRemoveLogo} className="btn btn-secondary text-xs px-3 py-2 rounded-lg text-rose-600 border-rose-200 hover:bg-rose-50 flex items-center gap-1.5">
                       <Trash2 className="w-3.5 h-3.5" />
                       Remove
-                    </button>
-                  )}
+                    </button>}
                 </div>
 
                 <div>
@@ -218,15 +174,10 @@ export default function AdminBrandingTab() {
                     </span>
                     <span className="font-mono font-bold text-blue-600">{branding.logo_size || 120}px</span>
                   </div>
-                  <input
-                    type="range"
-                    min="60"
-                    max="220"
-                    step="5"
-                    value={branding.logo_size || 120}
-                    onChange={(e) => setBranding({ ...branding, logo_size: parseInt(e.target.value, 10) })}
-                    className="w-full accent-blue-600"
-                  />
+                  <input type="range" min="60" max="220" step="5" value={branding.logo_size || 120} onChange={e => setBranding({
+                  ...branding,
+                  logo_size: parseInt(e.target.value, 10)
+                })} className="w-full accent-blue-600" />
                   <div className="flex justify-between text-[10px] text-slate-400 mt-0.5">
                     <span>Compact (60px)</span>
                     <span>Standard (120px)</span>
@@ -247,28 +198,17 @@ export default function AdminBrandingTab() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-blue-50/70 border border-blue-200 p-3.5 rounded-xl">
               <div className="space-y-0.5">
                 <label htmlFor="admin-chk-print-business-name" className="text-xs font-bold text-slate-800 cursor-pointer flex items-center gap-2">
-                  <input
-                    id="admin-chk-print-business-name"
-                    type="checkbox"
-                    checked={branding.show_business_name !== false}
-                    onChange={(e) => setBranding({ ...branding, show_business_name: e.target.checked })}
-                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
+                  <input id="admin-chk-print-business-name" type="checkbox" checked={branding.show_business_name !== false} onChange={e => setBranding({
+                  ...branding,
+                  show_business_name: e.target.checked
+                })} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer" />
                   <span>Print Business Name on Invoice</span>
                 </label>
                 <p className="text-[11px] text-slate-600 pl-6">
-                  {branding.show_business_name !== false
-                    ? "✓ Checked: Business name text will appear on the invoice."
-                    : "✗ Unchecked: Business name will NOT show on the invoice (only your uploaded logo displays)."}
+                  {branding.show_business_name !== false ? "✓ Checked: Business name text will appear on the invoice." : "✗ Unchecked: Business name will NOT show on the invoice (only your uploaded logo displays)."}
                 </p>
               </div>
-              <span
-                className={`text-xs px-2.5 py-1 rounded-full font-bold self-start sm:self-center uppercase tracking-wider ${
-                  branding.show_business_name !== false
-                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                    : 'bg-amber-100 text-amber-800 border border-amber-300'
-                }`}
-              >
+              <span className={`text-xs px-2.5 py-1 rounded-full font-bold self-start sm:self-center uppercase tracking-wider ${branding.show_business_name !== false ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-100 text-amber-800 border border-amber-300'}`}>
                 {branding.show_business_name !== false ? 'NAME ON' : 'NAME OFF'}
               </span>
             </div>
@@ -277,57 +217,42 @@ export default function AdminBrandingTab() {
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Business Legal / Brand Name {branding.show_business_name === false && <span className="text-amber-600 font-normal">(Hidden on invoice print)</span>}
               </label>
-              <input
-                type="text"
-                required
-                value={branding.business_name}
-                onChange={(e) => setBranding({ ...branding, business_name: e.target.value })}
-                className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none"
-              />
+              <input type="text" required value={branding.business_name} onChange={e => setBranding({
+              ...branding,
+              business_name: e.target.value
+            })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none" />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Brand Tagline</label>
-              <input
-                type="text"
-                value={branding.tagline || ''}
-                onChange={(e) => setBranding({ ...branding, tagline: e.target.value })}
-                className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none"
-                placeholder="e.g. Premium Auto Care & Ceramic Studio"
-              />
+              <input type="text" value={branding.tagline || ''} onChange={e => setBranding({
+              ...branding,
+              tagline: e.target.value
+            })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none" placeholder="e.g. Premium Auto Care & Ceramic Studio" />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Physical Address</label>
-              <input
-                type="text"
-                value={branding.address || ''}
-                onChange={(e) => setBranding({ ...branding, address: e.target.value })}
-                className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none"
-                placeholder="Shop street address & city"
-              />
+              <input type="text" value={branding.address || ''} onChange={e => setBranding({
+              ...branding,
+              address: e.target.value
+            })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none" placeholder="Shop street address & city" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Contact Phone</label>
-                <input
-                  type="text"
-                  value={branding.phone || ''}
-                  onChange={(e) => setBranding({ ...branding, phone: e.target.value })}
-                  className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none"
-                  placeholder="+92 300 1234567"
-                />
+                <input type="text" value={branding.phone || ''} onChange={e => setBranding({
+                ...branding,
+                phone: e.target.value
+              })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none" placeholder="+92 300 1234567" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">NTN / Tax Number</label>
-                <input
-                  type="text"
-                  value={branding.ntn_number || ''}
-                  onChange={(e) => setBranding({ ...branding, ntn_number: e.target.value })}
-                  className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none"
-                  placeholder="e.g. 1234567-8"
-                />
+                <input type="text" value={branding.ntn_number || ''} onChange={e => setBranding({
+                ...branding,
+                ntn_number: e.target.value
+              })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none" placeholder="e.g. 1234567-8" />
               </div>
             </div>
 
@@ -340,23 +265,14 @@ export default function AdminBrandingTab() {
               <p className="text-xs text-amber-800/80">
                 Vehicles with this number of completed service visits will automatically display the "Loyal Customer" badge during intake and workshop monitoring.
               </p>
-              <input
-                type="number"
-                min="1"
-                max="50"
-                required
-                value={branding.loyalty_threshold || 5}
-                onChange={(e) => setBranding({ ...branding, loyalty_threshold: parseInt(e.target.value, 10) || 1 })}
-                className="w-32 p-2 border border-amber-300 rounded-lg text-sm bg-white font-bold text-amber-900 focus:border-amber-600 focus:outline-none font-mono"
-              />
+              <input type="number" min="1" max="50" required value={branding.loyalty_threshold || 5} onChange={e => setBranding({
+              ...branding,
+              loyalty_threshold: parseInt(e.target.value, 10) || 1
+            })} className="w-32 p-2 border border-amber-300 rounded-lg text-sm bg-white font-bold text-amber-900 focus:border-amber-600 focus:outline-none font-mono" />
             </div>
 
             <div className="pt-2 flex justify-end">
-              <button
-                type="submit"
-                className="btn btn-primary px-6 py-2.5 text-sm rounded-lg flex items-center gap-2 shadow-sm"
-                disabled={isSaving}
-              >
+              <button type="submit" className="btn btn-primary px-6 py-2.5 text-sm rounded-lg flex items-center gap-2 shadow-sm" disabled={isSaving}>
                 {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
                 Save Branding Settings
               </button>
@@ -371,35 +287,24 @@ export default function AdminBrandingTab() {
               <Receipt className="w-4 h-4 text-slate-500" />
               Live 80mm Thermal Print Preview
             </h3>
-            <button
-              onClick={() => printThermal('thermal-live-preview')}
-              className="btn btn-secondary text-xs px-2.5 py-1 rounded border border-slate-200 flex items-center gap-1"
-            >
-              <Printer className="w-3 h-3 text-slate-600" />
+            <button onClick={() => printThermal('thermal-live-preview')} className="btn btn-print text-xs px-2.5 py-1 rounded border border-slate-200 flex items-center gap-1">
+              <Printer className="w-3 h-3" />
               Test Print
             </button>
           </div>
 
-          <div
-            id="thermal-live-preview"
-            className="bg-white border-2 border-dashed border-slate-300 rounded-xl p-5 shadow-sm max-w-[320px] mx-auto text-black font-mono text-xs leading-tight"
-            style={{ fontFamily: "'Courier New', Courier, monospace" }}
-          >
-            {branding.logo_url && (
-              <div className="text-center mb-3">
-                <img
-                  src={branding.logo_url}
-                  alt="Shop Logo"
-                  style={{
-                    maxWidth: `${branding.logo_size || 120}px`,
-                    maxHeight: '85px',
-                    objectFit: 'contain',
-                    margin: '0 auto',
-                    display: 'block',
-                  }}
-                />
-              </div>
-            )}
+          <div id="thermal-live-preview" className="bg-white border-2 border-dashed border-slate-300 rounded-xl p-5 shadow-sm max-w-[320px] mx-auto text-black font-mono text-xs leading-tight" style={{
+          fontFamily: "'Courier New', Courier, monospace"
+        }}>
+            {branding.logo_url && <div className="text-center mb-3">
+                <img src={branding.logo_url} alt="Shop Logo" style={{
+              maxWidth: `${branding.logo_size || 120}px`,
+              maxHeight: '85px',
+              objectFit: 'contain',
+              margin: '0 auto',
+              display: 'block'
+            }} />
+              </div>}
 
             <div className="text-center font-bold text-sm border-b-2 border-black pb-2 mb-2">
               {branding.business_name || 'DF PRO CAR WASH & DETAILING'}<br />
@@ -422,7 +327,9 @@ export default function AdminBrandingTab() {
               <div><strong>Method:</strong> CASH / BANK</div>
             </div>
 
-            <table className="w-full text-[11px] my-2 border-collapse" style={{ width: '100%' }}>
+            <table className="w-full text-[11px] my-2 border-collapse" style={{
+            width: '100%'
+          }}>
               <thead>
                 <tr className="border-b border-black text-left">
                   <th className="py-1">Service</th>
@@ -470,6 +377,5 @@ export default function AdminBrandingTab() {
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 }

@@ -40,6 +40,14 @@ const services = [{
   price: 35000,
   description: 'Protective film installation on selected panels'
 }];
+services.forEach(s => s.is_active = true);
+const {
+  effectivePermissions,
+  CATALOG
+} = require('../src/services/permission.service');
+let accountantGrants = effectivePermissions({
+  role: 'Accountant'
+});
 const job = (id, plate, service = services[0]) => ({
   id,
   vehicle_id: 'v-' + id,
@@ -65,6 +73,9 @@ const job = (id, plate, service = services[0]) => ({
 const active = job('1001', 'ABC-123'),
   detail = job('1002', 'LEA-456', services[3]);
 const ready = job('1003', 'XYZ-789', services[1]);
+ready.status = 'READY_FOR_BILLING';
+active.status = 'IN_PROGRESS';
+detail.status = 'IN_PROGRESS';
 ready.assigned_location = 'JACK_1';
 ready.completed_at = new Date().toISOString();
 const bayData = {
@@ -133,9 +144,42 @@ async function fixtures(route) {
     user: {
       id: 'fixture-user',
       name: 'Shop Owner',
-      role: fixtureRole
+      role: fixtureRole,
+      permissions: fixtureRole === 'ACCOUNTANT' ? accountantGrants : effectivePermissions({
+        role: fixtureRole
+      })
     }
-  };else if (endpoint === '/api/banks') data = {
+  };else if (endpoint === '/api/printer/settings') data = {
+    mode: 'BROWSER',
+    paper_width: 80,
+    auto_cut: false,
+    cut_feed: 3
+  };else if (endpoint === '/api/permissions') {
+    data = {
+      catalog: CATALOG,
+      users: [{
+        id: 'accountant',
+        name: 'Accountant',
+        role: 'Accountant',
+        permissions: accountantGrants
+      }]
+    };
+  } else if (endpoint === '/api/permissions/accountant') {
+    accountantGrants = {
+      ...accountantGrants,
+      ...body.permissions
+    };
+  } else if (request.method() === 'PUT' && /^\/api\/job-cards\/[^/]+\/services$/.test(endpoint)) {
+    const id = endpoint.split('/')[3];
+    const target = [...bayData.queue, ...bayData.ready_for_billing].find(j => j.id === id);
+    target.services = body.service_ids.map(id => ({
+      service_id: id,
+      service: services.find(s => s.id === id),
+      price_charged: services.find(s => s.id === id).price
+    }));
+    target.services_version = (target.services_version || 0) + 1;
+    data = target;
+  } else if (endpoint === '/api/banks') data = {
     accounts: [{
       id: 'bank-1',
       bank_name: 'Fixture Bank',
@@ -181,8 +225,18 @@ async function fixtures(route) {
     invoice: {
       id: 'invoice-2',
       invoice_number: 'INV-002',
-      total_amount: 1500
+      total_amount: 1500,
+      paid_amount: 1500,
+      discount_amount: 0,
+      balance_due: 0,
+      job_card: ready
     },
+    status: 'PAID',
+    balance_due: 0,
+    deposits_applied: 300,
+    subtotal: 1500,
+    final_total: 1500,
+    payments_collected: 1200,
     payments: body.payments,
     applied_deposits: [{
       id: 'deposit-1',
@@ -388,8 +442,17 @@ async function noOverflow(page) {
       });
     });
     await check('Bay dispatch and completion retain API contracts', async () => {
-      await page.getByLabel('Assign bay for PES-321').selectOption('JACK_2');
-      await page.waitForResponse(r => r.url().includes('/job-cards/1004/start'));
+      assert.equal(await page.getByLabel('Assign bay for PES-321').count(), 0);
+      await page.locator('tr').filter({
+        hasText: 'PES-321'
+      }).getByRole('button', {
+        name: 'Jack 2',
+        exact: true
+      }).click();
+      await page.getByRole('button', {
+        name: 'Confirm & Start Work'
+      }).click();
+      await page.waitForTimeout(100);
       assert.equal(requests.find(r => r.endpoint.endsWith('/1004/start')).body.location, 'JACK_2');
       await page.getByRole('button', {
         name: 'Mark work complete'
@@ -404,9 +467,13 @@ async function noOverflow(page) {
         name: 'Collect payment',
         exact: true
       }).click();
-      await page.getByText('Available deposits', {
-        exact: true
+      await page.getByText('Rs. 300.00 advance applied', {
+        exact: false
       }).waitFor();
+      assert(await page.getByRole('button', {
+        name: 'Confirm payment',
+        exact: true
+      }).isVisible());
       await page.getByRole('button', {
         name: 'Enable Split Payment'
       }).click();
@@ -473,39 +540,68 @@ async function noOverflow(page) {
         name: 'Settings',
         exact: true
       }).click();
-      await page.getByRole('switch', {
-        name: 'Customer SMS receipts'
+      await page.getByRole('button', {
+        name: 'Connections',
+        exact: true
       }).click();
+      await page.getByLabel('Customer SMS receipts').check();
       assert(requests.some(r => r.endpoint === '/api/settings' && r.method === 'PATCH' && r.body.key === 'ENABLE_SMS_GATEWAY'));
     });
-    await check('Receipt themes persist and print bold table structure', async () => {
-      for (const title of ['Bold Table', 'Bold Boxed', 'Bold Compact']) {
-        await page.getByRole('radio', {
-          name: new RegExp(title)
-        }).check();
-        const receipt = page.locator('#preview-invoice-inner');
+    await check('Six invoice and five ticket themes, blue print buttons and editable settings', async () => {
+      await page.getByRole('button', {
+        name: 'Printing & logo',
+        exact: true
+      }).click();
+      for (const theme of ['BOLD_TABLE', 'BOLD_BOXED', 'BOLD_COMPACT', 'STUDIO_SIGNED', 'SERVICE_LEDGER', 'MINIMAL_RULED']) {
+        await page.getByLabel('Invoice design', {
+          exact: true
+        }).selectOption(theme);
+        const receipt = page.locator('#settings-print-preview');
         assert.equal(await receipt.locator('table').count(), 1);
-        assert(await receipt.locator('.receipt-grand-total').isVisible());
+        assert.equal(await receipt.getAttribute('data-receipt-theme'), theme);
         assert.equal(await receipt.evaluate(e => getComputedStyle(e).fontFamily), 'Arial, Helvetica, sans-serif');
         await receipt.screenshot({
-          path: path.join(screenshots, title.toLowerCase().replaceAll(' ', '-') + '.png')
+          path: path.join(screenshots, theme.toLowerCase() + '.png')
         });
       }
       await page.getByRole('button', {
-        name: 'Save Template Preferences'
-      }).click();
-      assert(requests.some(r => r.endpoint === '/api/branding' && r.method === 'PATCH' && r.body.invoice_template === 'BOLD_COMPACT'));
-      const popupPromise = page.waitForEvent('popup');
-      await page.getByRole('button', {
-        name: 'Test Print',
+        name: 'Ticket preview',
         exact: true
-      }).first().click();
+      }).click();
+      for (const theme of ['WORKSHOP_CHECKLIST', 'SERVICE_CARD', 'COMPACT_DISPATCH', 'STANDARD_BOX', 'BOLD_TOKEN']) {
+        await page.getByLabel('Ticket design', {
+          exact: true
+        }).selectOption(theme);
+        assert.equal(await page.locator('#settings-print-preview').getAttribute('data-ticket-theme'), theme);
+        assert.equal(await page.locator('.ticket-check-row').count(), 2);
+      }
+      await page.getByRole('button', {
+        name: 'Save print settings'
+      }).click();
+      await page.getByText('Settings saved.', {
+        exact: true
+      }).waitFor();
+      assert(requests.some(r => r.endpoint === '/api/branding' && r.method === 'PATCH' && r.body.invoice_template === 'MINIMAL_RULED'));
+      const printButton = page.getByRole('button', {
+        name: 'Print sample',
+        exact: true
+      });
+      assert.equal(await printButton.evaluate(e => getComputedStyle(e).backgroundColor), 'rgb(37, 99, 235)');
+      const popupPromise = page.waitForEvent('popup');
+      await printButton.click();
       const popup = await popupPromise;
       await popup.waitForLoadState();
-      assert.equal(await popup.locator('.receipt-items').count(), 1);
-      assert.equal(await popup.locator('.receipt-sheet').evaluate(e => getComputedStyle(e).fontWeight), '700');
+      assert.equal(await popup.locator('.ticket-sheet').count(), 1);
       await popup.close();
-      // Receipt CSS is self-contained and independent of the application stylesheet.
+      await page.getByLabel('Print method', {
+        exact: true
+      }).selectOption('NETWORK');
+      await page.getByLabel('Auto-cut after each print').check();
+      assert(await page.getByLabel('Auto-cut after each print').isChecked());
+      await page.getByLabel('Print method', {
+        exact: true
+      }).selectOption('BROWSER');
+      assert(await page.getByLabel('Auto-cut after each print').isDisabled());
     });
     await check('Reports and loyalty directory work and reuse customer details', async () => {
       await page.getByRole('button', {
@@ -618,6 +714,81 @@ async function noOverflow(page) {
         name: 'Billing & invoices'
       }).count(), 0);
       assert.equal(requests.slice(from).filter(r => ['/api/ledger', '/api/register/current'].includes(r.endpoint)).length, 0);
+      fixtureRole = 'ADMIN';
+      await page.reload();
+    });
+    await check('Unbilled service editor adds/removes services and updates a work ticket', async () => {
+      await page.goto(base + '/#bays');
+      await page.locator('tr').filter({
+        hasText: 'PES-321'
+      }).waitFor();
+      await page.locator('tr').filter({
+        hasText: 'PES-321'
+      }).getByRole('button', {
+        name: 'Edit services',
+        exact: true
+      }).click();
+      const modal = page.getByRole('dialog', {
+        name: 'Edit services'
+      });
+      await modal.getByRole('button', {
+        name: /Interior Deep Clean/
+      }).click();
+      await modal.getByRole('button', {
+        name: /Express Foam Wash/
+      }).click();
+      await modal.getByRole('button', {
+        name: 'Save services',
+        exact: true
+      }).click();
+      await page.waitForTimeout(150);
+      const mutation = requests.find(r => r.method === 'PUT' && r.endpoint === '/api/job-cards/1004/services');
+      assert.deepEqual(mutation.body.service_ids, ['s3']);
+      assert.equal(mutation.body.expected_version, 0);
+    });
+    await check('Accountant sees permitted tabs without repeated PINs; permissions are editable', async () => {
+      await page.goto(base + '/#settings');
+      await page.getByRole('button', {
+        name: 'Permissions',
+        exact: true
+      }).click();
+      await page.getByLabel('Reports', {
+        exact: true
+      }).uncheck();
+      await page.getByRole('button', {
+        name: 'Save permissions',
+        exact: true
+      }).click();
+      await page.getByText('Permissions saved.', {
+        exact: true
+      }).waitFor();
+      fixtureRole = 'ACCOUNTANT';
+      await page.reload();
+      await page.waitForTimeout(250);
+      assert.equal(await page.getByRole('button', {
+        name: 'Reports',
+        exact: true
+      }).count(), 0);
+      assert.equal(await page.getByRole('button', {
+        name: 'Permissions',
+        exact: true
+      }).count(), 0);
+      await page.getByRole('button', {
+        name: 'Business overview',
+        exact: true
+      }).click();
+      await page.getByText('12,500.00', {
+        exact: false
+      }).first().waitFor();
+      await page.getByRole('button', {
+        name: 'Inventory & finance',
+        exact: true
+      }).click();
+      assert.equal(await page.getByPlaceholder('Enter management PIN').count(), 0);
+      assert.equal(await page.getByRole('button', {
+        name: 'Partner Profit Split',
+        exact: true
+      }).count(), 0);
       fixtureRole = 'ADMIN';
       await page.reload();
     });

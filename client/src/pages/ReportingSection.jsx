@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { BarChart3, Calendar, DollarSign, TrendingUp, Receipt, Wallet, Landmark, CreditCard, RefreshCw, Printer, Car, PieChart, Tag, ArrowDownRight, ArrowUpRight, CheckCircle2 } from 'lucide-react';
 const money = val => Number(val || 0).toLocaleString('en-PK', {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
 });
 export default function ReportingSection() {
   const [range, setRange] = useState('month');
@@ -89,7 +89,7 @@ export default function ReportingSection() {
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
 
-          <button type="button" onClick={handlePrint} className="px-3 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold flex items-center gap-1.5 transition shadow-xs">
+          <button type="button" onClick={handlePrint} className="btn-print px-3 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-xs font-bold flex items-center gap-1.5 transition shadow-xs">
             <Printer className="w-3.5 h-3.5" />
             <span>Print Report</span>
           </button>

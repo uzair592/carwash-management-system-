@@ -3,6 +3,7 @@ import axios from 'axios';
 const AuthContext = createContext();
 export const ROLES = {
   ADMIN: 'ADMIN',
+  ACCOUNTANT: 'ACCOUNTANT',
   MANAGER: 'MANAGER',
   CASHIER: 'CASHIER',
   WORKER: 'WORKER',
@@ -103,9 +104,22 @@ export function AuthProvider({
       setCurrentUser(null);
     }
   };
+  const can = key => currentUser?.role === 'ADMIN' || currentUser?.permissions?.[key] === true;
+  const refreshUser = async () => {
+    const r = await axios.get('/api/auth/me');
+    setCurrentUser(prev => ({
+      ...prev,
+      ...r.data.user
+    }));
+  };
+  useEffect(() => {
+    if (!currentUser) return;
+    const timer = setInterval(() => refreshUser().catch(() => {}), 30000);
+    return () => clearInterval(timer);
+  }, [currentUser?.id]);
   const isAdmin = currentUser?.role === ROLES.ADMIN,
-    isManager = isAdmin || currentUser?.role === ROLES.MANAGER,
-    isCashier = isManager || currentUser?.role === ROLES.CASHIER;
+    isManager = isAdmin || currentUser?.role === ROLES.MANAGER || currentUser?.role === ROLES.ACCOUNTANT,
+    isCashier = can('billing.manage') || can('intake.manage');
   return <AuthContext.Provider value={{
     currentUser,
     loading,
@@ -114,6 +128,8 @@ export function AuthProvider({
     isAdmin,
     isManager,
     isCashier,
+    can,
+    refreshUser,
     ROLES
   }}>{children}</AuthContext.Provider>;
 }

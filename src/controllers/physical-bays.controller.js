@@ -204,7 +204,7 @@ async function rapidIntakeHandler(req, res, next) {
           zero: true
         }) : Number(service.price);
         if (F.cents(price) !== F.cents(service.price)) {
-          if (!String(req.body.override_reason || '').trim() || !(await require('../middleware/auth.middleware').verifyAdminOrManagerPin(req.body.admin_pin)).isValid) throw F.error('Price changes require Admin PIN and a reason.', 403);
+          if (!String(req.body.override_reason || '').trim() || !(await require('../services/permission.service').approval(req, 'billing.discount')).isValid) throw F.error('Price changes require Admin PIN and a reason.', 403);
         }
         services.push({
           service_id: service.id,
@@ -662,7 +662,7 @@ async function verifyAdminPinHandler(req, res, next) {
 async function issueRefundHandler(req, res, next) {
   try {
     const F = require('../services/finance.service');
-    const approved = await require('../middleware/auth.middleware').verifyAdminOrManagerPin(req.body.admin_pin);
+    const approved = await require('../services/permission.service').approval(req, 'billing.refund');
     if (!approved.isValid || !String(req.body.reason || '').trim()) throw F.error('Admin approval and refund reason required.', 403);
     const value = F.amount(req.body.amount);
     const requestKey = F.key(req, 'refund');

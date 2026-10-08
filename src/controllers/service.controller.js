@@ -237,7 +237,7 @@ async function updateServiceHandler(req, res, next) {
 async function overrideJobCardServicePriceHandler(req, res, next) {
   try {
     const F = require('../services/finance.service');
-    const approval = await require('../middleware/auth.middleware').verifyAdminOrManagerPin(req.body.admin_pin);
+    const approval = await require('../services/permission.service').approval(req, 'billing.discount');
     if (!approval.isValid || !String(req.body.reason || '').trim()) throw F.error('Admin PIN and reason required.', 403);
     const value = F.amount(req.body.override_price, {
       zero: true

@@ -28,6 +28,10 @@ function hydrate(model, row, include) {
   if (model === 'jobCard') {
     result.invoice = state.invoice.find(i => i.job_card_id === row.id) || null;
     result.vehicle = state.vehicle.find(v => v.id === row.vehicle_id);
+    if (state.jobCardService?.length) result.services = state.jobCardService.filter(s => s.job_card_id === row.id).map(s => ({
+      ...s,
+      service: state.service.find(item => item.id === s.service_id)
+    }));
     result.assigned_workers ||= [];
     result.material_issuances ||= [];
   }
@@ -46,9 +50,18 @@ function patch(row, data) {
   }
   return row;
 }
-const models = ['user', 'vehicle', 'jobCard', 'invoice', 'payment', 'customerDeposit', 'depositApplication', 'expense', 'inventory', 'materialIssuance', 'bankAccount', 'ledger', 'financialMovement', 'auditLog', 'alertOutbox', 'documentCounter', 'refund', 'registerSession'];
+const models = ['user', 'vehicle', 'jobCard', 'invoice', 'payment', 'customerDeposit', 'depositApplication', 'expense', 'inventory', 'materialIssuance', 'bankAccount', 'ledger', 'financialMovement', 'auditLog', 'alertOutbox', 'documentCounter', 'refund', 'registerSession', 'service', 'jobCardService', 'printerSetting', 'printerJob', 'businessBranding'];
 const db = {};
 for (const model of models) db[model] = {
+  async count(args = {}) {
+    return state[model].filter(r => matches(r, args.where)).length;
+  },
+  async aggregate(args = {}) {
+    const rows = state[model].filter(r => matches(r, args.where));
+    return {
+      _sum: Object.fromEntries(Object.keys(args._sum || {}).map(k => [k, rows.reduce((sum, row) => sum + Number(row[k] || 0), 0)]))
+    };
+  },
   async findUnique({
     where,
     include
@@ -79,6 +92,7 @@ for (const model of models) db[model] = {
       row.attempts ||= 0;
       row.next_attempt_at ||= new Date(0);
     }
+    if (model === 'printerJob') row.status ||= 'SENDING';
     if (model === 'invoice') row.discount_amount ||= 0;
     state[model].push(row);
     return hydrate(model, row, include);
@@ -92,6 +106,15 @@ for (const model of models) db[model] = {
     if (!row) throw Error('Missing ' + model);
     patch(row, data);
     return hydrate(model, row, include);
+  },
+  async deleteMany({
+    where
+  }) {
+    const removed = state[model].filter(r => matches(r, where));
+    state[model] = state[model].filter(r => !matches(r, where));
+    return {
+      count: removed.length
+    };
   },
   async updateMany({
     where,
@@ -661,4 +684,383 @@ test('Drawer reconciliation includes expenses, deposits and every cash movement'
   });
   const result = await call(require('../src/controllers/register.controller').getCurrentSessionHandler);
   assert.equal(result.body.data.expected_cash_in_drawer, 5500);
+});
+test('Accountant permissions allow routine work, block owner-only actions and apply overrides', async () => {
+  const P = require('../src/services/permission.service');
+  const accountant = {
+    id: 'accountant',
+    role: 'ACCOUNTANT',
+    permissions: P.effectivePermissions({
+      role: 'Accountant'
+    })
+  };
+  assert(P.can(accountant, 'billing.manage'));
+  assert(P.can(accountant, 'reports.read'));
+  assert(!P.can(accountant, 'billing.refund'));
+  assert.equal((await call(P.enforcePermissions, {}, {
+    user: accountant,
+    path: '/permissions',
+    method: 'GET'
+  })).status, 403);
+  assert.equal((await call(P.enforcePermissions, {}, {
+    user: accountant,
+    path: '/invoices/x/refund',
+    method: 'POST'
+  })).status, 403);
+  accountant.permissions['billing.refund'] = true;
+  let passed = false;
+  P.enforcePermissions({
+    user: accountant,
+    path: '/invoices/x/refund',
+    method: 'POST'
+  }, {}, () => passed = true);
+  assert(passed);
+  accountant.permissions['reports.read'] = false;
+  assert.equal((await call(P.enforcePermissions, {}, {
+    user: accountant,
+    path: '/reports/summary',
+    method: 'GET'
+  })).status, 403);
+  const approved = await P.approval({
+    user: accountant,
+    body: {}
+  }, 'billing.discount');
+  assert(approved.isValid);
+  assert.equal(approved.source, 'SESSION');
+});
+test('Permission updates validate switches, preserve owner access and audit changes', async () => {
+  const controller = require('../src/controllers/permission.controller');
+  state.user.push({
+    id: 'accountant',
+    role: 'Accountant',
+    is_active: true
+  });
+  await call(controller.updatePermissions, {
+    permissions: {
+      'billing.refund': true
+    }
+  }, {
+    params: {
+      id: 'accountant'
+    }
+  });
+  assert.equal(state.user[1].permissions['billing.refund'], true);
+  assert.equal(state.auditLog[0].action, 'PERMISSIONS_UPDATED');
+  await assert.rejects(call(controller.updatePermissions, {
+    permissions: {
+      'billing.refund': 'false'
+    }
+  }, {
+    params: {
+      id: 'accountant'
+    }
+  }), /valid/);
+  await assert.rejects(call(controller.updatePermissions, {
+    permissions: {
+      'reports.read': false
+    }
+  }, {
+    params: {
+      id: 'admin'
+    }
+  }), /Admin access/);
+});
+test('Unbilled service changes keep old prices/materials and reject stale edits or billed jobs', async () => {
+  const handler = require('../src/controllers/job-services.controller').updateJobServices;
+  state.service = [{
+    id: 'wash',
+    name: 'Wash',
+    is_active: true,
+    price: 1200
+  }, {
+    id: 'interior',
+    name: 'Interior',
+    is_active: true,
+    price: 500
+  }];
+  state.jobCardService = [{
+    id: 'line1',
+    job_card_id: 'job',
+    service_id: 'wash',
+    price_charged: 1000
+  }];
+  state.jobCard[0].services_version = 0;
+  state.jobCard[0].completed_at = new Date();
+  state.materialIssuance.push({
+    id: 'used',
+    job_card_id: 'job',
+    inventory_id: 'stock',
+    quantity_issued: 30
+  });
+  const r = await call(handler, {
+    service_ids: ['wash', 'interior'],
+    expected_version: 0
+  }, {
+    params: {
+      id: 'job'
+    }
+  });
+  assert.equal(r.body.data.status, 'QUEUED');
+  assert.equal(state.jobCardService.find(s => s.service_id === 'wash').price_charged, 1000);
+  assert.equal(state.jobCardService.find(s => s.service_id === 'interior').price_charged, 500);
+  assert.equal(state.materialIssuance.length, 1);
+  await assert.rejects(call(handler, {
+    service_ids: ['wash'],
+    expected_version: 0
+  }, {
+    params: {
+      id: 'job'
+    }
+  }), /another window/);
+  await call(handler, {
+    service_ids: ['interior'],
+    expected_version: 1
+  }, {
+    params: {
+      id: 'job'
+    }
+  });
+  assert.equal(state.jobCardService.length, 1);
+  state.invoice.push({
+    id: 'closed',
+    job_card_id: 'job'
+  });
+  await assert.rejects(call(handler, {
+    service_ids: ['wash'],
+    expected_version: 2
+  }, {
+    params: {
+      id: 'job'
+    }
+  }), /locked/);
+});
+test('Direct ESC/POS jobs contain strong text and exactly one optional cut command', () => {
+  const {
+    buildEscPos,
+    linesForDocument,
+    isLocalHost
+  } = require('../src/services/thermal-printer.service');
+  const document = {
+    invoice_number: 'INV-TEST',
+    total_amount: 1000,
+    paid_amount: 600,
+    balance_due: 400,
+    job_card: {
+      vehicle: {
+        registration_number: 'ABC123'
+      },
+      services: [{
+        price_charged: 1000,
+        service: {
+          name: 'Full body wash'
+        }
+      }]
+    },
+    payments: [{
+      payment_method: 'Cash',
+      amount: 600
+    }]
+  };
+  const packet = buildEscPos('INVOICE', document, {
+    business_name: 'DF PRO'
+  }, {
+    paper_width: 80,
+    auto_cut: true,
+    cut_feed: 2
+  });
+  let cuts = 0;
+  for (let i = 0; i < packet.length - 2; i++) if (packet[i] === 29 && packet[i + 1] === 86 && packet[i + 2] === 0) cuts++;
+  assert.equal(cuts, 1);
+  assert(packet.includes(Buffer.from([27, 69, 1])));
+  assert(packet.toString().includes('Full body wash'));
+  assert(!buildEscPos('INVOICE', document, {}, {
+    paper_width: 58,
+    auto_cut: false,
+    cut_feed: 0
+  }).includes(Buffer.from([29, 86, 0])));
+  assert(isLocalHost('192.168.1.200'));
+  assert(!isLocalHost('8.8.8.8'));
+  assert(!isLocalHost('example.com'));
+  assert(linesForDocument('INVOICE', document, {}, 32).every(line => line.length <= 32));
+});
+test('Direct print replay sends one TCP packet and settings validate the target', async () => {
+  const net = require('node:net'),
+    controller = require('../src/controllers/printer.controller');
+  let packets = [];
+  const server = net.createServer(socket => {
+    const chunks = [];
+    socket.on('data', chunk => chunks.push(chunk));
+    socket.on('end', () => {
+      packets.push(Buffer.concat(chunks));
+      socket.end();
+    });
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  try {
+    state.printerSetting = [{
+      id: 'shop',
+      mode: 'NETWORK',
+      host: '127.0.0.1',
+      port: server.address().port,
+      paper_width: 80,
+      auto_cut: true,
+      cut_feed: 3
+    }];
+    await call(controller.printDocument, {
+      kind: 'TICKET',
+      document_id: 'job'
+    });
+    await call(controller.printDocument, {
+      kind: 'TICKET',
+      document_id: 'job'
+    });
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.equal(packets.length, 1);
+    assert.equal(state.printerJob[0].status, 'SENT');
+    await assert.rejects(call(controller.updateSettings, {
+      mode: 'NETWORK',
+      host: '8.8.8.8'
+    }), /local/);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+test('Uncertain native print delivery is recorded and replay never sends again', async () => {
+  const controller = require('../src/controllers/printer.controller'),
+    service = require('../src/services/thermal-printer.service');
+  state.printerSetting = [{
+    id: 'shop',
+    mode: 'NETWORK',
+    host: '127.0.0.1',
+    port: 9100,
+    paper_width: 80,
+    auto_cut: true,
+    cut_feed: 3
+  }];
+  const original = service.sendNetwork;
+  let attempts = 0;
+  try {
+    service.sendNetwork = async () => {
+      attempts++;
+      throw Error('offline');
+    };
+    await assert.rejects(call(controller.printDocument, {
+      kind: 'TICKET',
+      document_id: 'job'
+    }), /confirmed/);
+    await assert.rejects(call(controller.printDocument, {
+      kind: 'TICKET',
+      document_id: 'job'
+    }), /uncertain/);
+    assert.equal(attempts, 1);
+    assert.equal(state.printerJob[0].status, 'UNKNOWN');
+  } finally {
+    service.sendNetwork = original;
+  }
+});
+test('HTTP API enforces Accountant permissions, including changes during an existing session', async () => {
+  const express = require('express');
+  const app = express();
+  app.use(express.json());
+  app.use('/api', require('../src/routes/api.routes'));
+  app.use((e, req, res, next) => res.status(e.status || 500).json({
+    message: e.message
+  }));
+  state.user.push({
+    id: 'accountant',
+    name: 'Accounts',
+    role: 'Accountant',
+    is_active: true,
+    session_version: 0,
+    permissions: {
+      'reports.read': false
+    }
+  });
+  const server = await new Promise(resolve => {
+    const s = app.listen(0, '127.0.0.1', () => resolve(s));
+  });
+  const base = 'http://127.0.0.1:' + server.address().port + '/api';
+  const accountToken = security.generateToken({
+      id: 'accountant',
+      version: 0
+    }),
+    ownerToken = security.generateToken({
+      id: 'admin',
+      version: 0
+    });
+  const request = (url, token, method = 'GET', body) => fetch(base + url, {
+    method,
+    headers: {
+      Authorization: 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    },
+    ...(body ? {
+      body: JSON.stringify(body)
+    } : {})
+  });
+  try {
+    assert.equal((await fetch(base + '/banks')).status, 401);
+    assert.equal((await request('/reports/summary', accountToken)).status, 403);
+    assert.equal((await request('/permissions', accountToken)).status, 403);
+    assert.equal((await request('/invoices/x/refund', accountToken, 'POST', {
+      amount: 100
+    })).status, 403);
+    assert.equal((await request('/settings', accountToken, 'PATCH', {
+      key: 'ENABLE_SMS_GATEWAY',
+      value: true
+    })).status, 403);
+    assert.equal((await request('/banks', accountToken)).status, 200);
+    assert.equal((await request('/permissions/accountant', ownerToken, 'PATCH', {
+      permissions: {
+        'reports.read': true
+      }
+    })).status, 200);
+    assert.equal(require('../src/services/permission.service').effectivePermissions(state.user[1])['reports.read'], true);
+    assert.equal((await request('/reports/summary', accountToken)).status, 200);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+test('Owner cannot be demoted/deactivated as the last Admin, and compensation is validated without secret leaks', async () => {
+  await assert.rejects(call(users.updateUserHandler, {
+    role: 'Accountant'
+  }, {
+    params: {
+      id: 'admin'
+    }
+  }), /active Admin/);
+  await assert.rejects(call(users.toggleUserStatusHandler, {}, {
+    params: {
+      id: 'admin'
+    }
+  }), /active Admin/);
+  await assert.rejects(call(require('../src/controllers/payroll.controller').updateStaffSalaryHandler, {
+    base_salary: -100
+  }, {
+    params: {
+      id: 'admin'
+    }
+  }), /valid amount/);
+  await assert.rejects(call(require('../src/controllers/payroll.controller').updateStaffSalaryHandler, {
+    commission_rate: 101
+  }, {
+    params: {
+      id: 'admin'
+    }
+  }), /exceed/);
+  const result = await call(require('../src/controllers/payroll.controller').updateStaffSalaryHandler, {
+    base_salary: 1000,
+    commission_rate: 10
+  }, {
+    params: {
+      id: 'admin'
+    }
+  });
+  assert.equal(result.body.data.base_salary, 1000);
+  assert(!('password_hash' in result.body.data));
+  assert(!('pin_code' in result.body.data));
+  assert.equal(state.auditLog[0].action, 'STAFF_COMPENSATION_UPDATED');
 });

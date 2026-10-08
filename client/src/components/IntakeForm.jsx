@@ -1,3 +1,4 @@
+import { useAuth } from '../context/AuthContext';
 import React, { useEffect, useRef, useState } from 'react';
 import { Car, User, Search, Plus, X, Printer, ArrowRight, Loader2, CheckCircle2, AlertCircle, RotateCw, ClipboardList, Check, Crown, History, Phone, Clock, Sparkles, Droplets, ShieldCheck } from 'lucide-react';
 import axios from 'axios';
@@ -12,6 +13,9 @@ export default function IntakeForm({
   onJobCreated,
   customerPreset
 }) {
+  const {
+    can
+  } = useAuth();
   const [overridePin, setOverridePin] = useState(''),
     [overrideReason, setOverrideReason] = useState('');
   const [plate, setPlate] = useState('');
@@ -450,7 +454,7 @@ export default function IntakeForm({
             <span>80mm thermal ticket generated automatically.</span>
           </div>
         </aside>
-      {selectedServices.some(s => Number(s.price_charged ?? s.price) !== Number(availableServices.find(a => a.id === s.id)?.price)) && <div className="surface p-3"><label>Price override approval PIN<input type="password" className="form-input" value={overridePin} onChange={e => setOverridePin(e.target.value)} required /></label><label>Reason<input className="form-input" value={overrideReason} onChange={e => setOverrideReason(e.target.value)} required /></label></div>}</form>
+      {selectedServices.some(s => Number(s.price_charged ?? s.price) !== Number(availableServices.find(a => a.id === s.id)?.price)) && <div className="surface p-3">{!can('billing.discount') && <label>Price override approval PIN<input type="password" className="form-input" value={overridePin} onChange={e => setOverridePin(e.target.value)} required /></label>}<label>Reason<input className="form-input" value={overrideReason} onChange={e => setOverrideReason(e.target.value)} required /></label></div>}</form>
 
       {/* Generated Ticket Modal with Thermal Preview */}
       {generatedTicket && <div className="dialog-backdrop">
@@ -470,7 +474,7 @@ export default function IntakeForm({
             <TokenThermalTicket ticket={generatedTicket} branding={branding} id="printable-ticket" />
 
             <div className="ticket-actions mt-4 flex gap-2">
-              <button type="button" className="btn btn-secondary flex-1 flex items-center justify-center gap-1.5 py-2 text-sm" onClick={() => {
+              <button type="button" className="btn-print btn btn-secondary flex-1 flex items-center justify-center gap-1.5 py-2 text-sm" onClick={() => {
             if (!printThermal('printable-ticket')) {
               setErrorMessage('Allow pop-ups to open the thermal print preview.');
             }

@@ -9,16 +9,14 @@ import AdminBrandingTab from '../components/admin/AdminBrandingTab';
 import { Tag, Building2, Landmark } from 'lucide-react';
 export default function AdminManagement() {
   const {
-    isAdmin
+    isAdmin,
+    can
   } = useAuth();
   const [paymentBanks, setPaymentBanks] = useState([]);
   useEffect(() => {
     axios.get('/api/banks').then(r => setPaymentBanks(r.data.data.accounts)).catch(() => {});
   }, []);
-  const [isAdminUnlocked, setIsAdminUnlocked] = useState(true); // Pre-unlocked for smooth DX
-  const [pinInput, setPinInput] = useState('');
-  const [pinError, setPinError] = useState('');
-  const [activeAdminTab, setActiveAdminTab] = useState('inventory'); // 'inventory' | 'services' | 'staff' | 'banks' | 'branding' | 'payroll' | 'dividends' | 'audit'
+  const [activeAdminTab, setActiveAdminTab] = useState(can('inventory.read') ? 'inventory' : can('services.read') ? 'services' : 'banks'); // 'inventory' | 'services' | 'staff' | 'banks' | 'branding' | 'payroll' | 'dividends' | 'audit'
 
   // Common month selection (YYYY-MM)
   const [currentMonth, setCurrentMonth] = useState(() => new Date().toISOString().slice(0, 7));
@@ -178,27 +176,27 @@ export default function AdminManagement() {
       setIsLoadingAudit(false);
     }
   };
+  const tabPermission = {
+    inventory: 'inventory.read',
+    services: 'services.read',
+    banks: 'finance.read',
+    payroll: 'payroll.read',
+    dividends: 'partners.read',
+    audit: 'audit.read',
+    staff: null
+  };
   useEffect(() => {
-    if (isAdminUnlocked) {
+    if (activeAdminTab === 'inventory' && can('inventory.read')) {
       fetchInventory();
       fetchYieldData();
-      fetchPayroll(currentMonth);
-      fetchDividends(currentMonth);
-      fetchAuditLogs(auditFilter);
     }
-  }, [isAdminUnlocked, currentMonth]);
-
-  // Handle PIN unlock
-  const handlePinSubmit = e => {
-    e.preventDefault();
-    if (pinInput === '1234') {
-      setIsAdminUnlocked(true);
-      setPinError('');
-      setPinInput('');
-    } else {
-      setPinError('Invalid Admin PIN. Please enter 1234.');
-    }
-  };
+    if (activeAdminTab === 'payroll' && can('payroll.read')) fetchPayroll(currentMonth);
+    if (activeAdminTab === 'dividends' && can('partners.read')) fetchDividends(currentMonth);
+    if (activeAdminTab === 'audit' && can('audit.read')) fetchAuditLogs(auditFilter);
+  }, [activeAdminTab, currentMonth]);
+  useEffect(() => {
+    if (activeAdminTab === 'staff' ? !isAdmin : !can(tabPermission[activeAdminTab])) setActiveAdminTab(['inventory', 'services', 'banks', 'payroll', 'dividends', 'audit'].find(id => can(tabPermission[id])) || 'services');
+  }, [JSON.stringify(tabPermission), can('inventory.read'), can('finance.read'), can('payroll.read'), can('services.read')]);
 
   // Restock action
   const handleRestockSubmit = async e => {
@@ -349,31 +347,10 @@ export default function AdminManagement() {
   // Month navigation
   const shiftMonth = delta => {
     const [y, m] = currentMonth.split('-').map(Number);
-    const date = new Date(y, m - 1 + delta, 1);
+    const date = new Date(Date.UTC(y, m - 1 + delta, 1));
     const newMonthStr = date.toISOString().slice(0, 7);
     setCurrentMonth(newMonthStr);
   };
-
-  // PIN Lock Screen
-  if (!isAdminUnlocked) {
-    return <div className="max-w-md mx-auto my-12 p-8 bg-white border border-slate-200 rounded-xl shadow-sm text-center">
-        <div className="w-16 h-16 bg-sky-500/10 border border-sky-500/30 text-sky-700 rounded-lg flex items-center justify-center mx-auto mb-6">
-          <Lock className="w-8 h-8" />
-        </div>
-        <h2 className="text-2xl font-semibold text-slate-900">Management access</h2>
-        <p className="text-slate-500 text-xs mt-2">
-          Enter Shop Admin PIN to access Inventory Control, Payroll, and Partner Equity Engine.
-        </p>
-
-        <form onSubmit={handlePinSubmit} className="mt-6 space-y-4">
-          <input type="password" maxLength={6} placeholder="Enter management PIN" value={pinInput} onChange={e => setPinInput(e.target.value)} className="w-full text-center text-2xl tracking-widest tabular-nums bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:border-sky-500" autoFocus />
-          {pinError && <p className="text-xs text-rose-700">{pinError}</p>}
-          <button type="submit" className="w-full bg-sky-500 text-white hover:bg-sky-400 text-slate-950 font-bold py-3 rounded-xl transition flex items-center justify-center gap-2">
-            <Unlock className="w-4 h-4" /> Unlock Admin Panel
-          </button>
-        </form>
-      </div>;
-  }
 
   // Inventory Totals
   const totalInvValue = inventory.reduce((sum, item) => sum + item.current_stock * item.cost_per_unit, 0);
@@ -405,7 +382,7 @@ export default function AdminManagement() {
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Consumable Yield Tracking • Staff Payroll & Commissions • Partner Equity & Profit Split
+              Stock, service prices and shop accounts.
             </p>
           </div>
         </div>
@@ -417,20 +394,15 @@ export default function AdminManagement() {
           label: 'Services Catalog',
           icon: Tag,
           color: 'blue'
-        }, ...(isAdmin ? [{
+        }, ...(true ? [{
           id: 'staff',
-          label: 'Staff & Roles',
+          label: 'Accounts & staff',
           icon: Users,
           color: 'blue'
         }, {
           id: 'banks',
           label: 'Bank Accounts',
           icon: Landmark,
-          color: 'blue'
-        }, {
-          id: 'branding',
-          label: 'Logo & Branding',
-          icon: Building2,
           color: 'blue'
         }] : []), {
           id: 'inventory',
@@ -440,7 +412,7 @@ export default function AdminManagement() {
           badge: lowStockCount > 0 ? <span className="bg-rose-500 text-white text-xs px-1.5 py-0.2 rounded-full font-bold">
                   {lowStockCount}
                 </span> : null
-        }, ...(isAdmin ? [{
+        }, ...(true ? [{
           id: 'payroll',
           label: 'Monthly Payroll',
           icon: Users,
@@ -462,7 +434,7 @@ export default function AdminManagement() {
           badge: auditLogs.length > 0 ? <span className="bg-rose-50 text-rose-700 tabular-nums text-xs px-1.5 py-0.2 rounded-full border border-rose-200">
                         {auditLogs.length}
                       </span> : null
-        }] : [])].map(tab => {
+        }] : [])].filter(tab => tab.id === 'staff' ? isAdmin : can(tabPermission[tab.id])).map(tab => {
           const IconComponent = tab.icon;
           const isActive = activeAdminTab === tab.id;
           let activeClass = 'bg-blue-600 text-white shadow-sm';

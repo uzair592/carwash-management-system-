@@ -35,7 +35,22 @@ router.get('/live', requireInvestorAuth, async (req, res, next) => {
       },
       include: {
         vehicle: true,
-        worker: true,
+        worker: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        assigned_workers: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        },
         services: {
           include: {
             service: true
@@ -51,7 +66,7 @@ router.get('/live', requireInvestorAuth, async (req, res, next) => {
       ticket_number: j.ticket_number,
       plate: j.vehicle?.registration_number,
       make_model: `${j.vehicle?.make || ''} ${j.vehicle?.model || ''}`.trim() || 'Vehicle',
-      worker: j.worker?.name || 'Unassigned',
+      worker: j.assigned_workers?.map(w => w.user.name).join(', ') || j.worker?.name || 'Unassigned',
       services: j.services.map(s => s.service?.name).join(', '),
       started_at: j.started_at
     }));
@@ -71,6 +86,7 @@ router.get('/live', requireInvestorAuth, async (req, res, next) => {
         created_at: 'desc'
       },
       include: {
+        payments: true,
         job_card: {
           include: {
             vehicle: true
@@ -82,7 +98,9 @@ router.get('/live', requireInvestorAuth, async (req, res, next) => {
       invoice_number: inv.invoice_number,
       plate: inv.job_card?.vehicle?.registration_number || 'N/A',
       amount: parseFloat(inv.total_amount),
-      payment_method: inv.payment_method,
+      payment_method: new Set(inv.payments.map(p => p.payment_method)).size > 1 ? 'Split' : inv.payment_method,
+      balance_due: Number(inv.balance_due),
+      status: inv.status,
       time: inv.created_at
     }));
     return res.status(200).json({
@@ -98,7 +116,8 @@ router.get('/live', requireInvestorAuth, async (req, res, next) => {
           bank_revenue: financialMetrics.bankRevenue,
           total_expenses: financialMetrics.totalExpenses,
           total_refunds: financialMetrics.totalRefunds || 0,
-          net_profit: financialMetrics.netSurplus
+          net_cash_flow: financialMetrics.netSurplus,
+          advances_collected: financialMetrics.advancesCollected
         },
         bays_breakdown: financialMetrics.baysBreakdown,
         register_summary: financialMetrics.registerSummary,
@@ -123,7 +142,7 @@ router.get('/live', requireInvestorAuth, async (req, res, next) => {
  * POST /api/dashboard/trigger-eod
  * On-demand manual trigger for sending the EOD partner report to Telegram.
  */
-router.post('/trigger-eod', requireRole(['ADMIN', 'MANAGER']), async (req, res, next) => {
+router.post('/trigger-eod', async (req, res, next) => {
   try {
     const result = await runEodReportNow();
     return res.status(200).json({

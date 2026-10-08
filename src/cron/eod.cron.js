@@ -95,6 +95,17 @@ async function compileEodMetrics() {
     },
     include: {
       services: true,
+      assigned_workers: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              flat_commission: true,
+              commission_rate: true
+            }
+          }
+        }
+      },
       worker: {
         select: {
           id: true,
@@ -110,11 +121,11 @@ async function compileEodMetrics() {
   const otherCars = finishedJobsToday.length - (jack1Cars + jack2Cars + detailingCars);
 
   // Worker commissions
-  const workerCommissionTotal = finishedJobsToday.reduce((sum, job) => {
-    const rate = job.worker ? parseFloat(job.worker.commission_rate) : 0;
-    const jobSubtotal = job.services.reduce((sSum, s) => sSum + parseFloat(s.price_charged), 0);
-    return sum + jobSubtotal * rate / 100;
-  }, 0);
+  const {
+    assignmentRows,
+    jobEarnings
+  } = require('../controllers/staff-performance.controller');
+  const workerCommissionTotal = finishedJobsToday.reduce((sum, job) => sum + assignmentRows(job).reduce((earned, a) => earned + jobEarnings(job, a), 0), 0);
 
   // 5. Cash Register Sessions (Shift Reconciliation & Till Variances)
   const registerSessionsToday = await prisma.registerSession.findMany({
@@ -165,6 +176,7 @@ async function compileEodMetrics() {
     totalExpenses,
     refundsCount: refunds.length,
     totalRefunds,
+    advancesCollected: deposits.reduce((sum, d) => sum + Number(d.amount), 0),
     netSurplus,
     workerCommissionTotal,
     registerSummary: {

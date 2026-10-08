@@ -26,7 +26,8 @@ async function authenticateUser(req, res, next) {
     req.user = {
       id: user.id,
       name: user.name,
-      role: normalizeRole(user.role)
+      role: normalizeRole(user.role),
+      permissions: require("../services/permission.service").effectivePermissions(user)
     };
     next();
   } catch (error) {
@@ -59,7 +60,9 @@ async function verifyAdminOrManagerPin(pin) {
     role: user ? normalizeRole(user.role) : null
   };
 }
-const requireInvestorAuth = requireRole(['ADMIN', 'MANAGER', 'INVESTOR']);
+const requireInvestorAuth = (req, res, next) => require('../services/permission.service').can(req.user, 'overview.read') ? next() : res.status(403).json({
+  message: 'Overview access denied.'
+});
 module.exports = {
   authenticateUser,
   requireRole,

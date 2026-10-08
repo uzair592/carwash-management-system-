@@ -19,7 +19,7 @@ export default function AdminStaffTab() {
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [addUserForm, setAddUserForm] = useState({
     name: '',
-    role: 'Worker',
+    role: 'Accountant',
     password: '',
     pin_code: '',
     base_salary: '30000',
@@ -324,16 +324,16 @@ export default function AdminStaffTab() {
                 role: e.target.value
               })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:border-blue-600 focus:outline-none">
                     <option value="Worker">Worker (Bay Floor)</option>
-                    <option value="Cashier">Cashier (POS & Billing)</option>
-                    <option value="Manager">Manager (Approvals & Inventory)</option>
-                    <option value="Investor">Investor (Read-only overview)</option><option value="Admin">Admin (Full Control)</option>
+                    <option value="Accountant">Accountant</option>
+
+                    <option value="Admin">Admin (Full Control)</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Initial Password
+                    Initial password (optional for workers)
                   </label>
-                  <input type="password" placeholder="Min 4 characters" value={addUserForm.password} onChange={e => setAddUserForm({
+                  <input type="password" placeholder="Min 8 characters" value={addUserForm.password} onChange={e => setAddUserForm({
                 ...addUserForm,
                 password: e.target.value
               })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none" />
@@ -343,9 +343,9 @@ export default function AdminStaffTab() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Approval PIN (4 digits)
+                    Approval PIN (Admin only; optional for others)
                   </label>
-                  <input type="password" maxLength={10} placeholder="e.g. 1234" value={addUserForm.pin_code} onChange={e => setAddUserForm({
+                  <input type="password" maxLength={10} placeholder="4–8 digits" value={addUserForm.pin_code} onChange={e => setAddUserForm({
                 ...addUserForm,
                 pin_code: e.target.value
               })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:outline-none font-mono" />
@@ -435,7 +435,7 @@ export default function AdminStaffTab() {
             <form onSubmit={handleUpdatePin} className="space-y-4 text-sm">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  New Approval PIN (4–6 digits) <span className="text-red-500">*</span>
+                  New Approval PIN (Admin only; optional for others) <span className="text-red-500">*</span>
                 </label>
                 <input type="password" maxLength={10} required placeholder="e.g. 4321" value={newPin} onChange={e => setNewPin(e.target.value)} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:border-purple-600 focus:outline-none font-mono" />
               </div>
@@ -475,9 +475,9 @@ export default function AdminStaffTab() {
               role: e.target.value
             })} className="w-full p-2.5 border border-slate-300 rounded-lg text-sm bg-white focus:border-blue-600 focus:outline-none">
                   <option value="Worker">Worker</option>
-                  <option value="Cashier">Cashier</option>
+                  <option value="Accountant">Accountant</option><option value="Cashier">Cashier</option>
                   <option value="Manager">Manager</option>
-                  <option value="Investor">Investor (Read-only overview)</option><option value="Admin">Admin</option>
+                  <option value="Admin">Admin</option>
                 </select>
               </div>
 
