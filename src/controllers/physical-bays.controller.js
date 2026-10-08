@@ -422,6 +422,51 @@ async function completeJobCardHandler(req, res, next) {
       },
     });
 
+    // Telegram notification on every car wash or service completed
+    try {
+      const servicesListStr = (updated.services || [])
+        .map((s) => `  • ${s.service?.name || s.name || 'Wash Service'}`)
+        .join('\n') || '  • Wash & Detailing Service';
+
+      const assignedTeamOrWorkers = updated.assigned_workers?.length > 0
+        ? updated.assigned_workers.map((w) => w.user?.name).filter(Boolean).join(', ')
+        : (updated.worker?.name || updated.assigned_team || 'Workshop Team');
+
+      const durationMinutes = updated.started_at
+        ? Math.max(1, Math.round((new Date().getTime() - new Date(updated.started_at).getTime()) / 60000))
+        : null;
+
+      const slotLabel = (updated.assigned_location || 'WORK AREA').replace(/_/g, ' ');
+
+      const alertLines = [
+        `🚿 *CAR WASH / SERVICE COMPLETED*`,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `🎫 *Ticket:* \`${updated.ticket_number}\``,
+        `🚘 *Vehicle Plate:* *${updated.vehicle?.registration_number}*${updated.vehicle?.make ? ` (${updated.vehicle.make} ${updated.vehicle.model || ''})` : ''}`,
+        `👤 *Customer:* ${updated.customer_name || updated.vehicle?.customer_name || 'Walk-in Customer'}`,
+        `📍 *Work Area / Bay:* *${slotLabel}*`,
+        `👷 *Performed By:* ${assignedTeamOrWorkers}`,
+        durationMinutes !== null ? `⏱ *Time Taken:* ~${durationMinutes} mins` : '',
+        `🛠 *Services Completed:*`,
+        servicesListStr,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `🏁 _Vehicle moved to Ready for Billing. Bay/Slot is now free._`,
+      ].filter(Boolean).join('\n');
+
+      await prisma.alertOutbox.create({
+        data: {
+          type: 'TELEGRAM',
+          payload: { text: alertLines, event: 'SERVICE_COMPLETED' },
+          status: 'PENDING',
+        },
+      });
+
+      const { processOutboxQueue } = require('../workers/outbox.worker');
+      processOutboxQueue().catch((err) => console.warn('[Outbox] Flush notice:', err.message));
+    } catch (alertErr) {
+      console.warn('[completeJobCardHandler] Outbox notice:', alertErr.message);
+    }
+
     return res.status(200).json({
       status: 'success',
       message: `Vehicle ${updated.vehicle.registration_number} completed. ${updated.assigned_location || 'Slot'} is now released and FREE for the next car. Vehicle moved to Ready For Billing.`,

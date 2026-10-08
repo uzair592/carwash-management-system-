@@ -98,6 +98,40 @@ async function updateJobCardStatusHandler(req, res, next) {
       },
     });
 
+    // Telegram notification when car wash/service is marked Completed
+    if (formattedStatus === 'Completed') {
+      try {
+        const servicesListStr = (finalJobCard.services || [])
+          .map((s) => `  • ${s.service?.name || s.name || 'Wash Service'}`)
+          .join('\n') || '  • Wash & Detailing Service';
+
+        const alertLines = [
+          `🚿 *CAR WASH / SERVICE COMPLETED*`,
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+          `🎫 *Ticket:* \`${finalJobCard.ticket_number}\``,
+          `🚘 *Vehicle Plate:* *${finalJobCard.vehicle?.registration_number}*${finalJobCard.vehicle?.make ? ` (${finalJobCard.vehicle.make} ${finalJobCard.vehicle.model || ''})` : ''}`,
+          `👤 *Customer:* ${finalJobCard.customer_name || finalJobCard.vehicle?.customer_name || 'Walk-in Customer'}`,
+          `🛠 *Services Completed:*`,
+          servicesListStr,
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+          `🏁 _Service work marked complete and ready for billing._`,
+        ].join('\n');
+
+        await prisma.alertOutbox.create({
+          data: {
+            type: 'TELEGRAM',
+            payload: { text: alertLines, event: 'SERVICE_COMPLETED' },
+            status: 'PENDING',
+          },
+        });
+
+        const { processOutboxQueue } = require('../workers/outbox.worker');
+        processOutboxQueue().catch((err) => console.warn('[Outbox] Flush notice:', err.message));
+      } catch (alertErr) {
+        console.warn('[updateJobCardStatusHandler] Outbox notice:', alertErr.message);
+      }
+    }
+
     return res.status(200).json({
       status: 'success',
       message: `Job Card status updated to "${finalJobCard.status}".`,

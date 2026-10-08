@@ -13,10 +13,15 @@ import {
   Sparkles,
   ArrowRight,
   ShieldCheck,
-  RotateCcw
+  RotateCcw,
+  Printer,
+  X,
 } from 'lucide-react';
 import axios from 'axios';
 import PinPadModal from './PinPadModal';
+import { printThermal } from '../utils/print';
+
+const money = (val) => Number(val || 0).toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
 export default function BillingQueue({ onOpenCheckout }) {
   const [readyJobs, setReadyJobs] = useState([]);
@@ -27,12 +32,15 @@ export default function BillingQueue({ onOpenCheckout }) {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [refundReason, setRefundReason] = useState('Customer Request / Service Correction');
   const [statusFeedback, setStatusFeedback] = useState(null);
+  const [printInvoiceTarget, setPrintInvoiceTarget] = useState(null);
+  const [branding, setBranding] = useState(null);
 
   const loadData = async () => {
     try {
-      const [bayRes, invRes] = await axios.all([
+      const [bayRes, invRes, brandRes] = await axios.all([
         axios.get('/api/bays/live-status'),
         axios.get('/api/invoices?limit=8'),
+        axios.get('/api/branding').catch(() => ({ data: null })),
       ]);
 
       if (bayRes.data?.ready_for_billing) {
@@ -40,6 +48,9 @@ export default function BillingQueue({ onOpenCheckout }) {
       }
       if (invRes.data?.data) {
         setRecentInvoices(invRes.data.data);
+      }
+      if (brandRes.data?.data) {
+        setBranding(brandRes.data.data);
       }
     } catch (err) {
       console.warn('Billing queue poll error:', err.message);
@@ -336,15 +347,25 @@ export default function BillingQueue({ onOpenCheckout }) {
                     )}
                   </td>
                   <td className="py-3 px-3 text-right">
-                    {!inv.refund && (
+                    <div className="flex items-center justify-end gap-1.5">
                       <button
                         type="button"
-                        onClick={() => handleRefundInitiate(inv)}
-                        className="text-xs font-semibold text-rose-700 hover:text-rose-700 bg-rose-50 hover:bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-lg transition"
+                        onClick={() => setPrintInvoiceTarget(inv)}
+                        className="text-xs font-semibold text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1"
                       >
-                        Refund / Void
+                        <Printer className="w-3.5 h-3.5" />
+                        Print Invoice
                       </button>
-                    )}
+                      {!inv.refund && (
+                        <button
+                          type="button"
+                          onClick={() => handleRefundInitiate(inv)}
+                          className="text-xs font-semibold text-rose-700 hover:text-rose-700 bg-rose-50 hover:bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-lg transition"
+                        >
+                          Refund
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -364,6 +385,139 @@ export default function BillingQueue({ onOpenCheckout }) {
         title="Authorize Ledger Refund"
         description={`Admin or Manager PIN required to reverse ledger and void Invoice ${refundTargetInvoice?.invoice_number || ''}`}
       />
+
+      {/* Invoice Reprint Modal with Business Logo (Requirement 9 & User Request) */}
+      {printInvoiceTarget && (
+        <div className="dialog-backdrop">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <Printer className="w-5 h-5 text-blue-600" />
+                <h3 className="text-base font-bold text-slate-800">
+                  Customer Invoice Print #{printInvoiceTarget.invoice_number}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPrintInvoiceTarget(null)}
+                className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* 80mm ESC/POS Formatted Receipt with Business Logo */}
+            <div
+              id="reprint-invoice-dialog"
+              className="bg-slate-50 border border-slate-200 rounded-xl p-5 text-left text-xs font-mono space-y-2 text-black"
+              style={{ fontFamily: "'Courier New', Courier, monospace" }}
+            >
+              {branding?.logo_url && (
+                <div className="text-center mb-2">
+                  <img
+                    src={branding.logo_url}
+                    alt="Business Logo"
+                    style={{
+                      maxWidth: `${branding.logo_size || 140}px`,
+                      maxHeight: '85px',
+                      objectFit: 'contain',
+                      margin: '0 auto',
+                      display: 'block',
+                    }}
+                  />
+                </div>
+              )}
+
+              <div className="text-center font-bold text-sm">
+                {branding?.business_name || 'DF PRO CAR WASH & DETAILING'}
+              </div>
+              <div className="text-center text-[11px] text-gray-500">
+                {branding?.tagline || 'Official Customer Receipt'}
+              </div>
+
+              <div className="border-t border-b border-dashed border-gray-400 py-1.5 my-2 text-[11px] flex justify-between">
+                <span>Invoice: {printInvoiceTarget.invoice_number}</span>
+                <span>{new Date(printInvoiceTarget.created_at).toLocaleDateString('en-GB')}</span>
+              </div>
+
+              <div className="text-[11px] space-y-0.5">
+                <div><strong>Vehicle:</strong> {printInvoiceTarget.job_card?.vehicle?.registration_number || 'N/A'}</div>
+                <div><strong>Customer:</strong> {printInvoiceTarget.job_card?.customer_name || printInvoiceTarget.job_card?.vehicle?.customer_name || 'Walk-in Customer'}</div>
+                <div><strong>Tender:</strong> {printInvoiceTarget.payment_method} ({printInvoiceTarget.status})</div>
+              </div>
+
+              <div className="py-2 border-t border-b border-gray-300 space-y-1">
+                {(printInvoiceTarget.job_card?.services || []).map((s) => (
+                  <div key={s.id} className="flex justify-between">
+                    <span>{s.service?.name || s.name}</span>
+                    <strong>Rs. {money(s.price_charged)}</strong>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-1 pt-1 font-semibold">
+                <div className="flex justify-between">
+                  <span>Gross Total:</span>
+                  <span>Rs. {money(printInvoiceTarget.total_amount)}</span>
+                </div>
+                {parseFloat(printInvoiceTarget.discount_amount || 0) > 0 && (
+                  <div className="flex justify-between text-red-600">
+                    <span>Discount:</span>
+                    <span>-Rs. {money(printInvoiceTarget.discount_amount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-bold border-t border-black pt-1">
+                  <span>Amount Paid:</span>
+                  <span>Rs. {money(printInvoiceTarget.paid_amount || printInvoiceTarget.total_amount)}</span>
+                </div>
+                {printInvoiceTarget.cash_tendered && (
+                  <div className="flex justify-between text-[11px]">
+                    <span>Cash Tendered:</span>
+                    <span>Rs. {money(printInvoiceTarget.cash_tendered)}</span>
+                  </div>
+                )}
+                {printInvoiceTarget.change_returned && parseFloat(printInvoiceTarget.change_returned) > 0 && (
+                  <div className="flex justify-between text-[11px] text-emerald-700">
+                    <span>Change Returned:</span>
+                    <span>Rs. {money(printInvoiceTarget.change_returned)}</span>
+                  </div>
+                )}
+                {parseFloat(printInvoiceTarget.balance_due || 0) > 0 && (
+                  <div className="flex justify-between font-bold text-red-600 border-t border-dashed border-red-300 pt-1">
+                    <span>Balance Due:</span>
+                    <span>Rs. {money(printInvoiceTarget.balance_due)}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="text-center text-[10px] text-gray-500 pt-3 border-t border-dashed border-gray-400">
+                <p>Thank you for choosing DF PRO!</p>
+                {branding?.address && <p>{branding.address}</p>}
+                {branding?.phone && <p>Tel: {branding.phone}</p>}
+                {branding?.ntn_number && <p>NTN: {branding.ntn_number}</p>}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                className="btn btn-secondary px-4 py-2 text-xs rounded-lg"
+                onClick={() => setPrintInvoiceTarget(null)}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary px-5 py-2 text-xs rounded-lg flex items-center gap-1.5 shadow-sm bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={() => printThermal('reprint-invoice-dialog')}
+              >
+                <Printer className="w-4 h-4" />
+                Print Invoice (80mm)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
