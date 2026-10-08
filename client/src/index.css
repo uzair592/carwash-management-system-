@@ -57,18 +57,18 @@ input::placeholder, textarea::placeholder { color: #94a3b8; }
 .operator-card div span { font-size: 11px; color: var(--muted); text-transform: capitalize; }
 
 /* Workspace Top Bar & Content */
-.app-workspace { margin-left: 240px; min-width: 0; flex: 1; }
-.app-topbar { height: 58px; background: #fff; border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; z-index: 30; }
+.app-workspace { margin-left: 240px; min-width: 0; max-width: 100%; flex: 1; overflow-x: hidden; }
+.app-topbar { height: 58px; background: #fff; border-bottom: 1px solid var(--border); padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 0; z-index: 30; }
 .breadcrumb { display: flex; align-items: center; gap: 8px; color: #64748b; font-size: 13px; }
 .breadcrumb strong { font-weight: 600; color: #1e293b; }
-.topbar-actions { display: flex; align-items: center; gap: 14px; }
+.topbar-actions { display: flex; align-items: center; gap: 10px; }
 .connection { display: flex; align-items: center; gap: 6px; color: #475569; font-size: 12px; font-weight: 500; white-space: nowrap; }
 .connection i { width: 7px; height: 7px; border-radius: 50%; background: #16a34a; }
 .connection-error { color: #b45309; }
 .connection-error i { background: #f59e0b; }
 .topbar-date { font-size: 13px; color: #64748b; border-left: 1px solid var(--border); padding-left: 14px; }
 
-.workspace-content { padding: 20px 24px 20px; max-width: 1720px; margin: 0 auto; min-width: 0; }
+.workspace-content { padding: 20px 24px 20px; max-width: 1720px; width: 100%; margin: 0 auto; min-width: 0; box-sizing: border-box; }
 .workspace-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
 .workspace-heading h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a; margin: 2px 0 4px; line-height: 1.25; }
 .workspace-heading p { margin: 0; font-size: 14px; color: var(--muted); }

@@ -161,16 +161,22 @@ async function generateThermalCustomerReceipt(invoiceData, customBranding = null
   const customer = invoiceData.customer_name || invoiceData.job_card?.customer_name || invoiceData.job_card?.vehicle?.customer_name || 'Walk-in Customer';
   const paymentMethod = invoiceData.payment_method || 'CASH';
   const totalAmount = parseFloat(invoiceData.total_amount || 0);
-  const paidAmount = parseFloat(invoiceData.paid_amount || totalAmount);
   const discountAmount = parseFloat(invoiceData.discount_amount || 0);
-  const balanceDue = parseFloat(invoiceData.balance_due || (totalAmount - paidAmount));
+  const isExplicitlyUnpaid = String(invoiceData.status || '').toUpperCase() === 'UNPAID';
+  const paidAmount = (invoiceData.paid_amount !== undefined && invoiceData.paid_amount !== null)
+    ? parseFloat(invoiceData.paid_amount)
+    : (isExplicitlyUnpaid ? 0 : totalAmount);
+  const balanceDue = (invoiceData.balance_due !== undefined && invoiceData.balance_due !== null)
+    ? parseFloat(invoiceData.balance_due)
+    : Math.max(0, parseFloat((totalAmount - paidAmount).toFixed(2)));
   const cashTendered = invoiceData.cash_tendered ? parseFloat(invoiceData.cash_tendered) : null;
   const changeReturned = invoiceData.change_returned ? parseFloat(invoiceData.change_returned) : null;
-  const status = invoiceData.status || (balanceDue > 0 ? 'PARTIAL' : 'PAID');
+  const status = invoiceData.status || (balanceDue > 0 ? (paidAmount > 0 ? 'PARTIAL' : 'UNPAID') : 'PAID');
   const dateStr = new Date(invoiceData.created_at || Date.now()).toLocaleString('en-GB');
 
   const services = invoiceData.services || invoiceData.job_card?.services || [];
-  const subtotal = services.reduce((sum, s) => sum + parseFloat(s.price_charged || s.price || 0), totalAmount + discountAmount);
+  const servicesSum = services.reduce((sum, s) => sum + parseFloat(s.price_charged || s.price || 0), 0);
+  const subtotal = services.length > 0 ? servicesSum : Math.max(0, parseFloat((totalAmount + discountAmount).toFixed(2)));
 
   const lines = [
     divider('='),
@@ -233,11 +239,11 @@ async function generateThermalCustomerReceipt(invoiceData, customBranding = null
   return {
     plain_text: lines.join('\n'),
     formatted_html: `
-      <div class="thermal-receipt font-mono text-black text-xs leading-tight w-[72mm] mx-auto p-2 bg-white" style="font-family: 'Courier New', Courier, monospace; width: 72mm; color: #000;">
+      <div class="thermal-receipt text-black text-xs leading-tight w-[72mm] mx-auto p-2 bg-white" style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, Arial, sans-serif; width: 72mm; color: #000; font-weight: 700;">
         ${logoHtml}
-        <div class="text-center font-bold text-sm border-b-2 border-black pb-1 mb-2">
+        <div class="text-center font-black text-sm border-b-2 border-black pb-1 mb-2">
           ${branding.business_name || 'DF PRO CAR WASH & DETAILING'}<br />
-          <span class="text-[11px] font-normal italic">${branding.tagline || 'Official Customer Receipt'}</span>
+          <span class="text-[11px] font-bold uppercase tracking-wider">${branding.tagline || 'Official Customer Receipt'}</span>
         </div>
         <div class="flex justify-between text-xs mb-1">
           <span><strong>Inv:</strong> ${invoiceNo}</span>

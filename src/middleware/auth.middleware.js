@@ -33,8 +33,18 @@ async function authenticateUser(req, res, next) {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.slice(7).trim();
       const payload = verifyToken(token);
-      if (payload && payload.id) {
-        user = await prisma.user.findUnique({ where: { id: payload.id } });
+      if (!payload || !payload.id) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'Unauthorized: Invalid or expired authentication token.',
+        });
+      }
+      user = await prisma.user.findUnique({ where: { id: payload.id } });
+      if (!user || !user.is_active) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'Unauthorized: User account not found or is deactivated.',
+        });
       }
     }
 
@@ -44,11 +54,12 @@ async function authenticateUser(req, res, next) {
       });
     }
 
-    const role = user ? normalizeRole(user.role) : (rawRole ? normalizeRole(rawRole) : 'ADMIN');
+    // Role resolution: authenticated user > explicitly supplied role header > safe minimum Cashier
+    const role = user ? normalizeRole(user.role) : (rawRole ? normalizeRole(rawRole) : 'CASHIER');
 
     req.user = {
-      id: user ? user.id : (userId || 'system-user'),
-      name: user ? user.name : (rawRole ? `${rawRole} User` : 'Shop Admin'),
+      id: user ? user.id : (userId || 'cashier-session'),
+      name: user ? user.name : (rawRole ? `${rawRole} User` : 'Shop Cashier'),
       role: role,
     };
 
@@ -67,7 +78,7 @@ function requireRole(allowedRoles = []) {
   const normalizedAllowed = allowedRoles.map((r) => String(r).toUpperCase());
 
   return (req, res, next) => {
-    const userRole = req.user ? normalizeRole(req.user.role) : normalizeRole(req.headers['x-user-role']);
+    const userRole = req.user ? normalizeRole(req.user.role) : 'UNAUTHENTICATED';
 
     if (!normalizedAllowed.includes(userRole)) {
       console.log(`[RBAC FORBIDDEN 403] Role "${userRole}" blocked from ${req.originalUrl}. Allowed: [${normalizedAllowed}]`);

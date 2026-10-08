@@ -65,6 +65,26 @@ async function processPayment(amount, paymentMethod, meta = {}) {
       },
     });
 
+    // Append-only accounting journal entry
+    await tx.auditLog.create({
+      data: {
+        action: 'LEDGER_ENTRY',
+        description: `Ledger ${accountType}: CREDIT Rs. ${amountChanged.toLocaleString()}. Running balance: Rs. ${newBalance.toLocaleString()}.`,
+        performed_by_user_id: meta.user_id || null,
+        performed_by_name: meta.user_name || 'Cashier Desk',
+        metadata: {
+          account_type: accountType,
+          type: 'PAYMENT',
+          amount: amountChanged,
+          previous_balance: previousBalance,
+          running_balance: newBalance,
+          invoice_number: meta.invoice_number || null,
+          vehicle_plate: meta.vehicle_plate || null,
+          timestamp: new Date().toISOString(),
+        },
+      },
+    });
+
     return {
       account_type: accountType,
       previous_balance: previousBalance,
@@ -148,6 +168,26 @@ async function recordExpense(amount, paymentMethod, meta = {}) {
       data: {
         current_balance: newBalance,
         last_updated: new Date(),
+      },
+    });
+
+    // Append-only accounting journal entry
+    await tx.auditLog.create({
+      data: {
+        action: 'LEDGER_ENTRY',
+        description: `Ledger ${accountType}: DEBIT Rs. ${amountChanged.toLocaleString()}. Running balance: Rs. ${newBalance.toLocaleString()}.`,
+        performed_by_user_id: meta.user_id || null,
+        performed_by_name: meta.user_name || 'Operational Expense',
+        metadata: {
+          account_type: accountType,
+          type: 'EXPENSE',
+          category: meta.category || 'GENERAL',
+          amount: -amountChanged,
+          previous_balance: previousBalance,
+          running_balance: newBalance,
+          description: meta.description || null,
+          timestamp: new Date().toISOString(),
+        },
       },
     });
 

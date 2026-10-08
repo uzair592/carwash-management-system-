@@ -107,7 +107,7 @@ async function checkoutHandler(req, res, next) {
     // Net balance due before payments
     const netDue = Math.max(0, parseFloat((finalAmount - totalDepositsApplied).toFixed(2)));
 
-    // Normalize incoming payments
+    // Normalize and strictly validate incoming payments
     let normalizedPayments = [];
 
     if (Array.isArray(payments) && payments.length > 0) {
@@ -115,38 +115,163 @@ async function checkoutHandler(req, res, next) {
         const amt = parseFloat(p.amount);
         if (amt > 0) {
           const { enumVal, accountType } = parsePaymentMode(p.payment_method);
+          let bankAccId = p.bank_account_id || (enumVal === 'Bank' || enumVal === 'Card' ? bank_account_id : null) || null;
+
+          if ((enumVal === 'Bank' || enumVal === 'Card') && !bankAccId) {
+            const defaultBank = await prisma.bankAccount.findFirst({ where: { is_active: true } });
+            if (defaultBank) {
+              bankAccId = defaultBank.id;
+            } else {
+              return res.status(400).json({
+                status: 'error',
+                message: 'Field "bank_account_id" is required for Bank payments to record individual bank account balances.',
+              });
+            }
+          }
+
+          const pTender = p.tender_amount !== undefined && p.tender_amount !== null
+            ? parseFloat(p.tender_amount)
+            : (enumVal === 'Cash' && cash_tendered ? parseFloat(cash_tendered) : amt);
+
+          if (enumVal === 'Cash' && pTender < amt) {
+            return res.status(400).json({
+              status: 'error',
+              message: `Cash tendered (Rs. ${pTender}) cannot be less than the payment amount (Rs. ${amt}).`,
+            });
+          }
+
           normalizedPayments.push({
             enumVal,
             accountType,
             amount: amt,
-            bank_account_id: p.bank_account_id || (enumVal === 'Bank' ? bank_account_id : null) || null,
-            tender_amount: p.tender_amount ? parseFloat(p.tender_amount) : (enumVal === 'Cash' && cash_tendered ? parseFloat(cash_tendered) : amt),
-            change_amount: p.change_amount ? parseFloat(p.change_amount) : 0,
+            bank_account_id: bankAccId,
+            tender_amount: pTender,
+            change_amount: enumVal === 'Cash' && pTender > amt ? parseFloat((pTender - amt).toFixed(2)) : 0,
             notes: p.notes || null,
           });
         }
       }
     } else {
       // Single payment entry
-      const singleAmt = collected_amount !== undefined ? parseFloat(collected_amount) : netDue;
-      if (singleAmt > 0) {
-        const { enumVal, accountType } = parsePaymentMode(payment_method);
-        const tender = cash_tendered ? parseFloat(cash_tendered) : singleAmt;
-        const change = enumVal === 'Cash' && tender > singleAmt ? parseFloat((tender - singleAmt).toFixed(2)) : 0;
+      const { enumVal, accountType } = parsePaymentMode(payment_method);
+      const tenderProvided = cash_tendered !== undefined && cash_tendered !== null && String(cash_tendered).trim() !== '';
+      const tenderNum = tenderProvided ? parseFloat(cash_tendered) : null;
+      const collProvided = collected_amount !== undefined && collected_amount !== null && String(collected_amount).trim() !== '';
+      const collNum = collProvided ? parseFloat(collected_amount) : null;
+
+      let paymentAmt = 0;
+      let finalTender = 0;
+      let finalChange = 0;
+
+      if (enumVal === 'Cash') {
+        if (collProvided && collNum <= 0 && netDue > 0) {
+          return res.status(400).json({ status: 'error', message: 'Collected payment amount must be greater than zero.' });
+        }
+        if (tenderProvided && tenderNum < 0) {
+          return res.status(400).json({ status: 'error', message: 'Cash tendered cannot be negative.' });
+        }
+
+        if (collProvided) {
+          if (tenderProvided && tenderNum < collNum) {
+            return res.status(400).json({
+              status: 'error',
+              message: `Cash tendered (Rs. ${tenderNum}) cannot be less than collected payment amount (Rs. ${collNum}).`,
+            });
+          }
+          if (collNum > netDue) {
+            // Cap payment at netDue, excess is change returned
+            paymentAmt = netDue;
+            finalTender = tenderProvided ? Math.max(tenderNum, collNum) : collNum;
+            finalChange = parseFloat((finalTender - netDue).toFixed(2));
+          } else {
+            paymentAmt = collNum;
+            finalTender = tenderProvided ? tenderNum : collNum;
+            finalChange = parseFloat((finalTender - collNum).toFixed(2));
+          }
+        } else if (tenderProvided) {
+          if (tenderNum < netDue) {
+            return res.status(400).json({
+              status: 'error',
+              message: `Cash tendered (Rs. ${tenderNum}) is insufficient to settle the bill of Rs. ${netDue}. To record a partial payment, specify collected_amount = ${tenderNum}.`,
+            });
+          }
+          paymentAmt = netDue;
+          finalTender = tenderNum;
+          finalChange = parseFloat((tenderNum - netDue).toFixed(2));
+        } else {
+          paymentAmt = netDue;
+          finalTender = netDue;
+          finalChange = 0;
+        }
+      } else {
+        // BANK / CARD
+        let targetBankId = bank_account_id;
+        if (!targetBankId) {
+          const defaultBank = await prisma.bankAccount.findFirst({ where: { is_active: true } });
+          if (defaultBank) {
+            targetBankId = defaultBank.id;
+          } else {
+            return res.status(400).json({
+              status: 'error',
+              message: 'Field "bank_account_id" is required for Bank payments to record individual bank account balances.',
+            });
+          }
+        }
+        const targetAmt = collProvided ? collNum : netDue;
+        if (targetAmt > netDue) {
+          return res.status(400).json({
+            status: 'error',
+            message: `Bank payment amount (Rs. ${targetAmt}) exceeds net balance due (Rs. ${netDue}). Overpayment is not allowed for bank transfers.`,
+          });
+        }
+        paymentAmt = targetAmt;
+        finalTender = targetAmt;
+        finalChange = 0;
+        bank_account_id = targetBankId;
+      }
+
+      if (paymentAmt > 0) {
         normalizedPayments.push({
           enumVal,
           accountType,
-          amount: singleAmt,
-          bank_account_id: bank_account_id || null,
-          tender_amount: tender,
-          change_amount: change,
+          amount: paymentAmt,
+          bank_account_id: (enumVal === 'Bank' || enumVal === 'Card') ? bank_account_id : null,
+          tender_amount: finalTender,
+          change_amount: finalChange,
           notes: null,
         });
       }
     }
 
-    // Sum total collected through payments
-    const totalPaymentsEntered = normalizedPayments.reduce((sum, p) => sum + p.amount, 0);
+    // Verify all bank accounts exist in DB
+    for (const p of normalizedPayments) {
+      if (p.bank_account_id) {
+        const bankAcc = await prisma.bankAccount.findUnique({ where: { id: p.bank_account_id } });
+        if (bankAcc && !bankAcc.is_active) {
+          return res.status(400).json({
+            status: 'error',
+            message: `Bank account with ID "${p.bank_account_id}" is deactivated.`,
+          });
+        }
+      }
+    }
+
+    // Cap total payments entered to netDue (excess cash converted to change)
+    let totalPaymentsEntered = normalizedPayments.reduce((sum, p) => sum + p.amount, 0);
+    if (totalPaymentsEntered > netDue) {
+      const cashPay = normalizedPayments.find((p) => p.enumVal === 'Cash');
+      if (cashPay) {
+        const excess = parseFloat((totalPaymentsEntered - netDue).toFixed(2));
+        cashPay.amount = Math.max(0, parseFloat((cashPay.amount - excess).toFixed(2)));
+        cashPay.change_amount = parseFloat(((cashPay.change_amount || 0) + excess).toFixed(2));
+        totalPaymentsEntered = netDue;
+      } else {
+        return res.status(400).json({
+          status: 'error',
+          message: `Total payment amount (Rs. ${totalPaymentsEntered}) exceeds net balance due (Rs. ${netDue}).`,
+        });
+      }
+    }
 
     // Determine total cash tendered and total change returned
     let totalCashTendered = 0;
@@ -156,10 +281,7 @@ async function checkoutHandler(req, res, next) {
       if (p.enumVal === 'Cash') {
         const tender = p.tender_amount || p.amount;
         totalCashTendered += tender;
-        if (tender > p.amount) {
-          p.change_amount = parseFloat((tender - p.amount).toFixed(2));
-          totalChangeReturned += p.change_amount;
-        }
+        totalChangeReturned += (p.change_amount || 0);
       }
     });
 
@@ -197,6 +319,17 @@ async function checkoutHandler(req, res, next) {
           updated_at: new Date(),
         },
       });
+
+      // Increment vehicle completed visits strictly once upon completed job
+      if (targetJobCard.vehicle_id) {
+        await tx.vehicle.update({
+          where: { id: targetJobCard.vehicle_id },
+          data: {
+            visits: { increment: 1 },
+            updated_at: new Date(),
+          },
+        });
+      }
 
       // 2. Generate Invoice with balance tracking
       const createdInvoice = await tx.invoice.create({
@@ -242,7 +375,7 @@ async function checkoutHandler(req, res, next) {
         });
       }
 
-      // 4. Record Payments & Update Vault / Bank Balances
+      // 4. Record Payments & Update Vault / Bank Balances with Append-Only Journal
       const createdPayments = [];
 
       for (const p of normalizedPayments) {
@@ -277,6 +410,27 @@ async function checkoutHandler(req, res, next) {
             },
           });
         }
+
+        // Append-only journal audit log for each financial movement
+        await tx.auditLog.create({
+          data: {
+            action: 'LEDGER_ENTRY',
+            description: `Ledger ${p.accountType} credit of Rs. ${p.amount.toLocaleString()} for Invoice ${invoiceNumber}.`,
+            performed_by_user_id: cashier_id || req.user?.id || null,
+            performed_by_name: req.user?.name || 'Shop Cashier',
+            metadata: {
+              account_type: p.accountType,
+              payment_method: p.enumVal,
+              amount: p.amount,
+              bank_account_id: p.bank_account_id,
+              invoice_id: createdInvoice.id,
+              invoice_number: invoiceNumber,
+              tender_amount: p.tender_amount,
+              change_amount: p.change_amount,
+              timestamp: new Date().toISOString(),
+            },
+          },
+        });
       }
 
       // 5. Audit Log Entry

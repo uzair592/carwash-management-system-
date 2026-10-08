@@ -195,9 +195,9 @@ export default function PhysicalBayDashboard({ onGoToBilling }) {
       )}
 
       {/* Heading Bar */}
-      <div className="section-heading flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+      <div className="section-heading flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-base sm:text-lg font-bold text-slate-800 flex flex-wrap items-center gap-2">
             Work areas
             <span className="text-xs font-semibold px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
               4 Physical Slots (2 Wash Jacks · 2 Detailing Slots)
@@ -207,7 +207,7 @@ export default function PhysicalBayDashboard({ onGoToBilling }) {
             Jack 1 & Jack 2 for wash operations · Detailing Slot 1 & Detailing Slot 2 for multi-worker detailing jobs
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {readyCount > 0 && onGoToBilling && (
             <button
               className="btn btn-primary text-xs px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm"
@@ -382,10 +382,10 @@ export default function PhysicalBayDashboard({ onGoToBilling }) {
       </div>
 
       {/* Waiting Intake Queue Section */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-5">
-        <h3 className="text-base font-bold text-slate-800 mb-3 flex items-center justify-between">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-4 sm:p-5">
+        <h3 className="text-sm sm:text-base font-bold text-slate-800 mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
           <span className="flex items-center gap-2">
-            <Car size={18} className="text-blue-600" />
+            <Car size={18} className="text-blue-600 shrink-0" />
             Waiting Intake Queue ({queue.length})
           </span>
           <span className="text-xs text-slate-400 font-normal">

@@ -190,7 +190,6 @@ async function rapidIntakeHandler(req, res, next) {
       vehicle = await prisma.vehicle.update({
         where: { id: existingVehicle.id },
         data: {
-          visits: { increment: 1 },
           normalized_plate: normalized,
           customer_name: cleanCustomerName !== 'Walk-in Customer' ? cleanCustomerName : existingVehicle.customer_name,
           customer_phone: cleanPhone || existingVehicle.customer_phone,
@@ -208,7 +207,7 @@ async function rapidIntakeHandler(req, res, next) {
           customer_phone: cleanPhone,
           make: make || null,
           model: model || null,
-          visits: 1,
+          visits: 0,
         },
       });
     }

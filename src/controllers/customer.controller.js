@@ -45,11 +45,14 @@ async function listCustomersHandler(req, res, next) {
     });
 
     const customers = vehicles.map((v) => {
+      const completedJobCards = v.job_cards.filter(
+        (j) => j.status === 'COMPLETED' || j.status === 'Completed' || Boolean(j.invoice)
+      );
       const invoices = v.job_cards.map((j) => j.invoice).filter(Boolean);
       const totalSpent = invoices.reduce((sum, inv) => sum + parseFloat(inv.total_amount || 0), 0);
-      const visits = v.visits || v.job_cards.length || 0;
+      const visits = completedJobCards.length;
       const isLoyal = visits >= loyaltyThreshold;
-      const lastJob = v.job_cards[0];
+      const lastJob = completedJobCards[0] || v.job_cards[0];
 
       let loyaltyTier = 'NEW';
       if (visits >= loyaltyThreshold * 2) {

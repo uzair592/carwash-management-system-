@@ -187,10 +187,15 @@ export default function CheckoutModal({ jobCard, onClose, onCheckoutSuccess }) {
         });
       }
       if (bAmt > 0) {
-        paymentsPayload.push({
+        const pObj = {
           payment_method: 'BANK',
           amount: bAmt,
-        });
+        };
+        const targetBank = splitBankAccountId || selectedBankAccountId || (bankAccounts.length > 0 ? bankAccounts[0].id : null);
+        if (targetBank) {
+          pObj.bank_account_id = targetBank;
+        }
+        paymentsPayload.push(pObj);
       }
     } else if (paymentMode === 'BANK') {
       const bAmt = parseFloat(collectedAmount || 0);
@@ -199,22 +204,31 @@ export default function CheckoutModal({ jobCard, onClose, onCheckoutSuccess }) {
         setErrorMsg('Collected amount must be greater than zero.');
         return;
       }
-      if (!selectedBankAccountId) {
+      const targetBank = selectedBankAccountId || (bankAccounts.length > 0 ? bankAccounts[0].id : null);
+      if (bankAccounts.length > 0 && !targetBank) {
         setIsProcessing(false);
         setErrorMsg('Please select which bank account is receiving this payment.');
         return;
       }
-      paymentsPayload.push({
+      const pObj = {
         payment_method: 'BANK',
         amount: bAmt,
-        bank_account_id: selectedBankAccountId,
-      });
+      };
+      if (targetBank) {
+        pObj.bank_account_id = targetBank;
+      }
+      paymentsPayload.push(pObj);
     } else {
       // CASH mode
       const cAmt = parseFloat(collectedAmount || 0);
       if (cAmt <= 0 && netBalanceDue > 0) {
         setIsProcessing(false);
         setErrorMsg('Collected amount must be greater than zero.');
+        return;
+      }
+      if (tenderedCash < cAmt && cAmt > 0) {
+        setIsProcessing(false);
+        setErrorMsg(`Cash tendered (Rs. ${money(tenderedCash)}) cannot be less than collected payment (Rs. ${money(cAmt)}).`);
         return;
       }
       paymentsPayload.push({
