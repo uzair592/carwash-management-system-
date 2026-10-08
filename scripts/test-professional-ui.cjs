@@ -651,6 +651,76 @@ async function noOverflow(page) {
       }).click();
       assert.equal(await page.locator('#executive-kpi-bar').count(), 0);
     });
+    await check('Customer and inventory editors expose CRUD with explicit deletion confirmation', async () => {
+      await page.getByRole('button', {
+        name: 'Loyal Customers',
+        exact: true
+      }).click();
+      await page.getByRole('button', {
+        name: 'Add customer',
+        exact: true
+      }).click();
+      let dialog = page.getByRole('dialog', {
+        name: 'Customer profile'
+      });
+      await dialog.getByLabel('Vehicle plate').fill('NEW-123');
+      await dialog.getByRole('button', {
+        name: 'Save',
+        exact: true
+      }).click();
+      assert(requests.some(r => r.endpoint === '/api/customers' && r.body?.registration_number === 'NEW-123'));
+      await page.getByRole('button', {
+        name: 'Edit customer',
+        exact: true
+      }).click();
+      dialog = page.getByRole('dialog', {
+        name: 'Customer profile'
+      });
+      assert(await dialog.getByLabel('Vehicle plate').isDisabled());
+      await dialog.getByLabel('Phone (optional)').fill('03009998888');
+      await dialog.getByRole('button', {
+        name: 'Save',
+        exact: true
+      }).click();
+      assert(requests.some(r => r.endpoint === '/api/customers/c1' && r.body?.customer_phone === '03009998888'));
+      await page.getByRole('button', {
+        name: 'Inventory & finance',
+        exact: true
+      }).click();
+      await page.getByRole('button', {
+        name: 'Edit item',
+        exact: true
+      }).click();
+      dialog = page.getByRole('dialog', {
+        name: 'Edit inventory item'
+      });
+      await dialog.getByLabel('Counted stock').fill('800');
+      await dialog.getByLabel('Stock adjustment reason').fill('Physical count');
+      await dialog.getByRole('button', {
+        name: 'Save',
+        exact: true
+      }).click();
+      assert(requests.some(r => r.endpoint === '/api/inventory/stock-1' && r.body?.current_stock === 800 && r.body?.reason === 'Physical count'));
+      await page.getByRole('button', {
+        name: 'Edit item',
+        exact: true
+      }).click();
+      await page.getByRole('button', {
+        name: 'Delete unused record',
+        exact: true
+      }).click();
+      await page.getByText('Records with stock or transaction history cannot be deleted.', {
+        exact: false
+      }).waitFor();
+      await page.getByRole('button', {
+        name: 'Back to editing',
+        exact: true
+      }).click();
+      await page.getByRole('button', {
+        name: 'Cancel',
+        exact: true
+      }).click();
+    });
     await check('Tablet and phone layouts, accessible navigation', async () => {
       await page.setViewportSize({
         width: 1024,

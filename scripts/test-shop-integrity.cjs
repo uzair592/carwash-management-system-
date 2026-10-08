@@ -50,7 +50,7 @@ function patch(row, data) {
   }
   return row;
 }
-const models = ['user', 'vehicle', 'jobCard', 'invoice', 'payment', 'customerDeposit', 'depositApplication', 'expense', 'inventory', 'materialIssuance', 'bankAccount', 'ledger', 'financialMovement', 'auditLog', 'alertOutbox', 'documentCounter', 'refund', 'registerSession', 'service', 'jobCardService', 'printerSetting', 'printerJob', 'businessBranding'];
+const models = ['user', 'vehicle', 'jobCard', 'invoice', 'payment', 'customerDeposit', 'depositApplication', 'expense', 'inventory', 'materialIssuance', 'bankAccount', 'ledger', 'financialMovement', 'auditLog', 'alertOutbox', 'documentCounter', 'refund', 'registerSession', 'service', 'jobCardService', 'printerSetting', 'printerJob', 'businessBranding', 'serviceInventory'];
 const db = {};
 for (const model of models) db[model] = {
   async count(args = {}) {
@@ -106,6 +106,14 @@ for (const model of models) db[model] = {
     if (!row) throw Error('Missing ' + model);
     patch(row, data);
     return hydrate(model, row, include);
+  },
+  async delete({
+    where
+  }) {
+    const value = state[model].find(r => matches(r, where));
+    if (!value) throw Error('Missing ' + model);
+    state[model] = state[model].filter(r => !matches(r, where));
+    return structuredClone(value);
   },
   async deleteMany({
     where
@@ -1063,4 +1071,134 @@ test('Owner cannot be demoted/deactivated as the last Admin, and compensation is
   assert(!('password_hash' in result.body.data));
   assert(!('pin_code' in result.body.data));
   assert.equal(state.auditLog[0].action, 'STAFF_COMPENSATION_UPDATED');
+});
+test('Customer CRUD validates profiles, prevents duplicate plates and preserves transaction history', async () => {
+  const controller = require('../src/controllers/master-data.controller');
+  const created = await call(controller.saveCustomer, {
+    registration_number: 'XYZ-123',
+    customer_name: 'Driver'
+  });
+  const id = created.body.data.id;
+  assert.equal(created.status, 201);
+  await assert.rejects(call(controller.saveCustomer, {
+    registration_number: 'xyz 123'
+  }), /already exists/);
+  await call(controller.saveCustomer, {
+    customer_name: 'Updated',
+    customer_phone: null
+  }, {
+    params: {
+      id
+    }
+  });
+  assert.equal(state.vehicle.find(v => v.id === id).customer_name, 'Updated');
+  await assert.rejects(call(controller.saveCustomer, {
+    registration_number: 'NEW-222'
+  }, {
+    params: {
+      id
+    }
+  }), /cannot be changed/);
+  state.customerDeposit.push({
+    id: 'protected-advance',
+    vehicle_id: id
+  });
+  await assert.rejects(call(controller.deleteCustomer, {}, {
+    params: {
+      id
+    }
+  }), /history must be retained/);
+  state.customerDeposit = [];
+  await call(controller.deleteCustomer, {}, {
+    params: {
+      id
+    }
+  });
+  assert(!state.vehicle.some(v => v.id === id));
+  assert(state.auditLog.some(a => a.action === 'CUSTOMER_DELETED'));
+  const {
+    requiredPermission
+  } = require('../src/services/permission.service');
+  assert.equal(requiredPermission({
+    path: '/customers/x',
+    method: 'DELETE',
+    user: {
+      id: 'admin'
+    }
+  }), 'customers.manage');
+});
+test('Inventory CRUD requires adjustment reasons, protects units/history and only removes empty unused items', async () => {
+  const inventory = require('../src/controllers/inventory.controller');
+  const controller = require('../src/controllers/master-data.controller');
+  state.inventory = [{
+    id: 'empty',
+    item_name: 'Bottle',
+    unit_type: 'ML',
+    current_stock: 0,
+    cost_per_unit: 1,
+    low_stock_threshold: 1
+  }];
+  await assert.rejects(call(inventory.updateInventoryHandler, {
+    current_stock: 5
+  }, {
+    params: {
+      id: 'empty'
+    }
+  }), /reason/);
+  await call(inventory.updateInventoryHandler, {
+    item_name: 'New bottle',
+    current_stock: 5,
+    reason: 'Physical count'
+  }, {
+    params: {
+      id: 'empty'
+    }
+  });
+  await assert.rejects(call(inventory.updateInventoryHandler, {
+    unit_type: 'Roll'
+  }, {
+    params: {
+      id: 'empty'
+    }
+  }), /Units cannot change/);
+  await assert.rejects(call(controller.deleteInventory, {}, {
+    params: {
+      id: 'empty'
+    }
+  }), /empty, unused/);
+  await call(inventory.updateInventoryHandler, {
+    current_stock: 0,
+    reason: 'Verified empty'
+  }, {
+    params: {
+      id: 'empty'
+    }
+  });
+  state.materialIssuance.push({
+    id: 'issue',
+    inventory_id: 'empty'
+  });
+  await assert.rejects(call(controller.deleteInventory, {}, {
+    params: {
+      id: 'empty'
+    }
+  }), /history must be retained/);
+  state.materialIssuance = [];
+  state.serviceInventory.push({
+    id: 'map',
+    inventory_id: 'empty'
+  });
+  await assert.rejects(call(controller.deleteInventory, {}, {
+    params: {
+      id: 'empty'
+    }
+  }), /history must be retained/);
+  state.serviceInventory = [];
+  await call(controller.deleteInventory, {}, {
+    params: {
+      id: 'empty'
+    }
+  });
+  assert.equal(state.inventory.length, 0);
+  assert(state.auditLog.some(a => a.action === 'INVENTORY_DELETED'));
 });

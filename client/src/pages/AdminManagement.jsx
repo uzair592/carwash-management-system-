@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Boxes, Users, AlertTriangle, PlusCircle, RefreshCw, DollarSign, TrendingUp, Package, Calendar, Lock, Unlock, CheckCircle2, AlertCircle, FileSpreadsheet, ArrowRight, ShieldCheck, ChevronLeft, ChevronRight, Sparkles, PieChart, Percent, Layers, Send, Link as LinkIcon, HelpCircle, Award, Wallet, ShieldAlert, Filter, FileText } from 'lucide-react';
 import axios from 'axios';
+import RecordEditorModal from '../components/RecordEditorModal';
 import { useAuth } from '../context/AuthContext';
 import AdminServicesTab from '../components/admin/AdminServicesTab';
 import AdminStaffTab from '../components/admin/AdminStaffTab';
@@ -22,6 +23,7 @@ export default function AdminManagement() {
   const [currentMonth, setCurrentMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
   // Inventory state
+  const [editInventory, setEditInventory] = useState(null);
   const [inventory, setInventory] = useState([]);
   const [isLoadingInv, setIsLoadingInv] = useState(false);
   const [restockModal, setRestockModal] = useState(null); // item object or null
@@ -583,12 +585,13 @@ export default function AdminManagement() {
                           </span>}
                       </td>
                       <td className="py-3.5 px-4 text-center">
-                        <button onClick={() => {
+                        <button disabled={!can('inventory.manage')} onClick={() => {
                     setRestockModal(item);
                     setRestockQty('');
                   }} className="text-xs bg-slate-100 hover:bg-emerald-600 text-white hover:text-slate-950 text-slate-700 px-3 py-1 rounded-lg font-semibold transition">
                           + Restock
                         </button>
+                        {can('inventory.manage') && <button className="btn btn-secondary text-xs ml-2" onClick={() => setEditInventory(item)}>Edit item</button>}
                       </td>
                     </tr>)}
                   {inventory.length === 0 && <tr>
@@ -1290,6 +1293,7 @@ export default function AdminManagement() {
       {/* ============================================================== */}
       {/* RESTOCK MODAL */}
       {/* ============================================================== */}
+      {editInventory && <RecordEditorModal kind="inventory" record={editInventory} onClose={() => setEditInventory(null)} onSaved={fetchInventory} />}
       {restockModal && <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-xl p-5 max-w-md w-full shadow-sm">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">

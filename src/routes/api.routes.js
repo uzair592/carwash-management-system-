@@ -198,6 +198,10 @@ router.get('/vehicles/:registration', getVehicleHandler);
 router.get('/vehicles/lookup/:plate', checkPlateHandler);
 router.get('/bays/check-plate/:plate', checkPlateHandler);
 router.get('/customers', listCustomersHandler);
+const masterData = require('../controllers/master-data.controller');
+router.post('/customers', masterData.saveCustomer);
+router.patch('/customers/:id', masterData.saveCustomer);
+router.delete('/customers/:id', masterData.deleteCustomer);
 router.get('/camera/arrivals', async (req, res, next) => {
   try {
     res.json({
@@ -358,6 +362,7 @@ router.use('/payroll', payrollRoutes);
 router.get('/inventory', listInventoryHandler);
 router.post('/inventory', createInventoryHandler);
 router.patch('/inventory/:id', updateInventoryHandler);
+router.delete('/inventory/:id', masterData.deleteInventory);
 router.post('/inventory/:id/restock', restockInventoryHandler);
 router.patch('/services/:id/link-inventory', linkServiceInventoryHandler);
 

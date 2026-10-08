@@ -22,6 +22,14 @@ This branch repairs existing workshop, accounting, authentication and deployment
 - Settings offers six bold invoice designs and five ticket designs, business/logo controls and optional ticket prices. Reports retain currency precision; staff performance includes all assigned workers and frozen commissions; Business overview labels net cash flow accurately. Finance screens fetch only the selected permitted data.
 - Apply the additional `20261008020000_operator_workflows` migration with `npm run prisma:deploy` after the backup/baseline procedure below, then regenerate Prisma and rebuild the UI. Existing users are not silently renamed or re-roled: the Admin can create an Accountant login or change an existing operator's role.
 
+### CRUD actions
+
+Customer directory includes Add customer and Edit customer for optional name/phone/make/model. Plates are fixed after creation so editing contact details cannot reassign another vehicle's tickets. Delete unused record requires an explicit confirmation and rejects vehicles with tickets or advances.
+
+Inventory includes Add Consumable, Edit item and Restock. Editing a counted quantity requires a reason and records the before/after counts. Units cannot change once stock, service mappings or material history exists. Only empty, unused inventory items can be deleted; linked or used items retain their history. Server permission checks cover all create/update/delete endpoints and all changes are audited.
+
+Services use add/edit/archive/reactivate; staff use add/edit/deactivate/reactivate; bank accounts use add/edit and protected removal. Invoices, financial movements, customer advances and inspection evidence are retained. Their correction flows use additional collections, credits, refunds or reversals. Reports, staff performance and Business overview are derived views, rather than independently editable records.
+
 ### Thermal printing and cutting
 
 The default Browser mode opens a normal 58mm/80mm print dialog; auto-cut must be configured in that printer's driver. For application-controlled cutting, choose Network ESC/POS with the local printer IPv4/port, or Windows RAW with the exact installed thermal printer name. Enable Auto-cut only on a printer that supports the ESC/POS cutter command. Print previews always use the browser.
@@ -30,8 +38,8 @@ Direct printing renders the saved invoice/ticket server-side, feeds the configur
 
 ## Validation completed
 
-- `npm run test:integrity`: 27 regression scenarios using real controllers and rollback-capable isolated database fixtures. Covers authentication, revoked sessions, stored PINs, unauthorized password reset, repeat expenses, transaction rollback, advance ownership/excess, checkout replay/overpayment, split accounts, stock shortage/replay, alert retry, serialization retry, Karachi dates, shared commissions, backup corruption, balance collection, payment reversal, refund tender allocation and drawer reconciliation.
-- `npm run test:ui`: 13 Playwright scenarios with API fixtures, including intake, dispatch/completion, split checkout, receipt themes, reporting/loyalty, desktop/tablet/mobile layouts, Worker navigation and visible server failures. No browser runtime exceptions.
+- `npm run test:integrity`: 29 regression scenarios using real controllers and rollback-capable isolated database fixtures. Covers authentication, revoked sessions, stored PINs, unauthorized password reset, repeat expenses, transaction rollback, advance ownership/excess, checkout replay/overpayment, split accounts, stock shortage/replay, alert retry, serialization retry, Karachi dates, shared commissions, backup corruption, balance collection, payment reversal, refund tender allocation and drawer reconciliation.
+- `npm run test:ui`: 14 Playwright scenarios with API fixtures, including intake, dispatch/completion, split checkout, receipt themes, reporting/loyalty, desktop/tablet/mobile layouts, Worker navigation and visible server failures. No browser runtime exceptions.
 - Prisma schema validation and client generation; production frontend build; changed backend/script syntax and whitespace checks.
 
 These tests do not prove PostgreSQL concurrency, applied migrations, successful real `pg_dump`/restore, NVR accuracy, Telegram/SMS delivery, physical printer output or Windows startup. Those must be tested on a disposable copy of the shop deployment before using real money. No live shop records were altered during this work.

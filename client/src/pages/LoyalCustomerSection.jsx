@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
+import RecordEditorModal from '../components/RecordEditorModal';
 import InvoiceBalanceModal from '../components/InvoiceBalanceModal';
 import { Users, Search, Crown, Star, Car, Phone, Calendar, Clock, ArrowUpRight, TrendingUp, RefreshCw, Sparkles, ShieldCheck, CheckCircle2, DollarSign, Plus } from 'lucide-react';
 const money = val => Number(val || 0).toLocaleString('en-PK', {
@@ -9,6 +11,10 @@ const money = val => Number(val || 0).toLocaleString('en-PK', {
 export default function LoyalCustomerSection({
   onSelectCustomerForIntake
 }) {
+  const {
+    can
+  } = useAuth();
+  const [editCustomer, setEditCustomer] = useState(null);
   const [advanceVehicle, setAdvanceVehicle] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -70,6 +76,7 @@ export default function LoyalCustomerSection({
         </button>
       </div>
 
+      {can('customers.manage') && <button className="btn btn-primary" onClick={() => setEditCustomer({})}>Add customer</button>}
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Registered */}
@@ -269,6 +276,7 @@ export default function LoyalCustomerSection({
                           <Plus className="w-3 h-3" />
                           <span>New Ticket</span>
                         </button>
+                      {can('customers.manage') && <button className="btn btn-secondary text-xs mt-2" onClick={() => setEditCustomer(c)}>Edit customer</button>}
                       </td>
                     </tr>;
             })}
@@ -276,6 +284,7 @@ export default function LoyalCustomerSection({
             </table>
           </div>}
       </div>
+      {editCustomer && <RecordEditorModal kind="customer" record={editCustomer} onClose={() => setEditCustomer(null)} onSaved={fetchCustomers} />}
       {advanceVehicle && <InvoiceBalanceModal vehicle={advanceVehicle} onClose={() => setAdvanceVehicle(null)} onSaved={fetchCustomers} />}
     </div>;
 }

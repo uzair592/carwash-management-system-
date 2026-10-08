@@ -71,6 +71,10 @@ async function updateInventoryHandler(req, res, next) {
   try {
     const fields = {};
     for (const k of ['item_name', 'unit_type', 'current_stock', 'cost_per_unit', 'low_stock_threshold']) if (req.body[k] !== undefined) fields[k] = req.body[k];
+    if (fields.item_name !== undefined) {
+      fields.item_name = String(fields.item_name || '').trim();
+      if (!fields.item_name || fields.item_name.length > 100) throw F.error('Enter an item name up to 100 characters.');
+    }
     validate(fields);
     if (fields.current_stock !== undefined && !String(req.body.reason || '').trim()) throw F.error('A reason is required for a manual stock adjustment.');
     const result = await F.transact(async tx => {
@@ -81,6 +85,19 @@ async function updateInventoryHandler(req, res, next) {
         }
       });
       if (!original) throw F.error('Inventory item not found.', 404);
+      if (fields.unit_type && fields.unit_type !== original.unit_type && (Number(original.current_stock) !== 0 || (await tx.materialIssuance.count({
+        where: {
+          inventory_id: original.id
+        }
+      })) || (await tx.serviceInventory.count({
+        where: {
+          inventory_id: original.id
+        }
+      })) || (await tx.service.count({
+        where: {
+          linked_inventory_id: original.id
+        }
+      })))) throw F.error('Units cannot change while stock or material/service history exists.', 409);
       const updated = await tx.inventory.update({
         where: {
           id: req.params.id
