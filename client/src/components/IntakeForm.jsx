@@ -18,6 +18,8 @@ import {
   Phone,
   Clock,
   Sparkles,
+  Droplets,
+  ShieldCheck,
 } from 'lucide-react';
 import axios from 'axios';
 import { printThermal } from '../utils/print';
@@ -480,56 +482,85 @@ export default function IntakeForm({ onJobCreated }) {
                   <p>Try another search or filter.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
                   {visibleServices.map((service) => {
                     const isSelected = selectedServices.some((s) => s.id === service.id);
+                    const CategoryIcon =
+                      service.category === 'Detailing'
+                        ? Sparkles
+                        : service.category === 'PPF' || service.category === 'Ceramic'
+                        ? ShieldCheck
+                        : Droplets;
+
                     return (
                       <button
                         key={service.id}
                         type="button"
                         aria-pressed={isSelected}
                         onClick={() => toggleService(service)}
-                        className={`service-option p-3.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                        className={`service-option p-4 rounded-2xl border-2 text-left transition-all duration-150 flex flex-col justify-between group active:scale-[0.98] ${
                           isSelected
-                            ? 'bg-blue-50/80 border-blue-600 ring-2 ring-blue-500/20 shadow-sm'
-                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
+                            ? 'bg-blue-50/90 border-blue-600 ring-2 ring-blue-500/20 shadow-md'
+                            : 'bg-white border-slate-200 hover:border-blue-400 hover:shadow-sm hover:bg-slate-50/60'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-2 w-full mb-2">
+                        {/* Top row: Category tag + Selection State Pill */}
+                        <div className="flex items-center justify-between gap-2 w-full mb-2.5">
                           <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                            className={`text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider flex items-center gap-1.5 ${
                               service.category === 'Wash'
-                                ? 'bg-blue-100 text-blue-800'
+                                ? 'bg-blue-100/80 text-blue-800'
                                 : service.category === 'Detailing'
-                                ? 'bg-purple-100 text-purple-800'
-                                : 'bg-emerald-100 text-emerald-800'
+                                ? 'bg-purple-100/80 text-purple-800'
+                                : 'bg-emerald-100/80 text-emerald-800'
                             }`}
                           >
-                            {service.category}
+                            <CategoryIcon size={12} className="shrink-0" />
+                            <span>{service.category}</span>
                           </span>
+
                           <span
-                            className={`w-5 h-5 rounded-full flex items-center justify-center border transition ${
+                            className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1 transition ${
                               isSelected
-                                ? 'bg-blue-600 text-white border-blue-600'
-                                : 'border-slate-300 text-transparent'
+                                ? 'bg-blue-600 text-white shadow-2xs'
+                                : 'bg-slate-100 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600'
                             }`}
                           >
-                            <Check size={12} strokeWidth={3} />
+                            {isSelected ? (
+                              <>
+                                <Check size={12} strokeWidth={3} />
+                                <span>Added</span>
+                              </>
+                            ) : (
+                              <>
+                                <Plus size={12} strokeWidth={2.5} />
+                                <span>Add</span>
+                              </>
+                            )}
                           </span>
                         </div>
 
-                        <div className="w-full">
-                          <strong className="block text-sm font-bold text-slate-800 mb-1 leading-snug">
+                        {/* Title and duration */}
+                        <div className="w-full my-1">
+                          <strong className="block text-sm sm:text-base font-extrabold text-slate-900 mb-1 leading-snug group-hover:text-blue-700 transition-colors">
                             {service.name}
                           </strong>
-                          <span className="text-xs text-slate-400 flex items-center gap-1 mb-2">
-                            <Clock size={12} /> ~{service.estimated_time || 30} mins
+                          <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1">
+                            <Clock size={12} className="shrink-0" />
+                            <span>~{service.estimated_time || 30} mins duration</span>
                           </span>
                         </div>
 
-                        <div className="pt-2 border-t border-slate-100 w-full flex items-center justify-between">
-                          <span className="text-[11px] text-slate-400">Price</span>
-                          <span className="text-base font-bold text-slate-900 font-mono">
+                        {/* Bottom Row: Price badge */}
+                        <div className="pt-2.5 border-t border-slate-100 w-full flex items-center justify-between mt-2">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                            Service Rate
+                          </span>
+                          <span className={`text-base sm:text-lg font-black font-mono px-2.5 py-0.5 rounded-lg border transition ${
+                            isSelected
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                              : 'bg-slate-100 text-slate-900 border-slate-200/90 group-hover:border-blue-300'
+                          }`}>
                             Rs. {money(service.price)}
                           </span>
                         </div>

@@ -10,18 +10,30 @@ export function printThermal(elementId) {
   style.textContent = `
     @page { size: 80mm auto; margin: 0; }
     * { box-sizing: border-box; }
-    body { width: 72mm; margin: 0 auto; padding: 4mm 0; color: #000; font: 12px/1.35 'Courier New', Courier, monospace; }
+    body {
+      width: 72mm;
+      margin: 0 auto;
+      padding: 4mm 0;
+      color: #000 !important;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+      font-size: 13px;
+      line-height: 1.4;
+      font-weight: 700;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
     button, svg, .no-print { display: none !important; }
     img { display: block !important; margin: 0 auto 8px auto !important; max-width: 100% !important; height: auto !important; object-fit: contain !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     .text-center { text-align: center; }
-    .thermal-title { display: block; text-align: center; font-size: 15px; font-weight: bold; }
-    .thermal-plate-box { border: 2px solid #000; padding: 5px; margin: 6px 0; text-align: center; font-size: 18px; font-weight: bold; }
+    .thermal-title { display: block; text-align: center; font-size: 16px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
+    .thermal-plate-box { border: 2.5px solid #000; padding: 6px; margin: 8px 0; text-align: center; font-size: 19px; font-weight: 900; letter-spacing: 1px; }
     .ticket-line, .flex.justify-between { display: flex; justify-content: space-between; gap: 8px; }
-    .ticket-line { padding: 3px 0; border-bottom: 1px dashed #666; }
-    .ticket-line strong { text-align: right; }
-    .border-t { border-top: 1px dashed #666; margin-top: 6px; padding-top: 4px; }
-    .border-b { border-bottom: 1px dashed #666; margin-bottom: 6px; padding-bottom: 4px; }
-    h3, h4, p { margin: 3px 0; }
+    .ticket-line { padding: 4px 0; border-bottom: 1.5px solid #000; }
+    .ticket-line strong { text-align: right; font-weight: 800; }
+    .border-t { border-top: 1.5px solid #000; margin-top: 6px; padding-top: 4px; }
+    .border-b { border-bottom: 1.5px solid #000; margin-bottom: 6px; padding-bottom: 4px; }
+    h1, h2, h3, h4, strong, b { font-weight: 800 !important; color: #000 !important; }
+    p, span, div { color: #000 !important; }
   `;
   popup.document.head.append(style);
   popup.document.body.append(source.cloneNode(true));

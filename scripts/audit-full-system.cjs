@@ -11,10 +11,12 @@ const failedRequests = [];
   console.log('  STARTING FULL A-TO-Z SYSTEM HEALTH & BUG AUDIT    ');
   console.log('====================================================');
 
+  const fs = require('node:fs');
+  const execPath = process.env.CHROMIUM_EXECUTABLE || 'C:\\Users\\HP\\AppData\\Local\\ms-playwright\\chromium-1243\\chrome-win64\\chrome.exe';
   const browser = await chromium.launch({
     headless: true,
-    ...(process.env.CHROMIUM_EXECUTABLE ? {
-      executablePath: process.env.CHROMIUM_EXECUTABLE,
+    ...(fs.existsSync(execPath) ? {
+      executablePath: execPath,
       args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
     } : {}),
   });
@@ -46,48 +48,77 @@ const failedRequests = [];
     });
 
     // 1. Audit Home & Bays Tab (#bays)
-    console.log('\n[TEST 1/7] Auditing Workshop Bays (#bays)...');
+    console.log('\n[TEST 1/9] Auditing Workshop Bays (#bays)...');
+    currentStep = 'Workshop Bays (#bays)';
     await page.goto(`${base}/#bays`, { waitUntil: 'networkidle' });
     assert.ok(await page.title(), 'Page should have a title');
     const baysHeader = await page.textContent('h1');
     console.log(`  ✔ Bays view rendered: "${baysHeader}"`);
+    // Verify KPI bar is NOT present on bays tab
+    const kpiBarOnBays = await page.locator('#executive-kpi-bar').count();
+    assert.equal(kpiBarOnBays, 0, 'Executive KPI bar should NOT be on Workshop bays tab');
+    console.log('  ✔ Confirmed: KPI bar is hidden on Workshop bays tab');
 
     // 2. Audit New Vehicle Intake (#intake)
-    console.log('\n[TEST 2/7] Auditing New Vehicle Intake (#intake)...');
+    console.log('\n[TEST 2/9] Auditing New Vehicle Intake (#intake)...');
+    currentStep = 'New Vehicle Intake (#intake)';
     await page.goto(`${base}/#intake`, { waitUntil: 'networkidle' });
     const intakeTitle = await page.textContent('h1');
     console.log(`  ✔ Intake view rendered: "${intakeTitle}"`);
-    // Verify vehicle make dropdown is loaded
-    const makeSelect = page.locator('#intake-make');
-    if (await makeSelect.count() > 0) {
-      const options = await makeSelect.locator('option').allTextContents();
-      console.log(`  ✔ Vehicle makes loaded (${options.length} options): ${options.slice(0, 5).join(', ')}...`);
-      assert.ok(options.length > 3, 'Should have vehicle makes loaded');
-    }
-    // Verify services are selectable
-    const serviceItems = page.locator('.service-item, button.service-chip, [data-service-id]');
-    console.log(`  ✔ Services catalog available for intake selection`);
+    // Verify KPI bar IS present on intake tab
+    const kpiBarOnIntake = await page.locator('#executive-kpi-bar').count();
+    assert.equal(kpiBarOnIntake, 1, 'Executive KPI bar should ONLY be on New Vehicle tab');
+    console.log('  ✔ Confirmed: KPI bar is present exclusively on New Vehicle tab');
+
+    // Verify tactile service cards are rendered
+    await page.locator('button.service-option').first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    const serviceButtons = page.locator('button.service-option');
+    const serviceCount = await serviceButtons.count();
+    console.log(`  ✔ Upgraded tactile service tiles rendered (${serviceCount} cards)`);
+    assert.ok(serviceCount > 0, 'Service tiles should render');
 
     // 3. Audit Billing Queue (#billing)
-    console.log('\n[TEST 3/7] Auditing Billing Queue (#billing)...');
+    console.log('\n[TEST 3/9] Auditing Billing Queue (#billing)...');
+    currentStep = 'Billing Queue (#billing)';
     await page.goto(`${base}/#billing`, { waitUntil: 'networkidle' });
     const billingTitle = await page.textContent('h1');
     console.log(`  ✔ Billing view rendered: "${billingTitle}"`);
+    const kpiBarOnBilling = await page.locator('#executive-kpi-bar').count();
+    assert.equal(kpiBarOnBilling, 0, 'Executive KPI bar should NOT be on Billing tab');
+    console.log('  ✔ Confirmed: KPI bar is hidden on Billing tab');
 
-    // 4. Audit Leaderboard (#leaderboard)
-    console.log('\n[TEST 4/7] Auditing Worker Leaderboard (#leaderboard)...');
+    // 4. Audit Loyal Customers (#customers)
+    console.log('\n[TEST 4/9] Auditing Loyal Customers Section (#customers)...');
+    currentStep = 'Loyal Customers (#customers)';
+    await page.goto(`${base}/#customers`, { waitUntil: 'networkidle' });
+    const custHeader = await page.locator('text=Loyal Customers & VIP Fleet Directory').first();
+    assert.ok(await custHeader.count() > 0, 'Loyal Customers directory should render');
+    console.log('  ✔ Loyal Customers directory rendered with VIP badges & lifetime stats');
+
+    // 5. Audit Reports & Analytics (#reports)
+    console.log('\n[TEST 5/9] Auditing Reports & Analytics (#reports)...');
+    currentStep = 'Reports & Analytics (#reports)';
+    await page.goto(`${base}/#reports`, { waitUntil: 'networkidle' });
+    const reportsHeader = await page.locator('text=Reports & Business Analytics').first();
+    assert.ok(await reportsHeader.count() > 0, 'Reports & Analytics section should render');
+    console.log('  ✔ Reports & Analytics rendered with revenue KPIs & top services');
+
+    // 6. Audit Leaderboard (#leaderboard)
+    console.log('\n[TEST 6/9] Auditing Worker Leaderboard (#leaderboard)...');
+    currentStep = 'Worker Leaderboard (#leaderboard)';
     await page.goto(`${base}/#leaderboard`, { waitUntil: 'networkidle' });
     const lbTitle = await page.textContent('h1');
     console.log(`  ✔ Leaderboard view rendered: "${lbTitle}"`);
 
-    // 5. Audit Investor Portal (#investor)
-    console.log('\n[TEST 5/7] Auditing Investor Dashboard (#investor)...');
+    // 7. Audit Investor Portal (#investor)
+    console.log('\n[TEST 7/9] Auditing Investor Dashboard (#investor)...');
+    currentStep = 'Investor Dashboard (#investor)';
     await page.goto(`${base}/#investor`, { waitUntil: 'networkidle' });
     const invTitle = await page.textContent('h1');
     console.log(`  ✔ Investor view rendered: "${invTitle}"`);
 
-    // 6. Audit Admin & Inventory Hub (#admin) and all its sub-tabs
-    console.log('\n[TEST 6/7] Auditing Admin Management (#admin) tabs...');
+    // 8. Audit Admin & Inventory Hub (#admin) and all its sub-tabs
+    console.log('\n[TEST 8/9] Auditing Admin Management (#admin) tabs...');
     currentStep = 'Navigating to #admin';
     await page.goto(`${base}/#admin`, { waitUntil: 'networkidle' });
     const adminTabs = [
@@ -113,8 +144,9 @@ const failedRequests = [];
       }
     }
 
-    // 7. Audit Master Settings Hub (#settings)
-    console.log('\n[TEST 7/7] Auditing Master Settings Hub (#settings)...');
+    // 9. Audit Master Settings Hub (#settings)
+    console.log('\n[TEST 9/9] Auditing Master Settings Hub (#settings)...');
+    currentStep = 'Master Settings (#settings)';
     await page.goto(`${base}/#settings`, { waitUntil: 'networkidle' });
     const settingsHeader = await page.locator('text=Shop Settings & Customization').first();
     assert.ok(await settingsHeader.count() > 0, 'Settings control center should render');

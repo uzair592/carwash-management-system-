@@ -100,6 +100,8 @@ const {
   updateServiceHandler,
   overrideJobCardServicePriceHandler,
 } = require('../controllers/service.controller');
+const { listCustomersHandler } = require('../controllers/customer.controller');
+const { getReportsSummaryHandler } = require('../controllers/reports.controller');
 
 // ---------------------------------------------------------------------------
 // 1. Health & Service Diagnostics (Public)
@@ -134,6 +136,9 @@ router.post('/vehicles/intake', rapidIntakeHandler); // backward compatibility a
 router.get('/vehicles/:registration', getVehicleHandler);
 router.get('/vehicles/lookup/:plate', checkPlateHandler);
 router.get('/bays/check-plate/:plate', checkPlateHandler);
+router.get('/customers', listCustomersHandler);
+router.get('/loyalty', listCustomersHandler);
+router.get('/reports/summary', getReportsSummaryHandler);
 
 // ---------------------------------------------------------------------------
 // 4. Physical Work Areas (Jack 1, Jack 2, Detailing Bays 1 & 2) & Job Cards

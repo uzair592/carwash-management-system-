@@ -2,6 +2,8 @@ import React from 'react';
 
 const money = (val) => Number(val || 0).toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
+export const THERMAL_FONT_STYLE = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
 /**
  * INVOICE / BILL THERMAL RECEIPT (Prints with dynamic logo per user request)
  */
@@ -46,7 +48,7 @@ export function InvoiceThermalReceipt({ invoice, branding, id = 'printable-recei
       <div
         id={id}
         className="thermal-receipt modern-template text-left text-xs font-mono space-y-2 text-black p-4 bg-white"
-        style={{ fontFamily: "'Courier New', Courier, monospace", width: '72mm', margin: '0 auto' }}
+        style={{ fontFamily: THERMAL_FONT_STYLE, fontWeight: '700', width: '72mm', margin: '0 auto', color: '#000' }}
       >
         {logoUrl && (
           <div className="text-center mb-2">
@@ -159,7 +161,7 @@ export function InvoiceThermalReceipt({ invoice, branding, id = 'printable-recei
       <div
         id={id}
         className="thermal-receipt tax-template text-left text-xs font-mono space-y-2 text-black p-4 bg-white"
-        style={{ fontFamily: "'Courier New', Courier, monospace", width: '72mm', margin: '0 auto' }}
+        style={{ fontFamily: THERMAL_FONT_STYLE, fontWeight: '700', width: '72mm', margin: '0 auto', color: '#000' }}
       >
         {logoUrl && (
           <div className="text-center mb-2">
@@ -261,7 +263,7 @@ export function InvoiceThermalReceipt({ invoice, branding, id = 'printable-recei
       <div
         id={id}
         className="thermal-receipt luxury-template text-left text-xs font-mono space-y-2 text-black p-4 bg-white"
-        style={{ fontFamily: "'Courier New', Courier, monospace", width: '72mm', margin: '0 auto', border: '1px solid #000' }}
+        style={{ fontFamily: THERMAL_FONT_STYLE, fontWeight: '700', width: '72mm', margin: '0 auto', border: '2px solid #000', color: '#000' }}
       >
         {logoUrl && (
           <div className="text-center mb-2">
@@ -383,7 +385,7 @@ export function InvoiceThermalReceipt({ invoice, branding, id = 'printable-recei
       <div
         id={id}
         className="thermal-receipt vyapar-template text-left text-xs font-mono space-y-2 text-black p-4 bg-white"
-        style={{ fontFamily: "'Courier New', Courier, monospace", width: '72mm', margin: '0 auto' }}
+        style={{ fontFamily: THERMAL_FONT_STYLE, fontWeight: '700', width: '72mm', margin: '0 auto', color: '#000' }}
       >
         {logoUrl && (
           <div className="text-center mb-1">
@@ -487,7 +489,7 @@ export function InvoiceThermalReceipt({ invoice, branding, id = 'printable-recei
       <div
         id={id}
         className="thermal-receipt loyalty-template text-left text-xs font-mono space-y-2 text-black p-4 bg-white"
-        style={{ fontFamily: "'Courier New', Courier, monospace", width: '72mm', margin: '0 auto', border: '2px solid #000' }}
+        style={{ fontFamily: THERMAL_FONT_STYLE, fontWeight: '700', width: '72mm', margin: '0 auto', border: '2px solid #000', color: '#000' }}
       >
         {logoUrl && (
           <div className="text-center mb-1">
@@ -580,8 +582,14 @@ export function InvoiceThermalReceipt({ invoice, branding, id = 'printable-recei
   return (
     <div
       id={id}
-      className="thermal-receipt classic-template text-left text-xs font-mono space-y-2 text-black p-4 bg-white"
-      style={{ fontFamily: "'Courier New', Courier, monospace", width: '72mm', margin: '0 auto' }}
+      className="thermal-receipt classic-template text-left text-xs space-y-2 text-black p-4 bg-white"
+      style={{
+        fontFamily: THERMAL_FONT_STYLE,
+        fontWeight: '700',
+        width: '72mm',
+        margin: '0 auto',
+        color: '#000',
+      }}
     >
       {logoUrl && (
         <div className="text-center mb-2">
@@ -600,73 +608,81 @@ export function InvoiceThermalReceipt({ invoice, branding, id = 'printable-recei
       )}
 
       {showBusinessName && (
-        <div className="text-center font-bold text-sm">
+        <div className="text-center font-black text-sm uppercase tracking-wide">
           {businessName}
         </div>
       )}
       {tagline && (
-        <div className="text-center text-[11px] text-gray-500">
+        <div className="text-center text-[11px] font-bold text-black">
           {tagline}
         </div>
       )}
 
-      <div className="border-t border-b border-dashed border-gray-400 py-1.5 my-2 text-[11px] flex justify-between">
-        <span>Invoice: {invoiceNumber}</span>
+      <div className="border-2 border-black p-2 my-2 text-center bg-slate-900 text-white font-mono font-black text-base tracking-wider rounded">
+        VEHICLE: {vehiclePlate}
+      </div>
+
+      <div className="border-t-2 border-b-2 border-black py-1.5 my-2 text-xs flex justify-between font-extrabold">
+        <span>Invoice #{invoiceNumber}</span>
         <span>{dateStr}</span>
       </div>
 
-      <div className="text-[11px] space-y-0.5">
-        <div><strong>Vehicle:</strong> {vehiclePlate} {vehicleDesc ? `(${vehicleDesc})` : ''}</div>
-        <div><strong>Customer:</strong> {customer}</div>
-        <div><strong>Payment Tender:</strong> {tender}</div>
+      <div className="text-xs space-y-1 font-bold">
+        <div><span>Client:</span> <strong className="font-extrabold">{customer}</strong></div>
+        {vehicleDesc && <div><span>Vehicle Info:</span> <span>{vehicleDesc}</span></div>}
+        <div><span>Payment Method:</span> <span className="uppercase">{tender}</span></div>
       </div>
 
-      <div className="py-2 border-t border-b border-gray-300 space-y-1">
+      <div className="py-2 border-t-2 border-b-2 border-black space-y-1.5">
+        <div className="flex justify-between text-[11px] font-black uppercase tracking-wider border-b border-black pb-1">
+          <span>Service Item</span>
+          <span>Rate (PKR)</span>
+        </div>
         {servicesList.map((s, idx) => (
-          <div key={s.id || idx} className="flex justify-between">
-            <span>{s.service?.name || s.name}</span>
-            <strong>Rs. {money(s.price_charged || s.price)}</strong>
+          <div key={s.id || idx} className="flex justify-between text-xs font-bold">
+            <span>• {s.service?.name || s.name}</span>
+            <span className="font-mono font-black">Rs. {money(s.price_charged || s.price)}</span>
           </div>
         ))}
       </div>
 
-      <div className="space-y-1 pt-1 font-semibold">
+      <div className="space-y-1.5 pt-2 text-xs font-bold">
         <div className="flex justify-between">
-          <span>Gross Total:</span>
-          <span>Rs. {money(subtotal)}</span>
+          <span>Gross Subtotal:</span>
+          <span className="font-mono font-extrabold">Rs. {money(subtotal)}</span>
         </div>
         {discount > 0 && (
-          <div className="flex justify-between text-red-600">
+          <div className="flex justify-between text-red-600 font-black">
             <span>Discount:</span>
-            <span>-Rs. {money(discount)}</span>
+            <span className="font-mono">-Rs. {money(discount)}</span>
           </div>
         )}
-        <div className="flex justify-between text-sm font-bold border-t border-black pt-1">
-          <span>Amount Paid:</span>
-          <span>Rs. {money(paid)}</span>
+        <div className="flex justify-between text-base font-black border-2 border-black bg-slate-100 p-2 rounded my-1 text-black">
+          <span>TOTAL PAID:</span>
+          <span className="font-mono">Rs. {money(paid)}</span>
         </div>
         {cashTendered !== null && cashTendered > 0 && (
           <div className="flex justify-between text-[11px]">
             <span>Cash Tendered:</span>
-            <span>Rs. {money(cashTendered)}</span>
+            <span className="font-mono font-black">Rs. {money(cashTendered)}</span>
           </div>
         )}
         {changeReturned !== null && changeReturned > 0 && (
-          <div className="flex justify-between text-[11px] text-emerald-700">
-            <span>Change Returned:</span>
-            <span>Rs. {money(changeReturned)}</span>
+          <div className="flex justify-between text-[11px] text-emerald-800 font-black">
+            <span>Cash Returned:</span>
+            <span className="font-mono">Rs. {money(changeReturned)}</span>
           </div>
         )}
         {balanceDue > 0 && (
-          <div className="flex justify-between font-bold text-red-600 border-t border-dashed border-red-300 pt-1">
+          <div className="flex justify-between font-black text-red-600 border border-red-500 p-1.5 rounded">
             <span>Balance Due:</span>
-            <span>Rs. {money(balanceDue)}</span>
+            <span className="font-mono">Rs. {money(balanceDue)}</span>
           </div>
         )}
       </div>
 
-      <div className="text-center text-[10px] text-gray-500 pt-3 border-t border-dashed border-gray-400">
-        <p>Thank you for choosing{showBusinessName ? ` ${businessName}` : ' our services'}!</p>
+      <div className="text-center text-[10px] text-black font-bold pt-3 border-t-2 border-black space-y-0.5">
+        <p className="font-black text-xs">Thank you for visiting{showBusinessName ? ` ${businessName}` : ''}!</p>
         <p>{address}</p>
         <p>Tel: {phone} · NTN: {ntn}</p>
       </div>
@@ -696,7 +712,7 @@ export function TokenThermalTicket({ ticket, branding, id = 'printable-ticket' }
       <div
         id={id}
         className="thermal-ticket compact-token text-left text-xs font-mono space-y-1.5 text-black p-3 bg-white"
-        style={{ fontFamily: "'Courier New', Courier, monospace", width: '72mm', margin: '0 auto' }}
+        style={{ fontFamily: THERMAL_FONT_STYLE, fontWeight: '700', width: '72mm', margin: '0 auto', color: '#000' }}
       >
         <div className="text-center font-bold text-xs uppercase">
           {businessName} · WORK ORDER
@@ -746,7 +762,7 @@ export function TokenThermalTicket({ ticket, branding, id = 'printable-ticket' }
       <div
         id={id}
         className="thermal-ticket bold-token text-left text-xs font-mono space-y-2 text-black p-4 bg-white border-4 border-black"
-        style={{ fontFamily: "'Courier New', Courier, monospace", width: '72mm', margin: '0 auto' }}
+        style={{ fontFamily: THERMAL_FONT_STYLE, fontWeight: '700', width: '72mm', margin: '0 auto', color: '#000' }}
       >
         <div className="text-center font-black text-sm uppercase tracking-wider bg-black text-white py-1">
           ★ BAY WORK TICKET ★
@@ -810,7 +826,7 @@ export function TokenThermalTicket({ ticket, branding, id = 'printable-ticket' }
     <div
       id={id}
       className="thermal-ticket standard-token text-left text-xs font-mono space-y-2 text-black p-4 bg-white"
-      style={{ fontFamily: "'Courier New', Courier, monospace", width: '72mm', margin: '0 auto' }}
+      style={{ fontFamily: THERMAL_FONT_STYLE, fontWeight: '700', width: '72mm', margin: '0 auto', color: '#000' }}
     >
       <h3 className="thermal-title font-bold text-center text-sm">
         {businessName}
