@@ -117,9 +117,9 @@ export default function BillingQueue({ onOpenCheckout }) {
   });
 
   return (
-    <div className="space-y-5 max-w-6xl mx-auto">
+    <div className="billing-workspace space-y-5">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-slate-200 rounded-xl p-5 ">
+      <div className="billing-toolbar">
         <div className="flex items-center gap-3.5">
           <div className="w-12 h-12 rounded-lg bg-gradient-to-tr from-amber-500 to-yellow-600 flex items-center justify-center text-slate-950 shadow-sm font-semibold text-xl">
             3
@@ -132,7 +132,7 @@ export default function BillingQueue({ onOpenCheckout }) {
               </span>
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-              Vehicles that completed wash/detailing, freed up the jacks, and are ready for cashier settlement.
+              Completed jobs awaiting payment. Search by plate or customer.
             </p>
           </div>
         </div>
@@ -188,7 +188,7 @@ export default function BillingQueue({ onOpenCheckout }) {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="billing-grid">
             {filteredReady.map((job) => {
               const subtotal =
                 job.services?.reduce((sum, s) => sum + parseFloat(s.price_charged || 0), 0) || 0;
@@ -204,7 +204,7 @@ export default function BillingQueue({ onOpenCheckout }) {
               return (
                 <div
                   key={job.id}
-                  className="bg-white border-2 border-slate-200 hover:border-amber-500/60 rounded-xl p-5 shadow-sm flex flex-col justify-between transition-all duration-150  group"
+                  className="billing-job-card"
                 >
                   <div>
                     {/* Header: Plate & Ticket */}

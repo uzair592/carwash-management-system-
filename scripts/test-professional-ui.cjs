@@ -22,7 +22,8 @@ ready.assigned_location = 'JACK_1'; ready.completed_at = new Date().toISOString(
 const bayData = { status: 'success', physical_bays: {
   jack_1: { name: 'Jack 1', team: 'Wash Team 1', is_occupied: true, current_job: active },
   jack_2: { name: 'Jack 2', team: 'Wash Team 2', is_occupied: false },
-  detailing_center: { name: 'Detailing Center', team: 'Detailing Team', is_occupied: true, current_job: detail },
+  detailing_bay_1: { name: 'Detailing Bay 1', team: 'Detailing Team', is_occupied: true, current_job: detail },
+  detailing_bay_2: { name: 'Detailing Bay 2', team: 'Detailing Team', is_occupied: false },
 }, queue: [job('1004', 'PES-321'), job('1005', 'ISB-654', services[1])], ready_for_billing: [ready] };
 const recent = [{ id: 'invoice-1', invoice_number: 'INV-001', payment_method: 'CASH', total_amount: 1000, job_card: active }];
 const requests = [], errors = [], checks = [];
@@ -95,6 +96,7 @@ async function noOverflow(page) { assert.equal(await page.evaluate(() => documen
       assert.match(await popup.locator('body').innerText(), /PES-101/); await popup.close();
       await page.getByRole('button', { name: 'View workshop' }).click();
       await page.getByRole('heading', { name: 'Work areas' }).waitFor();
+      assert.equal(await page.locator('.bay-card').count(), 4);
       await noOverflow(page); await page.screenshot({ path: path.join(screenshots, 'workshop-desktop.png') });
     });
     await check('Bay dispatch and completion retain API contracts', async () => {
@@ -142,11 +144,16 @@ async function noOverflow(page) { assert.equal(await page.evaluate(() => documen
       await page.getByRole('button', { name: 'Express Foam Wash' }).waitFor(); await noOverflow(page);
       await page.screenshot({ path: path.join(screenshots, 'new-vehicle-tablet.png') });
       await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(250); await noOverflow(page);
+      await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
+      await page.waitForTimeout(250);
       await page.screenshot({ path: path.join(screenshots, 'new-vehicle-mobile.png'), fullPage: true });
       await page.getByRole('button', { name: 'Open navigation' }).click();
       await page.getByRole('button', { name: 'Workshop', exact: true }).click();
       await noOverflow(page);
       assert.equal(await page.locator('.app-sidebar.is-open').count(), 0);
+      await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
+      await page.waitForTimeout(250);
+      await page.screenshot({ path: path.join(screenshots, 'workshop-mobile.png'), fullPage: true });
     });
     await check('Worker navigation and role-scoped financial requests', async () => {
       await page.setViewportSize({ width: 1366, height: 768 });
