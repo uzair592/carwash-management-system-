@@ -484,6 +484,7 @@ model BusinessBranding {
   invoice_template  String   @default("CLASSIC_THERMAL") @db.VarChar(50)
   token_template    String   @default("STANDARD_BOX") @db.VarChar(50)
   vehicle_makes     String?  @db.Text
+  show_business_name Boolean @default(true)
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
 

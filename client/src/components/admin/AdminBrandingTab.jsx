@@ -68,6 +68,7 @@ export default function AdminBrandingTab() {
         ntn_number: branding.ntn_number,
         logo_size: parseInt(branding.logo_size, 10) || 120,
         loyalty_threshold: parseInt(branding.loyalty_threshold, 10) || 5,
+        show_business_name: branding.show_business_name !== false,
       });
       setSuccessMsg('Branding details and loyalty threshold saved successfully.');
       if (res.data?.data) setBranding(res.data.data);
@@ -243,9 +244,38 @@ export default function AdminBrandingTab() {
               Store Details & Loyalty Configuration
             </h3>
 
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-blue-50/70 border border-blue-200 p-3.5 rounded-xl">
+              <div className="space-y-0.5">
+                <label htmlFor="admin-chk-print-business-name" className="text-xs font-bold text-slate-800 cursor-pointer flex items-center gap-2">
+                  <input
+                    id="admin-chk-print-business-name"
+                    type="checkbox"
+                    checked={branding.show_business_name !== false}
+                    onChange={(e) => setBranding({ ...branding, show_business_name: e.target.checked })}
+                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span>Print Business Name on Invoice</span>
+                </label>
+                <p className="text-[11px] text-slate-600 pl-6">
+                  {branding.show_business_name !== false
+                    ? "✓ Checked: Business name text will appear on the invoice."
+                    : "✗ Unchecked: Business name will NOT show on the invoice (only your uploaded logo displays)."}
+                </p>
+              </div>
+              <span
+                className={`text-xs px-2.5 py-1 rounded-full font-bold self-start sm:self-center uppercase tracking-wider ${
+                  branding.show_business_name !== false
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-amber-100 text-amber-800 border border-amber-300'
+                }`}
+              >
+                {branding.show_business_name !== false ? 'NAME ON' : 'NAME OFF'}
+              </span>
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Business Legal / Brand Name <span className="text-red-500">*</span>
+                Business Legal / Brand Name {branding.show_business_name === false && <span className="text-amber-600 font-normal">(Hidden on invoice print)</span>}
               </label>
               <input
                 type="text"

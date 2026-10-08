@@ -139,6 +139,7 @@ export default function SettingsToggle() {
         invoice_template: branding.invoice_template,
         token_template: branding.token_template,
         vehicle_makes: branding.vehicle_makes,
+        show_business_name: branding.show_business_name !== false,
       });
 
       if (res.data?.data) setBranding(res.data.data);
@@ -621,21 +622,54 @@ export default function SettingsToggle() {
           </div>
         </div>
 
-        {/* Store Information */}
-        <div className="pt-4 border-t border-slate-100">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3">
-            Store Details on Printed Receipts
-          </h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Business Name</label>
-              <input
-                type="text"
-                className="field text-sm w-full"
-                value={branding.business_name}
-                onChange={(e) => setBranding({ ...branding, business_name: e.target.value })}
-              />
+        {/* Store Information & Business Name Toggle */}
+        <div className="pt-4 border-t border-slate-100 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-blue-50/70 border border-blue-200 p-3.5 rounded-xl">
+            <div className="space-y-0.5">
+              <label htmlFor="chk-print-business-name" className="text-xs font-bold text-slate-800 cursor-pointer flex items-center gap-2">
+                <input
+                  id="chk-print-business-name"
+                  type="checkbox"
+                  checked={branding.show_business_name !== false}
+                  onChange={(e) => setBranding({ ...branding, show_business_name: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+                <span>Print Business Name on Invoice</span>
+              </label>
+              <p className="text-[11px] text-slate-600 pl-6">
+                {branding.show_business_name !== false
+                  ? "✓ Checked: Business name text will be printed on invoices."
+                  : "✗ Unchecked: Business name will NOT show on the invoice (only your uploaded logo and receipt data will print)."}
+              </p>
             </div>
+            <span
+              className={`text-xs px-2.5 py-1 rounded-full font-bold self-start sm:self-center uppercase tracking-wider ${
+                branding.show_business_name !== false
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                  : 'bg-amber-100 text-amber-800 border border-amber-300'
+              }`}
+            >
+              {branding.show_business_name !== false ? 'NAME ON' : 'NAME OFF'}
+            </span>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3">
+              Store Details on Printed Receipts
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Business Name {branding.show_business_name === false && <span className="text-amber-600 font-normal">(Hidden on invoice print)</span>}
+                </label>
+                <input
+                  type="text"
+                  className="field text-sm w-full"
+                  value={branding.business_name}
+                  onChange={(e) => setBranding({ ...branding, business_name: e.target.value })}
+                  placeholder="Business Name"
+                />
+              </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Tagline</label>
               <input
@@ -674,6 +708,7 @@ export default function SettingsToggle() {
             </div>
           </div>
         </div>
+      </div>
 
         <div className="flex justify-end pt-2">
           <button

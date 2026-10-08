@@ -55,6 +55,7 @@ export default function CheckoutModal({ jobCard, onClose, onCheckoutSuccess }) {
 
   // Business Branding for Receipt
   const [branding, setBranding] = useState(null);
+  const [printBusinessName, setPrintBusinessName] = useState(true);
 
   if (!jobCard) return null;
 
@@ -79,6 +80,9 @@ export default function CheckoutModal({ jobCard, onClose, onCheckoutSuccess }) {
         }
         if (brandRes.data?.data) {
           setBranding(brandRes.data.data);
+          if (brandRes.data.data.show_business_name !== undefined) {
+            setPrintBusinessName(brandRes.data.data.show_business_name !== false);
+          }
         }
       } catch (err) {
         console.warn('Auxiliary data load error:', err.message);
@@ -285,6 +289,22 @@ export default function CheckoutModal({ jobCard, onClose, onCheckoutSuccess }) {
                 </p>
               </div>
 
+              {/* Business Name on Invoice Check Mark (User Requirement) */}
+              <div className="flex items-center justify-between bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl text-xs">
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={printBusinessName}
+                    onChange={(e) => setPrintBusinessName(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded cursor-pointer"
+                  />
+                  <span>Print Business Name on Bill</span>
+                </label>
+                <span className="text-[11px] text-slate-500 font-medium">
+                  {printBusinessName ? '✓ Name will print' : '✗ Name omitted (logo only)'}
+                </span>
+              </div>
+
               <InvoiceThermalReceipt
                 invoice={{
                   invoice_number: invoiceResult.invoice?.invoice_number || 'INV-001',
@@ -303,6 +323,7 @@ export default function CheckoutModal({ jobCard, onClose, onCheckoutSuccess }) {
                   balance_due: invoiceResult.balance_due,
                 }}
                 branding={branding}
+                showBusinessName={printBusinessName}
                 id="printable-receipt"
               />
 

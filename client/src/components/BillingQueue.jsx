@@ -35,6 +35,7 @@ export default function BillingQueue({ onOpenCheckout }) {
   const [statusFeedback, setStatusFeedback] = useState(null);
   const [printInvoiceTarget, setPrintInvoiceTarget] = useState(null);
   const [branding, setBranding] = useState(null);
+  const [printBusinessName, setPrintBusinessName] = useState(true);
 
   const loadData = async () => {
     try {
@@ -52,6 +53,9 @@ export default function BillingQueue({ onOpenCheckout }) {
       }
       if (brandRes.data?.data) {
         setBranding(brandRes.data.data);
+        if (brandRes.data.data.show_business_name !== undefined) {
+          setPrintBusinessName(brandRes.data.data.show_business_name !== false);
+        }
       }
     } catch (err) {
       console.warn('Billing queue poll error:', err.message);
@@ -407,10 +411,27 @@ export default function BillingQueue({ onOpenCheckout }) {
               </button>
             </div>
 
+            {/* Business Name on Invoice Check Mark (User Requirement) */}
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl text-xs">
+              <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={printBusinessName}
+                  onChange={(e) => setPrintBusinessName(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded cursor-pointer"
+                />
+                <span>Print Business Name on Invoice</span>
+              </label>
+              <span className="text-[11px] text-slate-500 font-medium">
+                {printBusinessName ? '✓ Name will print' : '✗ Name omitted (logo only)'}
+              </span>
+            </div>
+
             {/* 80mm ESC/POS Formatted Receipt with Business Logo */}
             <InvoiceThermalReceipt
               invoice={printInvoiceTarget}
               branding={branding}
+              showBusinessName={printBusinessName}
               id="reprint-invoice-dialog"
             />
 

@@ -17,6 +17,7 @@ async function getOrCreateBranding() {
         logo_url: null,
         logo_size: 120,
         loyalty_threshold: 5,
+        show_business_name: true,
       },
     });
   }
@@ -59,6 +60,7 @@ async function updateBrandingHandler(req, res, next) {
       invoice_template,
       token_template,
       vehicle_makes,
+      show_business_name,
     } = req.body;
 
     const updated = await prisma.businessBranding.update({
@@ -76,6 +78,7 @@ async function updateBrandingHandler(req, res, next) {
         invoice_template: invoice_template !== undefined ? String(invoice_template).trim() : undefined,
         token_template: token_template !== undefined ? String(token_template).trim() : undefined,
         vehicle_makes: vehicle_makes !== undefined ? String(vehicle_makes).trim() : undefined,
+        show_business_name: show_business_name !== undefined ? Boolean(show_business_name) : undefined,
       },
     });
 

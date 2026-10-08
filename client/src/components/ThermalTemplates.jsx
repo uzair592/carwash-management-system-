@@ -5,12 +5,15 @@ const money = (val) => Number(val || 0).toLocaleString('en-PK', { minimumFractio
 /**
  * INVOICE / BILL THERMAL RECEIPT (Prints with dynamic logo per user request)
  */
-export function InvoiceThermalReceipt({ invoice, branding, id = 'printable-receipt' }) {
+export function InvoiceThermalReceipt({ invoice, branding, id = 'printable-receipt', showBusinessName: showNameOverride }) {
   if (!invoice) return null;
 
   const template = branding?.invoice_template || 'CLASSIC_THERMAL';
   const logoUrl = branding?.logo_url;
   const logoWidth = branding?.logo_size || 140;
+  const showBusinessName = showNameOverride !== undefined
+    ? Boolean(showNameOverride)
+    : (branding?.show_business_name !== false);
   const businessName = branding?.business_name || 'DF PRO CAR WASH & DETAILING';
   const tagline = branding?.tagline || 'Premium Auto Care & Ceramic Studio';
   const address = branding?.address || 'Plot 45-C, Commercial Broadway, Phase 5, DHA, Lahore';
@@ -60,12 +63,16 @@ export function InvoiceThermalReceipt({ invoice, branding, id = 'printable-recei
             />
           </div>
         )}
-        <div className="text-center font-black text-sm tracking-wide uppercase border-b-2 border-black pb-1">
-          {businessName}
-        </div>
-        <div className="text-center text-[10px] text-gray-600">
-          {tagline}
-        </div>
+        {showBusinessName && (
+          <div className="text-center font-black text-sm tracking-wide uppercase border-b-2 border-black pb-1">
+            {businessName}
+          </div>
+        )}
+        {tagline && (
+          <div className="text-center text-[10px] text-gray-600">
+            {tagline}
+          </div>
+        )}
 
         <div className="flex justify-between text-[11px] font-bold border-b border-gray-400 py-1">
           <span>INVOICE: #{invoiceNumber}</span>
@@ -138,7 +145,7 @@ export function InvoiceThermalReceipt({ invoice, branding, id = 'printable-recei
         </div>
 
         <div className="text-center text-[9px] text-gray-600 pt-2 border-t border-dashed border-gray-400 space-y-0.5">
-          <p className="font-bold">Thank you for visiting {businessName}!</p>
+          <p className="font-bold">Thank you for visiting{showBusinessName ? ` ${businessName}` : ''}!</p>
           <p>{address}</p>
           <p>Tel: {phone} · NTN: {ntn}</p>
         </div>
@@ -169,9 +176,11 @@ export function InvoiceThermalReceipt({ invoice, branding, id = 'printable-recei
             />
           </div>
         )}
-        <div className="text-center font-bold text-sm">
-          {businessName}
-        </div>
+        {showBusinessName && (
+          <div className="text-center font-bold text-sm">
+            {businessName}
+          </div>
+        )}
         <div className="text-center text-[10px] text-gray-500">
           SALES TAX & COMMERCIAL SERVICES INVOICE
         </div>
@@ -269,12 +278,16 @@ export function InvoiceThermalReceipt({ invoice, branding, id = 'printable-recei
         </div>
       )}
 
-      <div className="text-center font-bold text-sm">
-        {businessName}
-      </div>
-      <div className="text-center text-[11px] text-gray-500">
-        {tagline}
-      </div>
+      {showBusinessName && (
+        <div className="text-center font-bold text-sm">
+          {businessName}
+        </div>
+      )}
+      {tagline && (
+        <div className="text-center text-[11px] text-gray-500">
+          {tagline}
+        </div>
+      )}
 
       <div className="border-t border-b border-dashed border-gray-400 py-1.5 my-2 text-[11px] flex justify-between">
         <span>Invoice: {invoiceNumber}</span>
@@ -332,7 +345,7 @@ export function InvoiceThermalReceipt({ invoice, branding, id = 'printable-recei
       </div>
 
       <div className="text-center text-[10px] text-gray-500 pt-3 border-t border-dashed border-gray-400">
-        <p>Thank you for choosing {businessName}!</p>
+        <p>Thank you for choosing{showBusinessName ? ` ${businessName}` : ' our services'}!</p>
         <p>{address}</p>
         <p>Tel: {phone} · NTN: {ntn}</p>
       </div>
