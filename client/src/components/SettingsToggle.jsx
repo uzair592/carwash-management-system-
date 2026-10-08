@@ -399,8 +399,8 @@ export default function SettingsToggle() {
               {[
                 {
                   id: 'CLASSIC_THERMAL',
-                  title: 'Classic Thermal (Recommended)',
-                  desc: 'Traditional high-density ESC/POS layout with centered logo, plate box, and clear totals.',
+                  title: 'Classic Thermal',
+                  desc: 'Traditional high-density ESC/POS layout with centered logo, dashed rules, and clear totals.',
                 },
                 {
                   id: 'MODERN_CLEAN',
@@ -410,7 +410,22 @@ export default function SettingsToggle() {
                 {
                   id: 'DETAILED_TAX',
                   title: 'Detailed Tax & NTN Invoice',
-                  desc: 'Formal invoice layout with prominent NTN/STRN registration and itemized charges.',
+                  desc: 'Formal invoice layout with prominent NTN/STRN registration, tax breakdowns, and itemized charges.',
+                },
+                {
+                  id: 'LUXURY_STUDIO',
+                  title: 'Luxury Studio Passport (Elite Detailing)',
+                  desc: 'High-end ceramic studio layout with vehicle passport box, aftercare guidance, and satisfaction guarantee stamp.',
+                },
+                {
+                  id: 'ENTERPRISE_MINIMAL',
+                  title: 'Vyapar-Style Retail Cash Memo',
+                  desc: 'Ultra-crisp 2-column tabular grid with Rate & Item columns inspired by modern commercial retail POS.',
+                },
+                {
+                  id: 'VIP_GOLD_PASS',
+                  title: 'Auto Care Club & Loyalty Pass',
+                  desc: 'Features customer visit tracker, VIP member banner, service checkmarks, and loyalty reward progress.',
                 },
               ].map((tmpl) => (
                 <label

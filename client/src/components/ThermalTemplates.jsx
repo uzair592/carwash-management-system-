@@ -255,7 +255,328 @@ export function InvoiceThermalReceipt({ invoice, branding, id = 'printable-recei
     );
   }
 
-  // Default Template 3: CLASSIC_THERMAL
+  // Render Template 4: LUXURY_STUDIO (Elite Detailing Studio Card)
+  if (template === 'LUXURY_STUDIO') {
+    return (
+      <div
+        id={id}
+        className="thermal-receipt luxury-template text-left text-xs font-mono space-y-2 text-black p-4 bg-white"
+        style={{ fontFamily: "'Courier New', Courier, monospace", width: '72mm', margin: '0 auto', border: '1px solid #000' }}
+      >
+        {logoUrl && (
+          <div className="text-center mb-2">
+            <img
+              src={logoUrl}
+              alt="Studio Logo"
+              style={{
+                maxWidth: `${logoWidth}px`,
+                maxHeight: '90px',
+                objectFit: 'contain',
+                margin: '0 auto',
+                display: 'block',
+              }}
+            />
+          </div>
+        )}
+
+        {showBusinessName && (
+          <div className="text-center font-black text-sm tracking-wider uppercase border-b-2 border-black pb-1">
+            ❖ {businessName} ❖
+          </div>
+        )}
+        {tagline && (
+          <div className="text-center text-[10px] tracking-widest uppercase text-gray-600 font-bold">
+            {tagline}
+          </div>
+        )}
+
+        <div className="bg-black text-white p-1 text-center font-bold text-[10px] tracking-widest my-1 uppercase">
+          ★ OFFICIAL DETAILING PASSPORT ★
+        </div>
+
+        <div className="border border-black p-2 bg-gray-50 text-[11px] space-y-1">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] text-gray-500 uppercase font-bold">Plate No:</span>
+            <span className="text-sm font-black font-mono tracking-wider">{vehiclePlate}</span>
+          </div>
+          {vehicleDesc && (
+            <div className="flex justify-between items-center text-[10px]">
+              <span className="text-gray-500 font-bold uppercase">Vehicle:</span>
+              <span className="font-bold">{vehicleDesc}</span>
+            </div>
+          )}
+          <div className="flex justify-between items-center text-[10px]">
+            <span className="text-gray-500 font-bold uppercase">Client:</span>
+            <span className="font-bold">{customer}</span>
+          </div>
+          <div className="flex justify-between items-center text-[10px] pt-1 border-t border-gray-300">
+            <span>INV #{invoiceNumber}</span>
+            <span>{dateStr}</span>
+          </div>
+        </div>
+
+        <div className="py-2 border-t-2 border-b-2 border-black space-y-1">
+          <div className="flex justify-between font-bold text-[10px] uppercase text-gray-600 pb-0.5 border-b border-gray-300">
+            <span>Treatment / Service</span>
+            <span>PKR</span>
+          </div>
+          {servicesList.map((s, idx) => (
+            <div key={s.id || idx} className="flex justify-between text-[11px] py-0.5">
+              <span>◆ {s.service?.name || s.name}</span>
+              <strong>Rs. {money(s.price_charged || s.price)}</strong>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-1 text-[11px] pt-1">
+          <div className="flex justify-between text-gray-700">
+            <span>Subtotal:</span>
+            <span>Rs. {money(subtotal)}</span>
+          </div>
+          {discount > 0 && (
+            <div className="flex justify-between text-red-700 font-bold">
+              <span>VIP Privilege Rebate:</span>
+              <span>-Rs. {money(discount)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-sm font-black border-2 border-black p-1 bg-black text-white mt-1">
+            <span>TOTAL PAID:</span>
+            <span>Rs. {money(paid)}</span>
+          </div>
+          <div className="flex justify-between text-[10px] font-bold pt-1">
+            <span>Payment Mode:</span>
+            <span className="uppercase font-mono bg-gray-200 px-1 rounded">{tender}</span>
+          </div>
+          {cashTendered !== null && cashTendered > 0 && (
+            <div className="flex justify-between text-[10px]">
+              <span>Cash Given:</span>
+              <span>Rs. {money(cashTendered)}</span>
+            </div>
+          )}
+          {changeReturned !== null && changeReturned > 0 && (
+            <div className="flex justify-between text-[10px] text-emerald-800 font-bold">
+              <span>Change Returned:</span>
+              <span>Rs. {money(changeReturned)}</span>
+            </div>
+          )}
+          {balanceDue > 0 && (
+            <div className="flex justify-between font-bold text-red-600 border border-red-500 p-1 rounded">
+              <span>Remaining Balance:</span>
+              <span>Rs. {money(balanceDue)}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="text-center text-[9px] text-gray-600 pt-2 border-t border-dashed border-gray-400 space-y-0.5">
+          <p className="font-bold text-black uppercase tracking-wider">★ 100% QUALITY GUARANTEE ★</p>
+          <p>Please avoid high-pressure wash directly on fresh wax/ceramic for 48 hrs.</p>
+          <p>{address}</p>
+          <p>Helpline: {phone} · NTN: {ntn}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Render Template 5: ENTERPRISE_MINIMAL (Vyapar / Modern Retail POS)
+  if (template === 'ENTERPRISE_MINIMAL') {
+    return (
+      <div
+        id={id}
+        className="thermal-receipt vyapar-template text-left text-xs font-mono space-y-2 text-black p-4 bg-white"
+        style={{ fontFamily: "'Courier New', Courier, monospace", width: '72mm', margin: '0 auto' }}
+      >
+        {logoUrl && (
+          <div className="text-center mb-1">
+            <img
+              src={logoUrl}
+              alt="Logo"
+              style={{
+                maxWidth: `${logoWidth}px`,
+                maxHeight: '80px',
+                objectFit: 'contain',
+                margin: '0 auto',
+                display: 'block',
+              }}
+            />
+          </div>
+        )}
+
+        {showBusinessName && (
+          <div className="text-center font-bold text-sm tracking-wide">
+            {businessName}
+          </div>
+        )}
+        <div className="text-center text-[10px] text-gray-500">
+          RETAIL CASH MEMO & POS INVOICE
+        </div>
+
+        <div className="text-[10px] border-y border-black py-1 space-y-0.5">
+          <div className="flex justify-between">
+            <span><strong>BILL NO:</strong> {invoiceNumber}</span>
+            <span><strong>DATE:</strong> {dateStr}</span>
+          </div>
+          <div className="flex justify-between">
+            <span><strong>VEHICLE:</strong> {vehiclePlate}</span>
+            <span><strong>PAY:</strong> {tender}</span>
+          </div>
+          <div className="flex justify-between">
+            <span><strong>CLIENT:</strong> {customer}</span>
+            <span>{vehicleDesc}</span>
+          </div>
+        </div>
+
+        {/* Vyapar Tabular Grid */}
+        <table className="w-full text-left text-[11px] border-collapse my-1">
+          <thead>
+            <tr className="border-b border-black text-[10px]">
+              <th className="py-1">ITEM DESCRIPTION</th>
+              <th className="text-right py-1">RATE</th>
+            </tr>
+          </thead>
+          <tbody>
+            {servicesList.map((s, idx) => (
+              <tr key={s.id || idx} className="border-b border-gray-200">
+                <td className="py-1 pr-1">{s.service?.name || s.name}</td>
+                <td className="text-right py-1 font-bold whitespace-nowrap">Rs. {money(s.price_charged || s.price)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div className="space-y-1 text-[11px] border-t border-black pt-1">
+          <div className="flex justify-between">
+            <span>Subtotal:</span>
+            <span>Rs. {money(subtotal)}</span>
+          </div>
+          {discount > 0 && (
+            <div className="flex justify-between text-red-600">
+              <span>Less Discount:</span>
+              <span>-Rs. {money(discount)}</span>
+            </div>
+          )}
+          <div className="flex justify-between font-black text-sm border-t border-black pt-1">
+            <span>NET PAYABLE:</span>
+            <span>Rs. {money(paid)}</span>
+          </div>
+          {cashTendered !== null && cashTendered > 0 && (
+            <div className="flex justify-between text-[10px]">
+              <span>Cash Given:</span>
+              <span>Rs. {money(cashTendered)}</span>
+            </div>
+          )}
+          {changeReturned !== null && changeReturned > 0 && (
+            <div className="flex justify-between text-[10px] text-emerald-700 font-bold">
+              <span>Change Returned:</span>
+              <span>Rs. {money(changeReturned)}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="text-center text-[9px] text-gray-500 pt-2 border-t border-dashed border-gray-400 space-y-0.5">
+          <p>* Computer generated cash memo. Goods/services verified upon release.</p>
+          <p>{address}</p>
+          <p>Helpline: {phone} · NTN: {ntn}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Render Template 6: VIP_GOLD_PASS (Care Club & Loyalty)
+  if (template === 'VIP_GOLD_PASS') {
+    return (
+      <div
+        id={id}
+        className="thermal-receipt loyalty-template text-left text-xs font-mono space-y-2 text-black p-4 bg-white"
+        style={{ fontFamily: "'Courier New', Courier, monospace", width: '72mm', margin: '0 auto', border: '2px solid #000' }}
+      >
+        {logoUrl && (
+          <div className="text-center mb-1">
+            <img
+              src={logoUrl}
+              alt="Club Logo"
+              style={{
+                maxWidth: `${logoWidth}px`,
+                maxHeight: '85px',
+                objectFit: 'contain',
+                margin: '0 auto',
+                display: 'block',
+              }}
+            />
+          </div>
+        )}
+
+        {showBusinessName && (
+          <div className="text-center font-black text-sm uppercase">
+            ★ {businessName} ★
+          </div>
+        )}
+        <div className="text-center text-[10px] font-bold bg-black text-white py-0.5 uppercase tracking-wider">
+          CAR CARE CLUB · LOYALTY RECEIPT
+        </div>
+
+        <div className="border border-dashed border-black p-1.5 text-center my-1 space-y-0.5">
+          <div className="font-black text-base tracking-widest">{vehiclePlate}</div>
+          <div className="text-[10px] font-bold text-gray-700">{customer} {vehicleDesc ? `• ${vehicleDesc}` : ''}</div>
+          <div className="text-[9px] text-gray-500">Invoice: #{invoiceNumber} | Date: {dateStr}</div>
+        </div>
+
+        <div className="py-1.5 border-t border-b border-black space-y-1">
+          <div className="flex justify-between font-bold text-[10px] uppercase text-gray-600">
+            <span>Service Performed</span>
+            <span>Rate</span>
+          </div>
+          {servicesList.map((s, idx) => (
+            <div key={s.id || idx} className="flex justify-between text-[11px]">
+              <span>✔ {s.service?.name || s.name}</span>
+              <strong>Rs. {money(s.price_charged || s.price)}</strong>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-1 text-[11px] pt-1">
+          <div className="flex justify-between">
+            <span>Gross Bill:</span>
+            <span>Rs. {money(subtotal)}</span>
+          </div>
+          {discount > 0 && (
+            <div className="flex justify-between text-red-600 font-bold">
+              <span>Club Member Savings:</span>
+              <span>-Rs. {money(discount)}</span>
+            </div>
+          )}
+          <div className="flex justify-between font-black text-sm border-t-2 border-black pt-1">
+            <span>FINAL CHARGE:</span>
+            <span>Rs. {money(paid)}</span>
+          </div>
+          <div className="flex justify-between text-[10px]">
+            <span>Tender: {tender}</span>
+            {cashTendered && <span>Cash: Rs. {money(cashTendered)}</span>}
+          </div>
+          {changeReturned !== null && changeReturned > 0 && (
+            <div className="flex justify-between text-[10px] text-emerald-800 font-bold">
+              <span>Change Returned:</span>
+              <span>Rs. {money(changeReturned)}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Loyalty Perk Meter */}
+        <div className="border border-black p-1.5 rounded text-center bg-gray-50 text-[10px] space-y-0.5">
+          <p className="font-bold">✦ LOYALTY REWARD TRACKER ✦</p>
+          <p className="text-[9px] text-gray-600">Complete 5 wash visits to receive a Free Express Detail!</p>
+          <p className="font-mono font-bold text-[10px]">Current Status: Active Member</p>
+        </div>
+
+        <div className="text-center text-[9px] text-gray-500 pt-1 border-t border-dashed border-gray-400">
+          <p className="font-bold text-black">Thank you for being our valued patron!</p>
+          <p>{address}</p>
+          <p>Helpline: {phone}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Default Template 1: CLASSIC_THERMAL
   return (
     <div
       id={id}
