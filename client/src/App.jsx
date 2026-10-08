@@ -11,7 +11,10 @@ import {
   Eye,
   ShieldCheck,
   Clock,
-  Sparkles
+  Sparkles,
+  Lock,
+  Unlock,
+  Coins
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -22,6 +25,8 @@ import CheckoutModal from './components/CheckoutModal';
 import Leaderboard from './components/Leaderboard';
 import InvestorDashboard from './pages/InvestorDashboard';
 import AdminManagement from './pages/AdminManagement';
+import RegisterModal from './components/RegisterModal';
+import CloseShiftModal from './components/CloseShiftModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
@@ -36,13 +41,19 @@ export default function App() {
   const [queuedCount, setQueuedCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Sync Ledger Balances & Counts for Top Bar
-  const syncLedgerAndCounts = async () => {
+  // Register Shift Sessions state
+  const [registerData, setRegisterData] = useState({ is_open: true, session: null });
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [isCloseShiftModalOpen, setIsCloseShiftModalOpen] = useState(false);
+
+  // Sync Ledger, Bay Status, and Register Session
+  const syncLedgerAndRegister = async () => {
     setIsSyncing(true);
     try {
-      const [ledgerRes, bayRes] = await axios.all([
+      const [ledgerRes, bayRes, regRes] = await axios.all([
         axios.get('/api/ledger'),
         axios.get('/api/bays/live-status'),
+        axios.get('/api/register/current'),
       ]);
 
       if (ledgerRes.data?.data) {
@@ -60,27 +71,48 @@ export default function App() {
       if (bayRes.data?.queue) {
         setQueuedCount(bayRes.data.queue.length);
       }
+
+      if (regRes.data?.data) {
+        const reg = regRes.data.data;
+        setRegisterData(reg);
+        // If register is closed, prompt to open
+        if (!reg.is_open) {
+          setIsRegisterModalOpen(true);
+        } else {
+          setIsRegisterModalOpen(false);
+        }
+      }
     } catch (err) {
-      console.warn('Top bar sync notice:', err.message);
+      console.warn('System sync notice:', err.message);
     } finally {
       setIsSyncing(false);
     }
   };
 
   useEffect(() => {
-    syncLedgerAndCounts();
-    const interval = setInterval(syncLedgerAndCounts, 8000); // 8s poll
+    syncLedgerAndRegister();
+    const interval = setInterval(syncLedgerAndRegister, 8000); // 8s poll
     return () => clearInterval(interval);
   }, []);
 
   const handleJobCreated = () => {
-    syncLedgerAndCounts();
+    syncLedgerAndRegister();
     setActiveTab('bays');
   };
 
   const handleCheckoutSuccess = () => {
-    syncLedgerAndCounts();
+    syncLedgerAndRegister();
     setCheckoutTarget(null);
+  };
+
+  const handleSessionOpened = (session) => {
+    setIsRegisterModalOpen(false);
+    syncLedgerAndRegister();
+  };
+
+  const handleSessionClosed = (result) => {
+    setIsCloseShiftModalOpen(false);
+    syncLedgerAndRegister();
   };
 
   return (
@@ -99,13 +131,49 @@ export default function App() {
               </span>
             </h1>
             <p className="text-[11px] text-slate-400">
-              Jack 1 • Jack 2 • Detailing Center • Decoupled Alert Outbox
+              Jack 1 • Jack 2 • Detailing Center • Shift Tills &amp; Decoupled Outbox
             </p>
           </div>
         </div>
 
-        {/* Live Vault Balance Badges */}
-        <div className="flex items-center gap-3">
+        {/* Live Vault Balance Badges & Shift Control */}
+        <div className="flex items-center gap-3 flex-wrap justify-end">
+          {/* Register Shift Status Pill */}
+          {registerData.is_open ? (
+            <div className="flex items-center gap-2 bg-emerald-950/60 border border-emerald-500/40 rounded-xl px-3 py-1.5 text-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <div className="font-mono">
+                <span className="text-[10px] text-emerald-300 font-bold uppercase block">Shift Active</span>
+                <span className="text-white font-extrabold text-xs">
+                  Float: Rs. {Number(registerData.starting_cash || 0).toLocaleString()}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCloseShiftModalOpen(true)}
+                className="ml-1 bg-rose-600/80 hover:bg-rose-600 text-white font-bold text-[10px] px-2.5 py-1 rounded-lg transition"
+              >
+                Close Shift
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 bg-rose-950/60 border border-rose-500/40 rounded-xl px-3 py-1.5 text-xs">
+              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+              <div className="font-mono">
+                <span className="text-[10px] text-rose-300 font-bold uppercase block">Till Closed</span>
+                <span className="text-slate-400 text-xs">Shift Inactive</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsRegisterModalOpen(true)}
+                className="ml-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px] px-2.5 py-1 rounded-lg transition"
+              >
+                Open Till
+              </button>
+            </div>
+          )}
+
+          {/* Cash Vault */}
           <div className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-1.5 flex items-center gap-2.5 shadow-inner">
             <Vault className="w-4 h-4 text-emerald-400" />
             <div>
@@ -116,6 +184,7 @@ export default function App() {
             </div>
           </div>
 
+          {/* Bank Vault */}
           <div className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-1.5 flex items-center gap-2.5 shadow-inner hidden md:flex">
             <Activity className="w-4 h-4 text-sky-400" />
             <div>
@@ -127,7 +196,7 @@ export default function App() {
           </div>
 
           <button
-            onClick={syncLedgerAndCounts}
+            onClick={syncLedgerAndRegister}
             title="Refresh Ledger Vaults"
             className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
           >
@@ -251,6 +320,20 @@ export default function App() {
           onCheckoutSuccess={handleCheckoutSuccess}
         />
       )}
+
+      {/* Register Shift Open Modal (Blocks POS if till is closed) */}
+      <RegisterModal
+        isOpen={isRegisterModalOpen}
+        onSessionOpened={handleSessionOpened}
+      />
+
+      {/* Register Shift Close Modal */}
+      <CloseShiftModal
+        isOpen={isCloseShiftModalOpen}
+        onClose={() => setIsCloseShiftModalOpen(false)}
+        onSessionClosed={handleSessionClosed}
+        sessionData={registerData}
+      />
     </div>
   );
 }

@@ -28,3 +28,89 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #475569;
 }
+
+/* ==========================================================================
+   80mm Thermal Printer Media Query (@media print)
+   Standard ESC/POS thermal paper width: 80mm (approx 72mm active printable width)
+   ========================================================================== */
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 0mm;
+  }
+
+  /* Reset global layout */
+  html, body {
+    width: 80mm !important;
+    max-width: 80mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 12px !important;
+    line-height: 1.25 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide normal web elements */
+  header,
+  nav,
+  main,
+  button,
+  .no-print,
+  .fixed:not(.print-active-container) {
+    display: none !important;
+  }
+
+  /* Thermal print container positioning */
+  .thermal-print-wrapper {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 72mm !important;
+    margin: 0 auto !important;
+    padding: 3mm !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .thermal-ticket,
+  .thermal-receipt {
+    display: block !important;
+    width: 100% !important;
+    color: #000000 !important;
+    background: #ffffff !important;
+  }
+
+  /* Thermal typography & borders */
+  .thermal-title {
+    font-size: 15px !important;
+    font-weight: 900 !important;
+    text-align: center !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+  }
+
+  .thermal-plate-box {
+    border: 2px solid #000000 !important;
+    padding: 4px !important;
+    margin: 6px 0 !important;
+    text-align: center !important;
+    font-size: 18px !important;
+    font-weight: 900 !important;
+    letter-spacing: 2px !important;
+  }
+
+  .thermal-divider {
+    border-top: 1px dashed #000000 !important;
+    margin: 4px 0 !important;
+  }
+
+  .thermal-double-divider {
+    border-top: 2px solid #000000 !important;
+    margin: 5px 0 !important;
+  }
+}

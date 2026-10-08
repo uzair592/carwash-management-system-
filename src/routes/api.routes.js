@@ -32,6 +32,16 @@ const {
   verifyAdminPinHandler,
   issueRefundHandler,
 } = require('../controllers/physical-bays.controller');
+const {
+  getCurrentSessionHandler,
+  openSessionHandler,
+  closeSessionHandler,
+  getHistorySessionsHandler,
+} = require('../controllers/register.controller');
+const {
+  generateThermalIntakeTicket,
+  generateThermalCustomerReceipt,
+} = require('../services/printer.service');
 
 // ---------------------------------------------------------------------------
 // 1. Health & Service Diagnostics
@@ -69,6 +79,26 @@ router.get('/job-cards/:id', getJobCardHandler);
 router.patch('/job-cards/:id/status', updateJobCardStatusHandler);
 router.post('/admin/verify-pin', verifyAdminPinHandler);
 router.post('/invoices/:id/refund', issueRefundHandler);
+
+// ---------------------------------------------------------------------------
+// 4b. Cash Register Sessions (Shift Open / Close / Variance Reconciliation)
+// ---------------------------------------------------------------------------
+router.get('/register/current', getCurrentSessionHandler);
+router.post('/register/open', openSessionHandler);
+router.post('/register/close', closeSessionHandler);
+router.get('/register/history', getHistorySessionsHandler);
+
+// ---------------------------------------------------------------------------
+// 4c. Thermal Printing Endpoints (80mm ESC/POS)
+// ---------------------------------------------------------------------------
+router.post('/printer/thermal-ticket', (req, res) => {
+  const result = generateThermalIntakeTicket(req.body);
+  res.status(200).json({ status: 'success', data: result });
+});
+router.post('/printer/thermal-receipt', (req, res) => {
+  const result = generateThermalCustomerReceipt(req.body);
+  res.status(200).json({ status: 'success', data: result });
+});
 
 // ---------------------------------------------------------------------------
 // 5. Checkout & Invoicing

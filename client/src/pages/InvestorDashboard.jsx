@@ -11,7 +11,11 @@ import {
   Clock, 
   CheckCircle2, 
   AlertCircle,
-  Eye
+  Eye,
+  Layers,
+  Sparkles,
+  Lock,
+  Coins
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -62,6 +66,8 @@ export default function InvestorDashboard() {
   };
 
   const summary = data?.today_summary || {};
+  const baysBreakdown = data?.bays_breakdown || { jack_1: 0, jack_2: 0, detailing_center: 0 };
+  const registerSummary = data?.register_summary || { total_shifts: 0, closed_shifts: 0, open_shifts: 0, total_variance: 0, sessions: [] };
   const vaults = data?.vault_balances || {};
   const bays = data?.live_bays || { in_progress: [], queued: [] };
   const invoices = data?.recent_invoices || [];
@@ -84,7 +90,7 @@ export default function InvestorDashboard() {
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-1">
-              Zero-leakage absentee partner oversight • Powered by immutable PostgreSQL ledger
+              Zero-leakage absentee partner oversight • Jack 1, Jack 2 & Detailing Bay Accounting
             </p>
           </div>
         </div>
@@ -161,30 +167,198 @@ export default function InvestorDashboard() {
         {/* Metric 3: Total Washes */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-            Vehicles Completed Today
+            Vehicles Finished Today
           </span>
           <div className="text-2xl font-black font-mono text-white mt-1 flex items-center gap-2">
             <Car className="w-6 h-6 text-sky-400" />
-            {summary.cars_washed_today || 0}
+            {summary.cars_washed_today || 0} Cars
           </div>
           <div className="text-[11px] text-slate-400 mt-2 font-mono">
-            Live in bays: {summary.active_in_bay || 0} | Queued: {summary.queued_in_intake || 0}
+            Live in Bays: {summary.active_in_bay || 0} | Queued: {summary.queued_in_intake || 0}
           </div>
         </div>
 
         {/* Metric 4: Cash Drawer Vault */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-            Vault 1: Physical Cash Drawer
+            Cash Drawer Till Vault
           </span>
           <div className="text-2xl font-black font-mono text-amber-300 mt-1 flex items-center gap-2">
             <Vault className="w-5 h-5 text-amber-400" />
             Rs. {Number(vaults.cash_drawer || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </div>
           <div className="text-[11px] text-slate-400 mt-2 font-mono">
-            Bank Vault: Rs. {Number(vaults.main_bank || 0).toLocaleString()}
+            Main Bank: Rs. {Number(vaults.main_bank || 0).toLocaleString()}
           </div>
         </div>
+      </div>
+
+      {/* PHYSICAL BAY BREAKDOWN CARDS: Jack 1, Jack 2, Detailing Center */}
+      <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div>
+            <h3 className="font-extrabold text-base text-white flex items-center gap-2">
+              <Layers className="w-5 h-5 text-sky-400" />
+              Physical Work Areas Productivity Today
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">Vehicles washed and processed per physical zone</p>
+          </div>
+          <span className="text-xs font-mono bg-slate-950 border border-slate-800 text-slate-400 px-3 py-1 rounded-xl">
+            {summary.cars_washed_today || 0} Total Completed
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+          {/* Jack 1 */}
+          <div className="bg-slate-950 border border-slate-800/90 rounded-2xl p-4 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-sky-400 font-mono block">Hydraulic Bay 1</span>
+              <h4 className="text-base font-black text-white mt-0.5">Washing Jack 1</h4>
+              <p className="text-xs text-slate-400">Wash Team 1</p>
+            </div>
+            <div className="text-right">
+              <span className="font-mono text-3xl font-black text-amber-300">{baysBreakdown.jack_1 || 0}</span>
+              <span className="text-[10px] text-slate-500 uppercase font-bold block">Cars Done</span>
+            </div>
+          </div>
+
+          {/* Jack 2 */}
+          <div className="bg-slate-950 border border-slate-800/90 rounded-2xl p-4 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-sky-400 font-mono block">Hydraulic Bay 2</span>
+              <h4 className="text-base font-black text-white mt-0.5">Washing Jack 2</h4>
+              <p className="text-xs text-slate-400">Wash Team 2</p>
+            </div>
+            <div className="text-right">
+              <span className="font-mono text-3xl font-black text-amber-300">{baysBreakdown.jack_2 || 0}</span>
+              <span className="text-[10px] text-slate-500 uppercase font-bold block">Cars Done</span>
+            </div>
+          </div>
+
+          {/* Detailing Studio */}
+          <div className="bg-slate-950 border border-slate-800/90 rounded-2xl p-4 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-purple-400 font-mono block">Studio Bay 3</span>
+              <h4 className="text-base font-black text-white mt-0.5">Detailing Center</h4>
+              <p className="text-xs text-slate-400">Detailing Team</p>
+            </div>
+            <div className="text-right">
+              <span className="font-mono text-3xl font-black text-purple-300">{baysBreakdown.detailing_center || 0}</span>
+              <span className="text-[10px] text-slate-500 uppercase font-bold block">Cars Detailed</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* CASH REGISTER SESSIONS AUDIT & TILL DISCREPANCIES */}
+      <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+          <div>
+            <h3 className="font-extrabold text-base text-white flex items-center gap-2">
+              <Coins className="w-5 h-5 text-amber-400" />
+              Cash Register Shifts & Till Reconciliation
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Auditing cashier shifts, starting float change, counted cash, and till variances
+            </p>
+          </div>
+
+          {/* Till Variance Indicator */}
+          <div>
+            {Math.abs(registerSummary.total_variance || 0) < 0.01 ? (
+              <span className="text-xs font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                All Tills Balanced (Rs. 0.00 Variance)
+              </span>
+            ) : registerSummary.total_variance < 0 ? (
+              <span className="text-xs font-mono font-bold bg-rose-950 text-rose-300 border border-rose-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5 animate-pulse">
+                <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+                Till Shortage: -Rs. {Math.abs(registerSummary.total_variance).toLocaleString()}
+              </span>
+            ) : (
+              <span className="text-xs font-mono font-bold bg-sky-950 text-sky-300 border border-sky-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                Till Surplus: +Rs. {registerSummary.total_variance.toLocaleString()}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {registerSummary.sessions?.length === 0 ? (
+          <div className="text-center py-6 text-slate-500 text-xs">
+            No register shifts recorded today. Cashier shifts will appear here upon opening.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs font-mono">
+              <thead>
+                <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px]">
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3">Cashier</th>
+                  <th className="py-2.5 px-3">Opened</th>
+                  <th className="py-2.5 px-3">Closed</th>
+                  <th className="py-2.5 px-3 text-right">Start Float</th>
+                  <th className="py-2.5 px-3 text-right">Counted Cash</th>
+                  <th className="py-2.5 px-3 text-right">Variance</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                {registerSummary.sessions.map((sess) => (
+                  <tr key={sess.id} className="hover:bg-slate-800/30 transition">
+                    <td className="py-3 px-3">
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                          sess.status === 'OPEN'
+                            ? 'bg-amber-950 text-amber-300 border-amber-800'
+                            : 'bg-slate-950 text-slate-400 border-slate-800'
+                        }`}
+                      >
+                        {sess.status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-3 font-semibold text-white">
+                      {sess.opened_by?.name || 'Cashier'}
+                    </td>
+                    <td className="py-3 px-3 text-slate-400">
+                      {new Date(sess.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                    <td className="py-3 px-3 text-slate-400">
+                      {sess.closed_at
+                        ? new Date(sess.closed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        : 'Active'}
+                    </td>
+                    <td className="py-3 px-3 text-right text-slate-200">
+                      Rs. {parseFloat(sess.starting_cash).toLocaleString()}
+                    </td>
+                    <td className="py-3 px-3 text-right text-white font-bold">
+                      {sess.actual_counted_cash
+                        ? `Rs. ${parseFloat(sess.actual_counted_cash).toLocaleString()}`
+                        : 'In Till'}
+                    </td>
+                    <td className="py-3 px-3 text-right font-black">
+                      {sess.variance !== null && sess.variance !== undefined ? (
+                        <span
+                          className={
+                            Math.abs(parseFloat(sess.variance)) < 0.01
+                              ? 'text-emerald-400'
+                              : parseFloat(sess.variance) < 0
+                              ? 'text-rose-400'
+                              : 'text-sky-400'
+                          }
+                        >
+                          {Math.abs(parseFloat(sess.variance)) < 0.01
+                            ? 'Rs. 0.00'
+                            : `${parseFloat(sess.variance) < 0 ? '-' : '+'}Rs. ${Math.abs(parseFloat(sess.variance)).toLocaleString()}`}
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">Pending Close</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* 2-Column Section: Live Bay Operations & Recent Invoices */}
@@ -250,25 +424,21 @@ export default function InvestorDashboard() {
             {invoices.map((inv) => (
               <div
                 key={inv.invoice_number}
-                className="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 flex items-center justify-between"
+                className="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 flex items-center justify-between font-mono"
               >
                 <div>
-                  <span className="font-mono text-xs font-bold text-white block">
-                    {inv.invoice_number}
-                  </span>
-                  <span className="text-xs text-amber-300 font-mono font-bold">
-                    {inv.plate}
-                  </span>
-                  <span className="text-[10px] text-slate-500 block">
-                    {new Date(inv.time).toLocaleTimeString()}
+                  <span className="text-sky-400 text-xs font-bold">#{inv.invoice_number}</span>
+                  <p className="text-sm font-black text-amber-300">{inv.plate}</p>
+                  <span className="text-[10px] text-slate-400">
+                    {new Date(inv.time).toLocaleTimeString()} • Tender: {inv.payment_method}
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="font-mono text-base font-bold text-emerald-400 block">
-                    Rs. {inv.amount.toLocaleString()}
+                  <span className="text-base font-black text-emerald-400">
+                    Rs. {Number(inv.amount).toLocaleString()}
                   </span>
-                  <span className="text-[10px] font-mono text-slate-400">
-                    [{inv.payment_method}]
+                  <span className="block text-[10px] text-emerald-500 font-bold uppercase">
+                    Settled & Logged
                   </span>
                 </div>
               </div>
@@ -276,7 +446,7 @@ export default function InvestorDashboard() {
 
             {invoices.length === 0 && (
               <div className="text-center py-10 text-slate-500 text-xs italic">
-                No invoices settled yet today.
+                No invoices recorded today yet.
               </div>
             )}
           </div>

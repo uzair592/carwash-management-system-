@@ -48,6 +48,11 @@ enum OutboxStatus {
   FAILED
 }
 
+enum RegisterStatus {
+  OPEN
+  CLOSED
+}
+
 enum PaymentMethod {
   Cash
   Card
@@ -98,6 +103,7 @@ model User {
   job_cards       JobCard[]   @relation("WorkerJobCards")
   invoices        Invoice[]   @relation("CashierInvoices")
   expenses        Expense[]   @relation("UserExpenses")
+  register_sessions RegisterSession[] @relation("UserRegisterSessions")
 
   @@map("users")
 }
@@ -262,3 +268,22 @@ model Ledger {
 
   @@map("ledger")
 }
+
+model RegisterSession {
+  id                    String         @id @default(uuid())
+  opened_at             DateTime       @default(now())
+  closed_at             DateTime?
+  opened_by_user_id     String?
+  opened_by             User?          @relation("UserRegisterSessions", fields: [opened_by_user_id], references: [id], onDelete: SetNull)
+  starting_cash         Decimal        @db.Decimal(12, 2)
+  expected_closing_cash Decimal?       @db.Decimal(12, 2)
+  actual_counted_cash   Decimal?       @db.Decimal(12, 2)
+  variance              Decimal?       @db.Decimal(12, 2)
+  status                RegisterStatus @default(OPEN)
+  notes                 String?        @db.Text
+  created_at            DateTime       @default(now())
+  updated_at            DateTime       @updatedAt
+
+  @@map("register_sessions")
+}
+

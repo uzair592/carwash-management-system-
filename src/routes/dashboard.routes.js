@@ -82,8 +82,11 @@ router.get('/live', async (req, res, next) => {
           cash_revenue: financialMetrics.cashRevenue,
           bank_revenue: financialMetrics.bankRevenue,
           total_expenses: financialMetrics.totalExpenses,
+          total_refunds: financialMetrics.totalRefunds || 0,
           net_profit: financialMetrics.netSurplus,
         },
+        bays_breakdown: financialMetrics.baysBreakdown,
+        register_summary: financialMetrics.registerSummary,
         vault_balances: {
           cash_drawer: financialMetrics.cashBalance,
           main_bank: financialMetrics.bankBalance,

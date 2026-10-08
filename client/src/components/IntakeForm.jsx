@@ -463,24 +463,31 @@ export default function IntakeForm({ onJobCreated }) {
               </span>
             </div>
 
-            {/* Printable Ticket Card */}
+            {/* Printable Thermal Ticket Card (80mm) */}
             <div
               id="printable-job-ticket"
-              className="bg-slate-950 border-2 border-dashed border-slate-800 rounded-2xl p-5 my-5 space-y-4 font-mono text-xs"
+              className="thermal-ticket bg-slate-950 border-2 border-dashed border-slate-800 rounded-2xl p-5 my-5 space-y-4 font-mono text-xs"
             >
               <div className="text-center pb-3 border-b border-slate-800">
-                <h4 className="text-base font-black text-white tracking-widest">AUTOWASH SERVICE TICKET</h4>
-                <p className="text-[11px] text-slate-400 mt-0.5">Physical Shop Queue Pass</p>
+                <h4 className="thermal-title text-base font-black text-white tracking-widest">AUTOWASH &amp; DETAILING</h4>
+                <p className="text-[11px] text-slate-400 mt-0.5">BAY WORK ORDER TICKET</p>
                 <div className="inline-block mt-2 bg-slate-900 text-sky-400 font-bold px-3 py-1 rounded-md border border-slate-800 text-sm">
                   {generatedTicket.ticket_number}
                 </div>
               </div>
 
+              {/* Huge Plate Box */}
+              <div className="thermal-plate-box border-2 border-slate-700 bg-slate-900/60 rounded-xl py-2 px-3 text-center my-2">
+                <span className="text-[10px] text-slate-400 block uppercase font-bold">Vehicle Registration Plate</span>
+                <span className="text-2xl font-black text-amber-300 font-mono tracking-widest">
+                  {generatedTicket.vehicle?.registration_number}
+                </span>
+                <span className="text-xs text-slate-300 block font-semibold mt-0.5">
+                  {generatedTicket.vehicle?.make} {generatedTicket.vehicle?.model || ''}
+                </span>
+              </div>
+
               <div className="grid grid-cols-2 gap-3 text-slate-300">
-                <div>
-                  <span className="text-[10px] text-slate-500 block uppercase font-bold">Plate Number:</span>
-                  <span className="text-base font-black text-amber-300">{generatedTicket.vehicle?.registration_number}</span>
-                </div>
                 <div>
                   <span className="text-[10px] text-slate-500 block uppercase font-bold">Customer:</span>
                   <span className="text-sm font-bold text-white truncate block">{generatedTicket.customer_name}</span>
@@ -489,20 +496,14 @@ export default function IntakeForm({ onJobCreated }) {
                   <span className="text-[10px] text-slate-500 block uppercase font-bold">Phone:</span>
                   <span className="text-xs text-slate-300">{generatedTicket.vehicle?.customer_phone}</span>
                 </div>
-                <div>
-                  <span className="text-[10px] text-slate-500 block uppercase font-bold">Vehicle:</span>
-                  <span className="text-xs text-slate-300">
-                    {generatedTicket.vehicle?.make} {generatedTicket.vehicle?.model || ''}
-                  </span>
-                </div>
               </div>
 
               <div className="pt-2 border-t border-slate-800">
-                <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Booked Packages:</span>
+                <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Assigned Packages to Perform:</span>
                 <div className="space-y-1">
                   {generatedTicket.services?.map((s) => (
                     <div key={s.id} className="flex justify-between items-center text-slate-200">
-                      <span>• {s.service?.name || s.name}</span>
+                      <span>[ ] {s.service?.name || s.name}</span>
                       <span className="font-bold text-emerald-400">
                         Rs. {parseFloat(s.price_charged || s.price).toLocaleString()}
                       </span>
@@ -511,7 +512,18 @@ export default function IntakeForm({ onJobCreated }) {
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-800 flex justify-between items-center font-bold text-sm">
+              {/* Worker Sign-off section */}
+              <div className="pt-3 border-t border-dashed border-slate-800 text-[11px] text-slate-300 space-y-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Bay Worker Sign-Off:</span>
+                <div className="grid grid-cols-2 gap-1">
+                  <div>[ ] Wash Complete</div>
+                  <div>[ ] Dry &amp; Vacuum Done</div>
+                  <div>[ ] QC Inspection Passed</div>
+                  <div>Worker: _____________</div>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-800 flex justify-between items-center font-bold text-sm">
                 <span className="text-slate-400">Total Est. Bill:</span>
                 <span className="text-emerald-400 font-black">
                   Rs.{' '}

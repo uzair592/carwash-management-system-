@@ -126,31 +126,45 @@ export default function CheckoutModal({ jobCard, onClose, onCheckoutSuccess }) {
                 </p>
               </div>
 
-              {/* Printable Receipt Card */}
+              {/* Printable Thermal Receipt Card (80mm) */}
               <div
                 id="printable-receipt"
-                className="bg-slate-950 border border-slate-800 rounded-2xl p-5 text-left text-xs font-mono space-y-2.5 text-slate-300 shadow-inner"
+                className="thermal-receipt bg-slate-950 border border-slate-800 rounded-2xl p-5 text-left text-xs font-mono space-y-2.5 text-slate-300 shadow-inner"
               >
                 <div className="text-center font-bold text-sm text-white pb-2.5 border-b border-slate-800">
-                  AUTOWASH & DETAILING MANAGEMENT
-                  <span className="block text-[10px] text-slate-400 font-normal mt-0.5">Physical Studio Terminal Receipt</span>
+                  <span className="thermal-title block text-base font-black">AUTOWASH &amp; DETAILING STUDIO</span>
+                  <span className="block text-[10px] text-slate-400 font-normal mt-0.5">Official Customer Tax Invoice</span>
                 </div>
 
+                <div className="flex justify-between">
+                  <span className="text-slate-400">INVOICE NO:</span>
+                  <span className="font-bold text-sky-400">#{invoiceResult.invoice.invoice_number}</span>
+                </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">CUSTOMER:</span>
                   <span className="font-bold text-white">
                     {jobCard.customer_name || jobCard.vehicle?.customer_name}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">VEHICLE PLATE:</span>
-                  <span className="font-bold text-amber-300">{jobCard.vehicle?.registration_number}</span>
+                <div className="thermal-plate-box border border-slate-700 bg-slate-900/60 rounded-lg py-1.5 px-3 flex justify-between items-center my-1.5">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase">VEHICLE PLATE:</span>
+                  <span className="font-black text-amber-300 text-sm font-mono tracking-wider">{jobCard.vehicle?.registration_number}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">PAYMENT MODE:</span>
+                  <span className="text-slate-400">PAYMENT TENDER:</span>
                   <span className="font-bold text-emerald-400">{invoiceResult.invoice.payment_method}</span>
                 </div>
-                <div className="flex justify-between">
+
+                <div className="pt-1.5 border-t border-slate-800 space-y-1">
+                  {services.map((item) => (
+                    <div key={item.id} className="flex justify-between text-xs text-slate-300">
+                      <span className="truncate pr-1">• {item.service?.name}</span>
+                      <span className="font-mono text-slate-200">Rs. {parseFloat(item.price_charged).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-between border-t border-slate-800 pt-1.5">
                   <span className="text-slate-400">SUBTOTAL:</span>
                   <span>Rs. {subtotal.toLocaleString()}</span>
                 </div>
@@ -161,13 +175,17 @@ export default function CheckoutModal({ jobCard, onClose, onCheckoutSuccess }) {
                   </div>
                 )}
 
-                <div className="flex justify-between text-base font-black text-emerald-400 pt-2.5 border-t border-slate-800">
+                <div className="flex justify-between text-base font-black text-emerald-400 pt-2 border-t-2 border-slate-700">
                   <span>TOTAL PAID:</span>
                   <span>Rs. {parseFloat(invoiceResult.invoice.total_amount).toLocaleString()}</span>
                 </div>
 
-                <div className="pt-2 text-[10px] text-slate-500 text-center border-t border-slate-800/80">
-                  Ledger Vault: Rs. {parseFloat(invoiceResult.ledger?.new_balance || 0).toLocaleString()} • Decoupled Outbox Alert Queued
+                <div className="pt-3 text-[11px] text-slate-400 text-center border-t border-dashed border-slate-800 space-y-0.5">
+                  <div className="font-bold text-slate-200">Thank you for visiting!</div>
+                  <div>Please visit us again soon.</div>
+                  <div className="text-[9px] text-slate-500 pt-1">
+                    Ledger Vault: Rs. {parseFloat(invoiceResult.ledger?.new_balance || 0).toLocaleString()} • Decoupled Outbox Logged
+                  </div>
                 </div>
               </div>
 
