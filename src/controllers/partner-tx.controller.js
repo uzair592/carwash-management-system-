@@ -1,10 +1,18 @@
 const prisma = require('../prisma');
-
 function parsePaymentMode(input) {
   const norm = String(input || 'CASH').trim().toUpperCase();
-  if (norm === 'CASH') return { enumVal: 'Cash', accountType: 'Cash_Drawer' };
-  if (norm === 'BANK' || norm === 'MAIN_BANK') return { enumVal: 'Bank', accountType: 'Main_Bank' };
-  if (norm === 'CARD') return { enumVal: 'Card', accountType: 'Main_Bank' };
+  if (norm === 'CASH') return {
+    enumVal: 'Cash',
+    accountType: 'Cash_Drawer'
+  };
+  if (norm === 'BANK' || norm === 'MAIN_BANK') return {
+    enumVal: 'Bank',
+    accountType: 'Main_Bank'
+  };
+  if (norm === 'CARD') return {
+    enumVal: 'Card',
+    accountType: 'Main_Bank'
+  };
   throw new Error(`Invalid payment method: "${input}". Allowed: "CASH", "BANK", "CARD".`);
 }
 
@@ -19,142 +27,61 @@ function parsePaymentMode(input) {
  */
 async function createPartnerTransactionHandler(req, res, next) {
   try {
-    const { id: partnerId } = req.params;
-    const { type, amount, payment_method = 'CASH', notes, date } = req.body;
-
-    const txAmount = parseFloat(amount);
-    if (!txAmount || txAmount <= 0) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Transaction "amount" must be a positive number.',
+    const F = require('../services/finance.service');
+    const value = F.amount(req.body.amount),
+      requestKey = F.key(req, 'partner');
+    const type = String(req.body.type || '').toUpperCase();
+    if (!['CAPITAL_INVESTMENT', 'LOAN', 'DRAWING', 'DIVIDEND_PAYOUT'].includes(type)) throw F.error('Choose a valid partner transaction.');
+    const {
+      method
+    } = F.mode(req.body.payment_method);
+    const result = await F.transact(async tx => {
+      await F.lock(tx, requestKey);
+      const previous = await tx.partnerTransaction.findUnique({
+        where: {
+          request_key: requestKey
+        }
       });
-    }
-
-    const validTypes = ['CAPITAL_INVESTMENT', 'LOAN', 'DRAWING', 'DIVIDEND_PAYOUT'];
-    const normType = String(type || '').trim().toUpperCase();
-    if (!validTypes.includes(normType)) {
-      return res.status(400).json({
-        status: 'error',
-        message: `Invalid transaction type "${type}". Allowed: ${validTypes.join(', ')}.`,
+      if (previous) return previous;
+      const partner = await tx.partnerEquity.findUnique({
+        where: {
+          id: req.params.id
+        }
       });
-    }
-
-    const { enumVal, accountType } = parsePaymentMode(payment_method);
-
-    const partner = await prisma.partnerEquity.findUnique({
-      where: { id: partnerId },
+      if (!partner?.is_active) throw F.error('Choose an active partner.');
+      const item = await tx.partnerTransaction.create({
+        data: {
+          partner_id: partner.id,
+          type,
+          amount: value,
+          payment_method: method,
+          bank_account_id: req.body.bank_account_id || null,
+          request_key: requestKey,
+          notes: req.body.notes || null,
+          date: new Date()
+        }
+      });
+      const delta = ['DRAWING', 'DIVIDEND_PAYOUT'].includes(type) ? -value : value;
+      await F.movement(tx, {
+        method,
+        bankId: item.bank_account_id,
+        delta,
+        kind: 'PARTNER_' + type,
+        sourceId: item.id
+      });
+      await F.audit(tx, req, 'PARTNER_' + type, 'Partner capital transaction recorded.', {
+        partner_id: partner.id,
+        amount: value
+      });
+      await F.alert(tx, 'Partner ' + type + ': Rs. ' + value, requestKey);
+      return item;
     });
-
-    if (!partner) {
-      return res.status(404).json({
-        status: 'error',
-        message: `Partner with ID "${partnerId}" not found.`,
-      });
-    }
-
-    const isDeduction = normType === 'DRAWING' || normType === 'DIVIDEND_PAYOUT';
-
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Fetch ledger account
-      let ledger = await tx.ledger.findUnique({
-        where: { account_type: accountType },
-      });
-
-      if (!ledger) {
-        ledger = await tx.ledger.create({
-          data: { account_type: accountType, current_balance: 0.00 },
-        });
-      }
-
-      const curBal = parseFloat(ledger.current_balance);
-      if (isDeduction && curBal < txAmount) {
-        throw new Error(
-          `Insufficient funds in ${accountType} for partner ${normType}. Current: Rs. ${curBal.toLocaleString()}, requested: Rs. ${txAmount.toLocaleString()}`
-        );
-      }
-
-      const newBal = isDeduction
-        ? parseFloat((curBal - txAmount).toFixed(2))
-        : parseFloat((curBal + txAmount).toFixed(2));
-
-      await tx.ledger.update({
-        where: { account_type: accountType },
-        data: { current_balance: newBal, last_updated: new Date() },
-      });
-
-      // 2. Record PartnerTransaction
-      const partnerTx = await tx.partnerTransaction.create({
-        data: {
-          partner_id: partnerId,
-          type: normType,
-          amount: txAmount,
-          payment_method: enumVal,
-          notes: notes ? notes.trim() : null,
-          date: date ? new Date(date) : new Date(),
-        },
-        include: {
-          partner: true,
-        },
-      });
-
-      // 3. Write Audit Log
-      await tx.auditLog.create({
-        data: {
-          action: `PARTNER_${normType}`,
-          description: `Partner "${partner.partner_name}" logged ${normType} of Rs. ${txAmount.toLocaleString()} via ${enumVal} (${accountType}). Balance changed: Rs. ${curBal.toLocaleString()} -> Rs. ${newBal.toLocaleString()}. Not counted in P&L.`,
-          performed_by_user_id: req.user?.id || null,
-          performed_by_name: req.user?.name || 'Shop Admin',
-          metadata: {
-            partner_transaction_id: partnerTx.id,
-            partner_id: partnerId,
-            partner_name: partner.partner_name,
-            type: normType,
-            amount: txAmount,
-            account_type: accountType,
-            previous_balance: curBal,
-            new_balance: newBal,
-          },
-        },
-      });
-
-      // 4. Queue Telegram Notification
-      const alertLines = [
-        `💼 *PARTNER CAPITAL / DRAWINGS TRANSACTION*`,
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-        `🤝 *Partner:* *${partner.partner_name}* (${partner.equity_percentage}%)`,
-        `📑 *Type:* \`${normType}\``,
-        `💰 *Amount:* *Rs. ${txAmount.toLocaleString()}*`,
-        `💳 *Account:* \`${accountType}\` (${enumVal})`,
-        `📊 *Vault Balance:* Rs. ${newBal.toLocaleString()}`,
-        `📝 *Notes:* ${notes || 'Personal partner transaction'}`,
-        `⚖️ _Isolated from operational P&L expenses/revenue._`,
-        `⏰ *Time:* ${new Date().toLocaleTimeString()}`,
-      ];
-
-      await tx.alertOutbox.create({
-        data: {
-          type: 'TELEGRAM',
-          payload: { text: alertLines.join('\n') },
-          status: 'PENDING',
-        },
-      });
-
-      return { partnerTx, curBal, newBal, accountType };
-    });
-
-    return res.status(201).json({
+    res.status(201).json({
       status: 'success',
-      message: `Partner ${normType} of Rs. ${txAmount.toLocaleString()} processed successfully.`,
-      data: result.partnerTx,
-      ledger: {
-        account_type: result.accountType,
-        previous_balance: result.curBal,
-        amount_changed: txAmount,
-        new_balance: result.newBal,
-      },
+      data: result
     });
-  } catch (err) {
-    next(err);
+  } catch (e) {
+    next(e);
   }
 }
 
@@ -163,18 +90,24 @@ async function createPartnerTransactionHandler(req, res, next) {
  */
 async function getPartnerTransactionsHandler(req, res, next) {
   try {
-    const { id: partnerId } = req.params;
-
+    const {
+      id: partnerId
+    } = req.params;
     const transactions = await prisma.partnerTransaction.findMany({
-      where: { partner_id: partnerId },
-      include: { partner: true },
-      orderBy: { date: 'desc' },
+      where: {
+        partner_id: partnerId
+      },
+      include: {
+        partner: true
+      },
+      orderBy: {
+        date: 'desc'
+      }
     });
-
     return res.status(200).json({
       status: 'success',
       count: transactions.length,
-      data: transactions,
+      data: transactions
     });
   } catch (err) {
     next(err);
@@ -188,23 +121,25 @@ async function getPartnerTransactionsHandler(req, res, next) {
 async function listAllPartnerTransactionsHandler(req, res, next) {
   try {
     const transactions = await prisma.partnerTransaction.findMany({
-      include: { partner: true },
-      orderBy: { date: 'desc' },
-      take: 100,
+      include: {
+        partner: true
+      },
+      orderBy: {
+        date: 'desc'
+      },
+      take: 100
     });
-
     return res.status(200).json({
       status: 'success',
       count: transactions.length,
-      data: transactions,
+      data: transactions
     });
   } catch (err) {
     next(err);
   }
 }
-
 module.exports = {
   createPartnerTransactionHandler,
   getPartnerTransactionsHandler,
-  listAllPartnerTransactionsHandler,
+  listAllPartnerTransactionsHandler
 };

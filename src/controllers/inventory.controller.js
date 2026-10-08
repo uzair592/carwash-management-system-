@@ -1,227 +1,208 @@
 const prisma = require('../prisma');
-
-/**
- * GET /api/inventory
- * Lists all inventory consumable items with stock levels, costs, and thresholds
- */
+const F = require('../services/finance.service');
+const {
+  UnitType
+} = require('@prisma/client');
+function validate(data) {
+  if (data.unit_type && !Object.values(UnitType).includes(data.unit_type)) throw F.error('Choose a valid inventory unit.');
+  for (const k of ['current_stock', 'cost_per_unit', 'low_stock_threshold']) if (data[k] !== undefined) data[k] = F.amount(data[k], {
+    zero: true
+  });
+  return data;
+}
 async function listInventoryHandler(req, res, next) {
   try {
     const items = await prisma.inventory.findMany({
-      orderBy: { item_name: 'asc' },
+      orderBy: {
+        item_name: 'asc'
+      },
       include: {
         services: {
           select: {
             id: true,
             name: true,
-            inventory_deduction_amount: true,
-          },
-        },
-      },
+            inventory_deduction_amount: true
+          }
+        }
+      }
     });
-
-    const formatted = items.map((item) => {
-      const currentStock = parseFloat(item.current_stock);
-      const threshold = parseFloat(item.low_stock_threshold);
-      return {
-        ...item,
-        current_stock: currentStock,
-        cost_per_unit: parseFloat(item.cost_per_unit),
-        low_stock_threshold: threshold,
-        is_low_stock: currentStock <= threshold,
-      };
-    });
-
-    return res.status(200).json({
+    res.json({
       status: 'success',
-      data: formatted,
+      data: items.map(i => ({
+        ...i,
+        current_stock: Number(i.current_stock),
+        cost_per_unit: req.user.role === 'WORKER' ? undefined : Number(i.cost_per_unit),
+        low_stock_threshold: Number(i.low_stock_threshold),
+        is_low_stock: Number(i.current_stock) <= Number(i.low_stock_threshold)
+      }))
     });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 }
-
-/**
- * POST /api/inventory
- * Create a new consumable inventory item
- */
 async function createInventoryHandler(req, res, next) {
   try {
-    const { item_name, unit_type = 'Unit', current_stock = 0, cost_per_unit = 0, low_stock_threshold = 10 } = req.body;
-
-    if (!item_name) {
-      return res.status(400).json({ status: 'error', message: 'Item name is required.' });
-    }
-
-    const created = await prisma.inventory.create({
-      data: {
-        item_name,
-        unit_type,
-        current_stock: parseFloat(current_stock) || 0,
-        cost_per_unit: parseFloat(cost_per_unit) || 0,
-        low_stock_threshold: parseFloat(low_stock_threshold) || 10,
-      },
+    const data = validate({
+      item_name: String(req.body.item_name || '').trim(),
+      unit_type: req.body.unit_type || 'Unit',
+      current_stock: req.body.current_stock ?? 0,
+      cost_per_unit: req.body.cost_per_unit ?? 0,
+      low_stock_threshold: req.body.low_stock_threshold ?? 10
     });
-
-    return res.status(201).json({
+    if (!data.item_name) throw F.error('Item name is required.');
+    const result = await F.transact(async tx => {
+      const item = await tx.inventory.create({
+        data
+      });
+      await F.audit(tx, req, 'INVENTORY_CREATED', 'Inventory item created.', {
+        inventory_id: item.id
+      });
+      return item;
+    });
+    res.status(201).json({
       status: 'success',
-      message: `Inventory item "${created.item_name}" created successfully.`,
-      data: created,
+      data: result
     });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 }
-
-/**
- * PATCH /api/inventory/:id
- * Updates an inventory item (stock count, thresholds, cost)
- */
 async function updateInventoryHandler(req, res, next) {
   try {
-    const { id } = req.params;
-    const { item_name, unit_type, current_stock, cost_per_unit, low_stock_threshold } = req.body;
-
-    const data = {};
-    if (item_name !== undefined) data.item_name = item_name;
-    if (unit_type !== undefined) data.unit_type = unit_type;
-    if (current_stock !== undefined) data.current_stock = parseFloat(current_stock);
-    if (cost_per_unit !== undefined) data.cost_per_unit = parseFloat(cost_per_unit);
-    if (low_stock_threshold !== undefined) data.low_stock_threshold = parseFloat(low_stock_threshold);
-
-    const oldItem = await prisma.inventory.findUnique({ where: { id } });
-    if (!oldItem) {
-      return res.status(404).json({ status: 'error', message: 'Inventory item not found.' });
+    const fields = {};
+    for (const k of ['item_name', 'unit_type', 'current_stock', 'cost_per_unit', 'low_stock_threshold']) if (req.body[k] !== undefined) fields[k] = req.body[k];
+    if (fields.item_name !== undefined) {
+      fields.item_name = String(fields.item_name || '').trim();
+      if (!fields.item_name || fields.item_name.length > 100) throw F.error('Enter an item name up to 100 characters.');
     }
-
-    const updated = await prisma.inventory.update({
-      where: { id },
-      data,
-    });
-
-    // Record Audit Log if stock was manually adjusted
-    if (current_stock !== undefined && parseFloat(current_stock) !== parseFloat(oldItem.current_stock)) {
-      const { logAuditEvent } = require('../services/audit.service');
-      await logAuditEvent({
-        action: 'INVENTORY_ADJUSTMENT',
-        description: `Manual inventory count adjusted for "${updated.item_name}": ${oldItem.current_stock} ➔ ${updated.current_stock} ${updated.unit_type}.`,
-        performed_by_user_id: req.user?.id || null,
-        performed_by_name: req.user?.name || 'Shop Admin',
-        metadata: {
-          inventory_id: updated.id,
-          item_name: updated.item_name,
-          previous_stock: parseFloat(oldItem.current_stock),
-          new_stock: parseFloat(updated.current_stock),
-        },
+    validate(fields);
+    if (fields.current_stock !== undefined && !String(req.body.reason || '').trim()) throw F.error('A reason is required for a manual stock adjustment.');
+    const result = await F.transact(async tx => {
+      await F.lock(tx, 'stock:' + req.params.id);
+      const original = await tx.inventory.findUnique({
+        where: {
+          id: req.params.id
+        }
       });
-    }
-
-    return res.status(200).json({
-      status: 'success',
-      message: `Inventory item "${updated.item_name}" updated successfully.`,
-      data: updated,
+      if (!original) throw F.error('Inventory item not found.', 404);
+      if (fields.unit_type && fields.unit_type !== original.unit_type && (Number(original.current_stock) !== 0 || (await tx.materialIssuance.count({
+        where: {
+          inventory_id: original.id
+        }
+      })) || (await tx.serviceInventory.count({
+        where: {
+          inventory_id: original.id
+        }
+      })) || (await tx.service.count({
+        where: {
+          linked_inventory_id: original.id
+        }
+      })))) throw F.error('Units cannot change while stock or material/service history exists.', 409);
+      const updated = await tx.inventory.update({
+        where: {
+          id: req.params.id
+        },
+        data: fields
+      });
+      await F.audit(tx, req, 'INVENTORY_ADJUSTMENT', req.body.reason || 'Inventory details updated.', {
+        inventory_id: updated.id,
+        previous_stock: Number(original.current_stock),
+        new_stock: Number(updated.current_stock)
+      });
+      return updated;
     });
-  } catch (error) {
-    next(error);
+    res.json({
+      status: 'success',
+      data: result
+    });
+  } catch (e) {
+    next(e);
   }
 }
-
-/**
- * POST /api/inventory/:id/restock
- * Restocks quantity when a new shipment arrives
- */
 async function restockInventoryHandler(req, res, next) {
   try {
-    const { id } = req.params;
-    const { quantity_added } = req.body;
-
-    const qty = parseFloat(quantity_added);
-    if (isNaN(qty) || qty <= 0) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Valid positive quantity_added number is required.',
+    const qty = F.amount(req.body.quantity_added),
+      requestKey = F.key(req, 'restock');
+    const result = await F.transact(async tx => {
+      await F.lock(tx, requestKey);
+      const previous = await tx.auditLog.findFirst({
+        where: {
+          action: 'INVENTORY_RESTOCK',
+          metadata: {
+            path: ['request_key'],
+            equals: requestKey
+          }
+        }
       });
-    }
-
-    const item = await prisma.inventory.findUnique({ where: { id } });
-    if (!item) {
-      return res.status(404).json({ status: 'error', message: 'Inventory item not found.' });
-    }
-
-    const currentStock = parseFloat(item.current_stock);
-    const newStock = parseFloat((currentStock + qty).toFixed(2));
-
-    const updated = await prisma.inventory.update({
-      where: { id },
-      data: {
-        current_stock: newStock,
-        updated_at: new Date(),
-      },
-    });
-
-    // Record Audit Log for shipment arrival restock
-    const { logAuditEvent } = require('../services/audit.service');
-    await logAuditEvent({
-      action: 'INVENTORY_RESTOCK',
-      description: `Shipment restock: +${qty} ${updated.unit_type} added to "${updated.item_name}". Stock increased from ${currentStock} to ${newStock} ${updated.unit_type}.`,
-      performed_by_user_id: req.user?.id || null,
-      performed_by_name: req.user?.name || 'Shop Manager',
-      metadata: {
+      if (previous) return tx.inventory.findUnique({
+        where: {
+          id: req.params.id
+        }
+      });
+      await F.lock(tx, 'stock:' + req.params.id);
+      const updated = await tx.inventory.update({
+        where: {
+          id: req.params.id
+        },
+        data: {
+          current_stock: {
+            increment: qty
+          }
+        }
+      });
+      await F.audit(tx, req, 'INVENTORY_RESTOCK', 'Verified stock received.', {
         inventory_id: updated.id,
-        item_name: updated.item_name,
-        quantity_added: qty,
-        previous_stock: currentStock,
-        new_stock: newStock,
-      },
+        quantity: qty,
+        request_key: requestKey
+      });
+      return updated;
     });
-
-    return res.status(200).json({
+    res.json({
       status: 'success',
-      message: `Restocked ${qty} ${updated.unit_type} of ${updated.item_name}. New stock: ${newStock} ${updated.unit_type}.`,
-      data: updated,
+      data: result
     });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 }
-
-/**
- * PATCH /api/services/:id/link-inventory
- * Links a service to an inventory consumable with deduction quantity
- */
 async function linkServiceInventoryHandler(req, res, next) {
   try {
-    const { id } = req.params;
-    const { linked_inventory_id, inventory_deduction_amount } = req.body;
-
-    const data = {
-      linked_inventory_id: linked_inventory_id || null,
-      inventory_deduction_amount: inventory_deduction_amount !== null && inventory_deduction_amount !== undefined
-        ? parseFloat(inventory_deduction_amount)
-        : null,
-    };
-
-    const updated = await prisma.service.update({
-      where: { id },
-      data,
-      include: {
-        linked_inventory: true,
-      },
+    const qty = req.body.linked_inventory_id ? F.amount(req.body.inventory_deduction_amount) : null;
+    const result = await F.transact(async tx => {
+      await tx.serviceInventory.deleteMany({
+        where: {
+          service_id: req.params.id
+        }
+      });
+      if (req.body.linked_inventory_id) await tx.serviceInventory.create({
+        data: {
+          service_id: req.params.id,
+          inventory_id: req.body.linked_inventory_id,
+          deduction_amount: qty
+        }
+      });
+      return tx.service.update({
+        where: {
+          id: req.params.id
+        },
+        data: {
+          linked_inventory_id: req.body.linked_inventory_id || null,
+          inventory_deduction_amount: qty
+        }
+      });
     });
-
-    return res.status(200).json({
+    res.json({
       status: 'success',
-      message: `Service "${updated.name}" inventory yield link updated.`,
-      data: updated,
+      data: result
     });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 }
-
 module.exports = {
   listInventoryHandler,
   createInventoryHandler,
   updateInventoryHandler,
   restockInventoryHandler,
-  linkServiceInventoryHandler,
+  linkServiceInventoryHandler
 };

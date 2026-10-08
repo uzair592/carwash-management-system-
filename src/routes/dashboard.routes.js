@@ -1,8 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma');
-const { compileEodMetrics, runEodReportNow } = require('../cron/eod.cron');
-const { requireInvestorAuth } = require('../middleware/auth.middleware');
+const {
+  compileEodMetrics,
+  runEodReportNow
+} = require('../cron/eod.cron');
+const {
+  requireInvestorAuth,
+  requireRole
+} = require('../middleware/auth.middleware');
 
 /**
  * GET /api/dashboard/live
@@ -14,7 +20,6 @@ router.get('/live', requireInvestorAuth, async (req, res, next) => {
   try {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
@@ -24,54 +29,80 @@ router.get('/live', requireInvestorAuth, async (req, res, next) => {
     // 2. Query Live Bay Occupancy & In-Progress Jobs
     const activeJobs = await prisma.jobCard.findMany({
       where: {
-        status: { in: ['Intake', 'In_Progress'] },
+        status: {
+          in: ['QUEUED', 'IN_PROGRESS', 'Intake', 'In_Progress']
+        }
       },
       include: {
         vehicle: true,
-        worker: true,
-        services: { include: { service: true } },
+        worker: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        assigned_workers: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        },
+        services: {
+          include: {
+            service: true
+          }
+        }
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: {
+        created_at: 'desc'
+      }
     });
-
-    const inProgressVehicles = activeJobs.filter((j) => j.status === 'In_Progress').map((j) => ({
+    const inProgressVehicles = activeJobs.filter(j => ['IN_PROGRESS', 'In_Progress'].includes(j.status)).map(j => ({
       job_card_id: j.id,
       ticket_number: j.ticket_number,
       plate: j.vehicle?.registration_number,
       make_model: `${j.vehicle?.make || ''} ${j.vehicle?.model || ''}`.trim() || 'Vehicle',
-      worker: j.worker?.name || 'Unassigned',
-      services: j.services.map((s) => s.service?.name).join(', '),
-      started_at: j.created_at,
+      worker: j.assigned_workers?.map(w => w.user.name).join(', ') || j.worker?.name || 'Unassigned',
+      services: j.services.map(s => s.service?.name).join(', '),
+      started_at: j.started_at
     }));
-
-    const intakeQueuedVehicles = activeJobs.filter((j) => j.status === 'Intake').map((j) => ({
+    const intakeQueuedVehicles = activeJobs.filter(j => ['QUEUED', 'Intake'].includes(j.status)).map(j => ({
       job_card_id: j.id,
       ticket_number: j.ticket_number,
       plate: j.vehicle?.registration_number,
       make_model: `${j.vehicle?.make || ''} ${j.vehicle?.model || ''}`.trim() || 'Vehicle',
-      services: j.services.map((s) => s.service?.name).join(', '),
-      queued_at: j.created_at,
+      services: j.services.map(s => s.service?.name).join(', '),
+      queued_at: j.created_at
     }));
 
     // 3. Recent 5 Settled Invoices
     const recentInvoices = await prisma.invoice.findMany({
       take: 5,
-      orderBy: { created_at: 'desc' },
-      include: {
-        job_card: {
-          include: { vehicle: true },
-        },
+      orderBy: {
+        created_at: 'desc'
       },
+      include: {
+        payments: true,
+        job_card: {
+          include: {
+            vehicle: true
+          }
+        }
+      }
     });
-
-    const sanitizedInvoices = recentInvoices.map((inv) => ({
+    const sanitizedInvoices = recentInvoices.map(inv => ({
       invoice_number: inv.invoice_number,
       plate: inv.job_card?.vehicle?.registration_number || 'N/A',
       amount: parseFloat(inv.total_amount),
-      payment_method: inv.payment_method,
-      time: inv.created_at,
+      payment_method: new Set(inv.payments.map(p => p.payment_method)).size > 1 ? 'Split' : inv.payment_method,
+      balance_due: Number(inv.balance_due),
+      status: inv.status,
+      time: inv.created_at
     }));
-
     return res.status(200).json({
       status: 'success',
       data: {
@@ -85,21 +116,22 @@ router.get('/live', requireInvestorAuth, async (req, res, next) => {
           bank_revenue: financialMetrics.bankRevenue,
           total_expenses: financialMetrics.totalExpenses,
           total_refunds: financialMetrics.totalRefunds || 0,
-          net_profit: financialMetrics.netSurplus,
+          net_cash_flow: financialMetrics.netSurplus,
+          advances_collected: financialMetrics.advancesCollected
         },
         bays_breakdown: financialMetrics.baysBreakdown,
         register_summary: financialMetrics.registerSummary,
         vault_balances: {
           cash_drawer: financialMetrics.cashBalance,
           main_bank: financialMetrics.bankBalance,
-          combined_total: financialMetrics.totalVaultAssets,
+          combined_total: financialMetrics.totalVaultAssets
         },
         live_bays: {
           in_progress: inProgressVehicles,
-          queued: intakeQueuedVehicles,
+          queued: intakeQueuedVehicles
         },
-        recent_invoices: sanitizedInvoices,
-      },
+        recent_invoices: sanitizedInvoices
+      }
     });
   } catch (err) {
     next(err);
@@ -110,17 +142,16 @@ router.get('/live', requireInvestorAuth, async (req, res, next) => {
  * POST /api/dashboard/trigger-eod
  * On-demand manual trigger for sending the EOD partner report to Telegram.
  */
-router.post('/trigger-eod', requireInvestorAuth, async (req, res, next) => {
+router.post('/trigger-eod', async (req, res, next) => {
   try {
     const result = await runEodReportNow();
     return res.status(200).json({
       status: 'success',
       message: 'End-of-Day Financial Dossier compiled and dispatched.',
-      data: result,
+      data: result
     });
   } catch (err) {
     next(err);
   }
 });
-
 module.exports = router;

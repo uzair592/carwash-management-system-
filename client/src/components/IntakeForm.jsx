@@ -1,34 +1,23 @@
+import { useAuth } from '../context/AuthContext';
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  Car,
-  User,
-  Search,
-  Plus,
-  X,
-  Printer,
-  ArrowRight,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  RotateCw,
-  ClipboardList,
-  Check,
-  Crown,
-  History,
-  Phone,
-  Clock,
-  Sparkles,
-  Droplets,
-  ShieldCheck,
-} from 'lucide-react';
+import { Car, User, Search, Plus, X, Printer, ArrowRight, Loader2, CheckCircle2, AlertCircle, RotateCw, ClipboardList, Check, Crown, History, Phone, Clock, Sparkles, Droplets, ShieldCheck } from 'lucide-react';
 import axios from 'axios';
 import { printThermal } from '../utils/print';
 import { TokenThermalTicket } from './ThermalTemplates';
-
 const DEFAULT_MAKES = ['Toyota', 'Honda', 'Suzuki', 'KIA', 'Hyundai', 'MG', 'Changan', 'Haval', 'Chery', 'Audi', 'Mercedes', 'BMW', 'Other'];
-const money = (value) => Number(value || 0).toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-
-export default function IntakeForm({ onJobCreated, customerPreset }) {
+const money = value => Number(value || 0).toLocaleString('en-PK', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2
+});
+export default function IntakeForm({
+  onJobCreated,
+  customerPreset
+}) {
+  const {
+    can
+  } = useAuth();
+  const [overridePin, setOverridePin] = useState(''),
+    [overrideReason, setOverrideReason] = useState('');
   const [plate, setPlate] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -54,7 +43,6 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
 
   // Branding state for ticket logo (Requirement 9)
   const [branding, setBranding] = useState(null);
-
   useEffect(() => {
     if (!customerPreset) return;
     setPlate(customerPreset.registration_number || '');
@@ -63,11 +51,9 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
     if (customerPreset.make) setMake(customerPreset.make);
     setModel(customerPreset.model || '');
   }, [customerPreset]);
-
   const ticketDialog = useRef(null);
   const submitButton = useRef(null);
   const submitting = useRef(false);
-
   const fetchServices = async () => {
     setIsLoadingServices(true);
     setServiceError('');
@@ -80,7 +66,6 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
       setIsLoadingServices(false);
     }
   };
-
   const fetchBranding = async () => {
     try {
       const res = await axios.get('/api/branding');
@@ -89,7 +74,6 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
       // fallback
     }
   };
-
   useEffect(() => {
     fetchServices();
     fetchBranding();
@@ -100,13 +84,12 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
     const trimmed = plate.trim().toUpperCase();
     setPlateRecognition(null);
     if (trimmed.length < 3) return;
-
     const controller = new AbortController();
     setIsCheckingPlate(true);
     const timer = setTimeout(async () => {
       try {
         const res = await axios.get(`/api/bays/check-plate/${encodeURIComponent(trimmed)}`, {
-          signal: controller.signal,
+          signal: controller.signal
         });
         if (res.data?.data && res.data.data.exists) {
           const data = res.data.data;
@@ -123,7 +106,6 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
         setIsCheckingPlate(false);
       }
     }, 400);
-
     return () => {
       clearTimeout(timer);
       controller.abort();
@@ -136,7 +118,7 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     ticketDialog.current?.querySelector('button')?.focus();
-    const onKey = (event) => {
+    const onKey = event => {
       if (event.key !== 'Tab') return;
       const controls = ticketDialog.current?.querySelectorAll('button:not(:disabled)');
       if (!controls?.length) return;
@@ -157,30 +139,23 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
       submitButton.current?.focus();
     };
   }, [generatedTicket]);
-
-  const toggleService = (service) => {
-    setSelectedServices((previous) =>
-      previous.some((s) => s.id === service.id)
-        ? previous.filter((s) => s.id !== service.id)
-        : [...previous, { ...service, price_charged: service.price }]
-    );
+  const toggleService = service => {
+    setSelectedServices(previous => previous.some(s => s.id === service.id) ? previous.filter(s => s.id !== service.id) : [...previous, {
+      ...service,
+      price_charged: service.price
+    }]);
   };
-
   const handleUpdateServicePrice = (serviceId, newPrice) => {
     const val = Math.max(0, parseFloat(newPrice) || 0);
-    setSelectedServices((previous) =>
-      previous.map((s) => (s.id === serviceId ? { ...s, price: val, price_charged: val } : s))
-    );
+    setSelectedServices(previous => previous.map(s => s.id === serviceId ? {
+      ...s,
+      price: val,
+      price_charged: val
+    } : s));
   };
-
   const subtotal = selectedServices.reduce((sum, service) => sum + Number(service.price_charged ?? service.price ?? 0), 0);
-  const categories = ['All services', ...new Set(availableServices.map((s) => s.category || 'Other'))];
-  const visibleServices = availableServices.filter(
-    (s) =>
-      (category === 'All services' || (s.category || 'Other') === category) &&
-      `${s.name} ${s.description || ''}`.toLowerCase().includes(search.trim().toLowerCase())
-  );
-
+  const categories = ['All services', ...new Set(availableServices.map(s => s.category || 'Other'))];
+  const visibleServices = availableServices.filter(s => (category === 'All services' || (s.category || 'Other') === category) && `${s.name} ${s.description || ''}`.toLowerCase().includes(search.trim().toLowerCase()));
   const resetForm = () => {
     setPlate('');
     setCustomerName('');
@@ -192,8 +167,7 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
     setPlateRecognition(null);
     setErrorMessage('');
   };
-
-  const handleSubmit = async (event) => {
+  const handleSubmit = async event => {
     event.preventDefault();
     if (submitting.current) return;
 
@@ -202,44 +176,40 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
       setErrorMessage('Vehicle registration plate number is strictly required.');
       return;
     }
-
     if (!selectedServices.length) {
       setErrorMessage('Please select at least one service before creating the ticket.');
       return;
     }
-
     setErrorMessage('');
     setIsSubmitting(true);
     submitting.current = true;
-
     try {
       const res = await axios.post('/api/intake', {
+        admin_pin: overridePin,
+        override_reason: overrideReason,
         registration_number: plate.trim().toUpperCase(),
         customer_name: customerName.trim() || undefined,
         customer_phone: customerPhone.trim() || undefined,
         make,
         model: model.trim() || undefined,
         intake_notes: intakeNotes.trim() || undefined,
-        services: selectedServices.map((s) => ({
+        services: selectedServices.map(s => ({
           service_id: s.id,
           price: Number(s.price_charged ?? s.price),
-          name: s.name,
-        })),
+          name: s.name
+        }))
       });
-
       const created = res.data?.data?.job_card || res.data?.data;
       if (!created?.id || !created?.ticket_number) {
         throw new Error('The server did not return a valid work ticket.');
       }
-
       setGeneratedTicket({
         ...created,
         selectedServices,
         customer_name: created.customer_name || customerName || 'Walk-in Customer',
         customer_phone: created.vehicle?.customer_phone || customerPhone || '',
-        total: subtotal,
+        total: subtotal
       });
-
       resetForm();
     } catch (error) {
       setErrorMessage(error.response?.data?.message || error.message || 'Ticket creation failed.');
@@ -248,9 +218,7 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
       submitting.current = false;
     }
   };
-
-  return (
-    <>
+  return <>
       <form onSubmit={handleSubmit} className="intake-layout">
         <div className="intake-main">
           {/* Vehicle & Customer Section */}
@@ -265,32 +233,20 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
               </div>
 
               {/* Requirement 7: Returning and Loyal Customer Badges */}
-              {plateRecognition && (
-                <div className="flex items-center gap-2">
-                  {plateRecognition.is_loyal ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 shadow-sm animate-pulse">
+              {plateRecognition && <div className="flex items-center gap-2">
+                  {plateRecognition.is_loyal ? <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 shadow-sm animate-pulse">
                       <Crown size={14} className="text-amber-600 fill-amber-500" />
                       Loyal Customer · {plateRecognition.completed_visits} visits
-                    </span>
-                  ) : plateRecognition.is_returning ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                    </span> : plateRecognition.is_returning ? <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
                       <Sparkles size={14} className="text-blue-600" />
                       Returning Vehicle · {plateRecognition.completed_visits} visits
-                    </span>
-                  ) : null}
+                    </span> : null}
 
-                  {plateRecognition.history?.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setIsHistoryModalOpen(true)}
-                      className="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-md transition"
-                    >
+                  {plateRecognition.history?.length > 0 && <button type="button" onClick={() => setIsHistoryModalOpen(true)} className="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-md transition">
                       <History size={13} />
                       History
-                    </button>
-                  )}
-                </div>
-              )}
+                    </button>}
+                </div>}
             </div>
 
             <div className="vehicle-fields">
@@ -300,16 +256,7 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
                 </label>
                 <div className="plate-field">
                   <span>PK</span>
-                  <input
-                    id="vehicle-plate"
-                    className="field text-base font-bold font-mono tracking-wider uppercase"
-                    required
-                    autoFocus
-                    autoComplete="off"
-                    value={plate}
-                    onChange={(e) => setPlate(e.target.value.toUpperCase())}
-                    placeholder="LEA-1234"
-                  />
+                  <input id="vehicle-plate" className="field text-base font-bold font-mono tracking-wider uppercase" required autoFocus autoComplete="off" value={plate} onChange={e => setPlate(e.target.value.toUpperCase())} placeholder="LEA-1234" />
                 </div>
               </div>
 
@@ -318,14 +265,7 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
                 <label className="field-label" htmlFor="customer-name">
                   Customer Name <span className="optional">(Optional)</span>
                 </label>
-                <input
-                  id="customer-name"
-                  className="field text-sm"
-                  autoComplete="name"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Leave blank for Walk-in"
-                />
+                <input id="customer-name" className="field text-sm" autoComplete="name" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Leave blank for Walk-in" />
               </div>
 
               {/* Requirement 2: Phone Number (Optional, skip SMS) */}
@@ -333,94 +273,53 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
                 <label className="field-label" htmlFor="customer-phone">
                   Phone Number <span className="optional">(Optional)</span>
                 </label>
-                <input
-                  id="customer-phone"
-                  className="field text-sm font-mono"
-                  type="tel"
-                  autoComplete="tel"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  placeholder="0300 1234567 (SMS if provided)"
-                />
+                <input id="customer-phone" className="field text-sm font-mono" type="tel" autoComplete="tel" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="0300 1234567 (SMS if provided)" />
               </div>
 
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <label className="field-label m-0" htmlFor="vehicle-make">Vehicle Make</label>
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingMake(!isAddingMake)}
-                    className="text-xs text-blue-600 hover:underline font-semibold flex items-center gap-1"
-                  >
+                  <button type="button" onClick={() => setIsAddingMake(!isAddingMake)} className="text-xs text-blue-600 hover:underline font-semibold flex items-center gap-1">
                     <Plus size={12} /> {isAddingMake ? 'Cancel' : 'Add make'}
                   </button>
                 </div>
-                {isAddingMake ? (
-                  <div className="flex gap-1.5">
-                    <input
-                      type="text"
-                      placeholder="e.g. Haval, BYD, Changan"
-                      value={newMakeText}
-                      onChange={(e) => setNewMakeText(e.target.value)}
-                      className="field text-sm flex-1"
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const trimmed = newMakeText.trim();
-                        if (!trimmed) return;
-                        const currentMakes = branding?.vehicle_makes ? branding.vehicle_makes.split(',').map((m) => m.trim()) : DEFAULT_MAKES;
-                        if (!currentMakes.includes(trimmed)) {
-                          const updated = [...currentMakes, trimmed].join(', ');
-                          try {
-                            await axios.patch('/api/branding', { vehicle_makes: updated });
-                            setBranding((prev) => ({ ...prev, vehicle_makes: updated }));
-                          } catch (e) {}
-                        }
-                        setMake(trimmed);
-                        setNewMakeText('');
-                        setIsAddingMake(false);
-                      }}
-                      className="btn btn-primary px-3 text-xs rounded-lg"
-                    >
+                {isAddingMake ? <div className="flex gap-1.5">
+                    <input type="text" placeholder="e.g. Haval, BYD, Changan" value={newMakeText} onChange={e => setNewMakeText(e.target.value)} className="field text-sm flex-1" autoFocus />
+                    <button type="button" onClick={async () => {
+                  const trimmed = newMakeText.trim();
+                  if (!trimmed) return;
+                  const currentMakes = branding?.vehicle_makes ? branding.vehicle_makes.split(',').map(m => m.trim()) : DEFAULT_MAKES;
+                  if (!currentMakes.includes(trimmed)) {
+                    const updated = [...currentMakes, trimmed].join(', ');
+                    try {
+                      await axios.patch('/api/branding', {
+                        vehicle_makes: updated
+                      });
+                      setBranding(prev => ({
+                        ...prev,
+                        vehicle_makes: updated
+                      }));
+                    } catch (e) {}
+                  }
+                  setMake(trimmed);
+                  setNewMakeText('');
+                  setIsAddingMake(false);
+                }} className="btn btn-primary px-3 text-xs rounded-lg">
                       Save
                     </button>
-                  </div>
-                ) : (
-                  <select
-                    id="vehicle-make"
-                    className="field text-sm"
-                    value={make}
-                    onChange={(e) => setMake(e.target.value)}
-                  >
-                    {[...new Set([...(branding?.vehicle_makes ? branding.vehicle_makes.split(',').map((m) => m.trim()) : DEFAULT_MAKES), make])].map((item) => (
-                      <option key={item}>{item}</option>
-                    ))}
-                  </select>
-                )}
+                  </div> : <select id="vehicle-make" className="field text-sm" value={make} onChange={e => setMake(e.target.value)}>
+                    {[...new Set([...(branding?.vehicle_makes ? branding.vehicle_makes.split(',').map(m => m.trim()) : DEFAULT_MAKES), make])].map(item => <option key={item}>{item}</option>)}
+                  </select>}
               </div>
 
               <div>
                 <label className="field-label" htmlFor="vehicle-model">Model / Variant</label>
-                <input
-                  id="vehicle-model"
-                  className="field text-sm"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  placeholder="e.g. Corolla, Civic, Sportage"
-                />
+                <input id="vehicle-model" className="field text-sm" value={model} onChange={e => setModel(e.target.value)} placeholder="e.g. Corolla, Civic, Sportage" />
               </div>
 
               <div>
                 <label className="field-label" htmlFor="intake-notes">Notes</label>
-                <input
-                  id="intake-notes"
-                  className="field text-sm"
-                  value={intakeNotes}
-                  onChange={(e) => setIntakeNotes(e.target.value)}
-                  placeholder="e.g. Extra focus on rims or seat stains"
-                />
+                <input id="intake-notes" className="field text-sm" value={intakeNotes} onChange={e => setIntakeNotes(e.target.value)} placeholder="e.g. Extra focus on rims or seat stains" />
               </div>
             </div>
           </section>
@@ -442,71 +341,42 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
 
             <div className="service-toolbar">
               <div className="category-tabs" aria-label="Service categories">
-                {categories.map((item) => (
-                  <button
-                    type="button"
-                    key={item}
-                    aria-pressed={category === item}
-                    className={category === item ? 'selected' : ''}
-                    onClick={() => setCategory(item)}
-                  >
+                {categories.map(item => <button type="button" key={item} aria-pressed={category === item} className={category === item ? 'selected' : ''} onClick={() => setCategory(item)}>
                     {item}
-                  </button>
-                ))}
+                  </button>)}
               </div>
               <div className="service-search">
                 <Search size={16} />
-                <input
-                  aria-label="Search services"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search services…"
-                />
+                <input aria-label="Search services" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search services…" />
               </div>
             </div>
 
             {/* Service Blocks Grid */}
             <div className="service-grid-wrap">
-              {isLoadingServices ? (
-                <div className="empty-state py-8">
+              {isLoadingServices ? <div className="empty-state py-8">
                   <Loader2 size={24} className="animate-spin text-blue-600 mb-2" />
                   <p>Loading service packages…</p>
-                </div>
-              ) : serviceError ? (
-                <div className="empty-state" role="alert">
+                </div> : serviceError ? <div className="empty-state" role="alert">
                   <AlertCircle size={24} className="text-red-500" />
                   <p>{serviceError}</p>
                   <button type="button" className="btn btn-secondary mt-2" onClick={fetchServices}>
                     <RotateCw size={15} /> Try again
                   </button>
-                </div>
-              ) : !visibleServices.length ? (
-                <div className="empty-state py-8">
+                </div> : !visibleServices.length ? <div className="empty-state py-8">
                   <Search size={24} />
                   <strong>No services found</strong>
                   <p>Try another search or filter.</p>
-                </div>
-              ) : (
-                <div className="service-grid">
-                  {visibleServices.map((service) => {
-                    const isSelected = selectedServices.some((s) => s.id === service.id);
-                    const CategoryIcon =
-                      service.category === 'Detailing'
-                        ? Sparkles
-                        : service.category === 'PPF' || service.category === 'Ceramic'
-                        ? ShieldCheck
-                        : Droplets;
-
-                    return (
-                      <button key={service.id} type="button" aria-pressed={isSelected} onClick={() => toggleService(service)} className={`service-option ${isSelected ? 'is-selected' : ''}`}>
+                </div> : <div className="service-grid">
+                  {visibleServices.map(service => {
+                const isSelected = selectedServices.some(s => s.id === service.id);
+                const CategoryIcon = service.category === 'Detailing' ? Sparkles : service.category === 'PPF' || service.category === 'Ceramic' ? ShieldCheck : Droplets;
+                return <button key={service.id} type="button" aria-pressed={isSelected} onClick={() => toggleService(service)} className={`service-option ${isSelected ? 'is-selected' : ''}`}>
                         <div className="service-card-top"><span className={`service-category category-${String(service.category).toLowerCase()}`}><CategoryIcon size={14} />{service.category}</span><span className="service-check">{isSelected ? <Check size={15} /> : <Plus size={15} />}</span></div>
                         <strong className="service-name">{service.name}</strong>
                         <div className="service-card-bottom"><strong>Rs. {money(service.price)}</strong><span><Clock size={13} />{service.estimated_time || 30} min</span></div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+                      </button>;
+              })}
+                </div>}
             </div>
           </section>
         </div>
@@ -535,40 +405,22 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
           </div>
 
           <div className="summary-items">
-            {!selectedServices.length ? (
-              <div className="empty-summary py-6">
+            {!selectedServices.length ? <div className="empty-summary py-6">
                 <ClipboardList size={32} className="text-slate-300 mb-1" />
                 <strong className="text-sm">No services selected</strong>
                 <p className="text-xs">Click service blocks to add them.</p>
-              </div>
-            ) : (
-              selectedServices.map((service) => (
-                <div className="summary-item" key={service.id}>
+              </div> : selectedServices.map(service => <div className="summary-item" key={service.id}>
                   <div className="flex-1 pr-2">
                     <strong className="text-sm font-semibold text-slate-800 block">{service.name}</strong>
                     <div className="flex items-center gap-1.5 mt-1">
                       <span className="text-[11px] font-bold text-slate-400">Rs.</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="50"
-                        value={service.price_charged ?? service.price}
-                        onChange={(e) => handleUpdateServicePrice(service.id, e.target.value)}
-                        className="w-24 px-1.5 py-0.5 text-xs font-mono font-bold text-slate-900 border border-slate-300 rounded focus:border-blue-500 focus:outline-none"
-                        title="Click to adjust price for this job"
-                      />
+                      <input type="number" min="0" step="50" value={service.price_charged ?? service.price} onChange={e => handleUpdateServicePrice(service.id, e.target.value)} className="w-24 px-1.5 py-0.5 text-xs font-mono font-bold text-slate-900 border border-slate-300 rounded focus:border-blue-500 focus:outline-none" title="Click to adjust price for this job" />
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    aria-label={`Remove ${service.name}`}
-                    onClick={() => toggleService(service)}
-                  >
+                  <button type="button" aria-label={`Remove ${service.name}`} onClick={() => toggleService(service)}>
                     <X size={15} />
                   </button>
-                </div>
-              ))
-            )}
+                </div>)}
           </div>
 
           <div className="summary-total pt-4 border-t border-slate-200">
@@ -582,34 +434,18 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
             Payment is collected after the job is completed.
           </p>
 
-          {errorMessage && (
-            <div className="form-error mb-3" role="alert">
+          {errorMessage && <div className="form-error mb-3" role="alert">
               <AlertCircle size={16} />
               <span>{errorMessage}</span>
-            </div>
-          )}
+            </div>}
 
-          <button
-            ref={submitButton}
-            type="submit"
-            className="btn btn-primary create-ticket py-3 text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-md w-full"
-            disabled={isSubmitting || isLoadingServices || !selectedServices.length || !plate.trim()}
-          >
-            {isSubmitting ? (
-              <Loader2 size={18} className="animate-spin" />
-            ) : (
-              <Plus size={18} />
-            )}
+          <button ref={submitButton} type="submit" className="btn btn-primary create-ticket py-3 text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-md w-full" disabled={isSubmitting || isLoadingServices || !selectedServices.length || !plate.trim()}>
+            {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
             {isSubmitting ? 'Creating Ticket…' : 'Create Work Ticket'}
             <ArrowRight size={16} />
           </button>
 
-          <button
-            type="button"
-            className="clear-ticket mt-2 text-xs text-slate-400 hover:text-slate-600"
-            onClick={resetForm}
-            disabled={isSubmitting}
-          >
+          <button type="button" className="clear-ticket mt-2 text-xs text-slate-400 hover:text-slate-600" onClick={resetForm} disabled={isSubmitting}>
             Clear Form
           </button>
 
@@ -618,18 +454,11 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
             <span>80mm thermal ticket generated automatically.</span>
           </div>
         </aside>
-      </form>
+      {selectedServices.some(s => Number(s.price_charged ?? s.price) !== Number(availableServices.find(a => a.id === s.id)?.price)) && <div className="surface p-3">{!can('billing.discount') && <label>Price override approval PIN<input type="password" className="form-input" value={overridePin} onChange={e => setOverridePin(e.target.value)} required /></label>}<label>Reason<input className="form-input" value={overrideReason} onChange={e => setOverrideReason(e.target.value)} required /></label></div>}</form>
 
       {/* Generated Ticket Modal with Thermal Preview */}
-      {generatedTicket && (
-        <div className="dialog-backdrop">
-          <section
-            ref={ticketDialog}
-            className="ticket-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="ticket-dialog-title"
-          >
+      {generatedTicket && <div className="dialog-backdrop">
+          <section ref={ticketDialog} className="ticket-dialog" role="dialog" aria-modal="true" aria-labelledby="ticket-dialog-title">
             <div className="ticket-success">
               <CheckCircle2 size={28} className="text-emerald-600" />
               <div>
@@ -645,38 +474,28 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
             <TokenThermalTicket ticket={generatedTicket} branding={branding} id="printable-ticket" />
 
             <div className="ticket-actions mt-4 flex gap-2">
-              <button
-                type="button"
-                className="btn btn-secondary flex-1 flex items-center justify-center gap-1.5 py-2 text-sm"
-                onClick={() => {
-                  if (!printThermal('printable-ticket')) {
-                    setErrorMessage('Allow pop-ups to open the thermal print preview.');
-                  }
-                }}
-              >
+              <button type="button" className="btn-print btn btn-secondary flex-1 flex items-center justify-center gap-1.5 py-2 text-sm" onClick={() => {
+            if (!printThermal('printable-ticket')) {
+              setErrorMessage('Allow pop-ups to open the thermal print preview.');
+            }
+          }}>
                 <Printer size={16} />
                 Print ticket
               </button>
-              <button
-                type="button"
-                className="btn btn-primary flex-1 flex items-center justify-center gap-1.5 py-2 text-sm"
-                onClick={() => {
-                  const ticket = generatedTicket;
-                  setGeneratedTicket(null);
-                  onJobCreated?.(ticket);
-                }}
-              >
+              <button type="button" className="btn btn-primary flex-1 flex items-center justify-center gap-1.5 py-2 text-sm" onClick={() => {
+            const ticket = generatedTicket;
+            setGeneratedTicket(null);
+            onJobCreated?.(ticket);
+          }}>
                 View Workshop
                 <ArrowRight size={16} />
               </button>
             </div>
           </section>
-        </div>
-      )}
+        </div>}
 
       {/* History Modal (Requirement 7) */}
-      {isHistoryModalOpen && plateRecognition && (
-        <div className="dialog-backdrop">
+      {isHistoryModalOpen && plateRecognition && <div className="dialog-backdrop">
           <div className="bg-white rounded-xl shadow-2xl border border-slate-200 p-6 max-w-lg w-full max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
               <div className="flex items-center gap-2">
@@ -685,10 +504,7 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
                   Vehicle History: {plateRecognition.registration_number}
                 </h3>
               </div>
-              <button
-                onClick={() => setIsHistoryModalOpen(false)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600"
-              >
+              <button onClick={() => setIsHistoryModalOpen(false)} className="p-1 rounded text-slate-400 hover:text-slate-600">
                 <X size={18} />
               </button>
             </div>
@@ -697,45 +513,33 @@ export default function IntakeForm({ onJobCreated, customerPreset }) {
               <div className="p-3 bg-slate-50 rounded-lg text-xs space-y-1">
                 <div><strong>Total Completed Visits:</strong> {plateRecognition.completed_visits}</div>
                 <div><strong>Last Visit Date:</strong> {plateRecognition.last_visit_date ? new Date(plateRecognition.last_visit_date).toLocaleDateString('en-GB') : 'N/A'}</div>
-                {plateRecognition.last_visit_services?.length > 0 && (
-                  <div><strong>Last Services:</strong> {plateRecognition.last_visit_services.join(', ')}</div>
-                )}
+                {plateRecognition.last_visit_services?.length > 0 && <div><strong>Last Services:</strong> {plateRecognition.last_visit_services.join(', ')}</div>}
               </div>
 
               <h4 className="text-xs font-bold uppercase text-slate-500 pt-2">Recent Visits & Invoices</h4>
               <div className="space-y-2">
-                {(plateRecognition.history || []).map((job) => (
-                  <div key={job.id} className="p-3 border border-slate-200 rounded-lg text-xs">
+                {(plateRecognition.history || []).map(job => <div key={job.id} className="p-3 border border-slate-200 rounded-lg text-xs">
                     <div className="flex justify-between font-semibold text-slate-700 mb-1">
                       <span>Ticket: {job.ticket_number}</span>
                       <span>{new Date(job.created_at).toLocaleDateString('en-GB')}</span>
                     </div>
                     <div className="text-slate-500 mb-1">
-                      {job.services?.map((s) => s.service?.name).join(', ') || 'General Inspection'}
+                      {job.services?.map(s => s.service?.name).join(', ') || 'General Inspection'}
                     </div>
-                    {job.invoice && (
-                      <div className="flex justify-between font-mono text-emerald-700 font-bold border-t border-slate-100 pt-1 mt-1">
+                    {job.invoice && <div className="flex justify-between font-mono text-emerald-700 font-bold border-t border-slate-100 pt-1 mt-1">
                         <span>Invoice #{job.invoice.invoice_number}</span>
                         <span>Rs. {money(job.invoice.total_amount)} ({job.invoice.status})</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      </div>}
+                  </div>)}
               </div>
             </div>
 
             <div className="mt-4 pt-3 border-t border-slate-200 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setIsHistoryModalOpen(false)}
-                className="btn btn-secondary px-4 py-1.5 text-xs rounded-lg"
-              >
+              <button type="button" onClick={() => setIsHistoryModalOpen(false)} className="btn btn-secondary px-4 py-1.5 text-xs rounded-lg">
                 Close
               </button>
             </div>
           </div>
-        </div>
-      )}
-    </>
-  );
+        </div>}
+    </>;
 }

@@ -5,7 +5,6 @@
  */
 
 const prisma = require('../prisma');
-
 const LINE_WIDTH = 42; // Standard 80mm thermal printer character width
 
 function padCenter(text, width = LINE_WIDTH) {
@@ -14,14 +13,12 @@ function padCenter(text, width = LINE_WIDTH) {
   const rightPad = width - str.length - leftPad;
   return ' '.repeat(Math.max(0, leftPad)) + str + ' '.repeat(Math.max(0, rightPad));
 }
-
 function padRow(left, right, width = LINE_WIDTH) {
   const l = String(left || '');
   const r = String(right || '');
   const spaceCount = Math.max(1, width - l.length - r.length);
   return l + ' '.repeat(spaceCount) + r;
 }
-
 function divider(char = '-', width = LINE_WIDTH) {
   return char.repeat(width);
 }
@@ -43,7 +40,7 @@ async function getBranding() {
     phone: '+92 300 1234567',
     ntn_number: '1234567-8',
     logo_url: null,
-    logo_size: 120,
+    logo_size: 120
   };
 }
 
@@ -59,39 +56,16 @@ async function generateThermalIntakeTicket(ticket, customBranding = null) {
   const vehicle = `${ticket.make || ticket.vehicle?.make || ''} ${ticket.model || ticket.vehicle?.model || ''}`.trim() || 'Vehicle';
   const ticketNo = ticket.ticket_number || 'CW-TICKET';
   const dateStr = new Date(ticket.created_at || Date.now()).toLocaleString('en-GB');
-
   const services = ticket.services || [];
-
-  const lines = [
-    divider('='),
-    padCenter(branding.business_name || 'DF PRO AUTO CARE'),
-    padCenter('** BAY WORK ORDER TICKET **'),
-    divider('='),
-    padCenter(`TICKET: ${ticketNo}`),
-    padCenter(dateStr),
-    divider('-'),
-    '',
-    padCenter('============================'),
-    padCenter(`  PLATE: ${plate}  `),
-    padCenter('============================'),
-    '',
-    padRow('CUSTOMER:', customer),
-    padRow('PHONE:', phone),
-    padRow('VEHICLE:', vehicle),
-    divider('-'),
-    'ASSIGNED SERVICES & PACKAGES:',
-  ];
-
+  const lines = [divider('='), padCenter(branding.business_name || 'DF PRO AUTO CARE'), padCenter('** BAY WORK ORDER TICKET **'), divider('='), padCenter(`TICKET: ${ticketNo}`), padCenter(dateStr), divider('-'), '', padCenter('============================'), padCenter(`  PLATE: ${plate}  `), padCenter('============================'), '', padRow('CUSTOMER:', customer), padRow('PHONE:', phone), padRow('VEHICLE:', vehicle), divider('-'), 'ASSIGNED SERVICES & PACKAGES:'];
   services.forEach((s, idx) => {
     const sName = s.service?.name || s.name || `Service #${idx + 1}`;
     lines.push(` [ ] ${sName}`);
   });
-
   if (ticket.intake_notes) {
     lines.push(divider('-'));
     lines.push(`NOTES: ${ticket.intake_notes}`);
   }
-
   lines.push(divider('-'));
   lines.push('WORKER SIGN-OFF:');
   lines.push(' [ ] Bay Work Complete');
@@ -102,15 +76,11 @@ async function generateThermalIntakeTicket(ticket, customBranding = null) {
   lines.push(divider('='));
   lines.push(padCenter('NO-TICKET, NO-WORK POLICY'));
   lines.push(divider('='));
-
-  const logoHtml = branding.logo_url
-    ? `<div class="text-center mb-2"><img src="${branding.logo_url}" alt="Logo" style="max-width: ${branding.logo_size || 120}px; max-height: 80px; object-fit: contain; margin: 0 auto; display: block;" /></div>`
-    : '';
-
+  const logoHtml = branding.logo_url ? `<div class="text-center mb-2"><img src="${branding.logo_url}" alt="Logo" style="max-width: ${branding.logo_size || 120}px; max-height: 80px; object-fit: contain; margin: 0 auto; display: block;" /></div>` : '';
   return {
     plain_text: lines.join('\n'),
     formatted_html: `
-      <div class="thermal-ticket font-mono text-black text-xs leading-tight w-[72mm] mx-auto p-2 bg-white" style="font-family: 'Courier New', Courier, monospace; width: 72mm; color: #000;">
+      <div class="thermal-ticket font-mono text-black text-xs leading-tight w-[72mm] mx-auto p-2 bg-white" style="font-family: Arial, Helvetica, sans-serif; font-weight: 700; width: 72mm; color: #000;">
         ${logoHtml}
         <div class="text-center font-bold text-sm border-b-2 border-black pb-1 mb-2">
           ${branding.business_name || 'DF PRO CAR WASH & DETAILING'}<br />
@@ -132,7 +102,7 @@ async function generateThermalIntakeTicket(ticket, customBranding = null) {
         <div class="pt-1 mb-2">
           <div class="font-bold text-[11px] uppercase mb-1">Services to Perform:</div>
           <ul class="space-y-1 text-xs">
-            ${services.map((s) => `<li>[ ] ${s.service?.name || s.name}</li>`).join('')}
+            ${services.map(s => `<li>[ ] ${s.service?.name || s.name}</li>`).join('')}
           </ul>
         </div>
         ${ticket.intake_notes ? `<div class="border-t border-dashed border-black pt-1 mb-2 text-[11px]"><strong>Notes:</strong> ${ticket.intake_notes}</div>` : ''}
@@ -146,7 +116,7 @@ async function generateThermalIntakeTicket(ticket, customBranding = null) {
           STRICT 'NO-TICKET, NO-WORK' STANDARD
         </div>
       </div>
-    `,
+    `
   };
 }
 
@@ -160,52 +130,33 @@ async function generateThermalCustomerReceipt(invoiceData, customBranding = null
   const plate = invoiceData.plate || invoiceData.job_card?.vehicle?.registration_number || 'N/A';
   const customer = invoiceData.customer_name || invoiceData.job_card?.customer_name || invoiceData.job_card?.vehicle?.customer_name || 'Walk-in Customer';
   const paymentMethod = invoiceData.payment_method || 'CASH';
-  const totalAmount = parseFloat(invoiceData.total_amount || 0);
-  const paidAmount = parseFloat(invoiceData.paid_amount || totalAmount);
+  const originalTotal = parseFloat(invoiceData.total_amount || 0);
+  const credits = (invoiceData.refunds || []).reduce((sum, r) => sum + Number(r.amount), 0);
+  const totalAmount = originalTotal - credits;
+  const paidAmount = parseFloat(invoiceData.paid_amount ?? totalAmount);
   const discountAmount = parseFloat(invoiceData.discount_amount || 0);
-  const balanceDue = parseFloat(invoiceData.balance_due || (totalAmount - paidAmount));
+  const balanceDue = parseFloat(invoiceData.balance_due ?? totalAmount - paidAmount);
   const cashTendered = invoiceData.cash_tendered ? parseFloat(invoiceData.cash_tendered) : null;
   const changeReturned = invoiceData.change_returned ? parseFloat(invoiceData.change_returned) : null;
   const status = invoiceData.status || (balanceDue > 0 ? 'PARTIAL' : 'PAID');
   const dateStr = new Date(invoiceData.created_at || Date.now()).toLocaleString('en-GB');
-
-  const services = invoiceData.services || invoiceData.job_card?.services || [];
-  const subtotal = services.reduce((sum, s) => sum + parseFloat(s.price_charged || s.price || 0), totalAmount + discountAmount);
-
-  const lines = [
-    divider('='),
-    padCenter(branding.business_name || 'DF PRO CAR WASH & DETAILING'),
-    padCenter(branding.tagline || 'Premium Auto Care'),
-    divider('='),
-    padRow('INVOICE NO:', invoiceNo),
-    padRow('DATE/TIME:', dateStr),
-    divider('-'),
-    padRow('VEHICLE:', plate),
-    padRow('CUSTOMER:', customer),
-    padRow('PAYMENT:', paymentMethod.toUpperCase()),
-    padRow('STATUS:', status),
-    divider('-'),
-    padRow('ITEM / SERVICE', 'PRICE (PKR)'),
-    divider('-'),
-  ];
-
-  services.forEach((s) => {
+  const services = invoiceData.line_snapshot || invoiceData.services || invoiceData.job_card?.services || [];
+  const subtotal = originalTotal + discountAmount;
+  const lines = [divider('='), padCenter(branding.business_name || 'DF PRO CAR WASH & DETAILING'), padCenter(branding.tagline || 'Premium Auto Care'), divider('='), padRow('INVOICE NO:', invoiceNo), padRow('DATE/TIME:', dateStr), divider('-'), padRow('VEHICLE:', plate), padRow('CUSTOMER:', customer), padRow('PAYMENT:', paymentMethod.toUpperCase()), padRow('STATUS:', status), divider('-'), padRow('ITEM / SERVICE', 'PRICE (PKR)'), divider('-')];
+  services.forEach(s => {
     const sName = (s.service?.name || s.name || 'Service').slice(0, 26);
     const sPrice = parseFloat(s.price_charged || s.price || 0).toLocaleString();
     lines.push(padRow(sName, `Rs. ${sPrice}`));
   });
-
   lines.push(divider('-'));
   lines.push(padRow('SUBTOTAL:', `Rs. ${subtotal.toLocaleString()}`));
-
   if (discountAmount > 0) {
     lines.push(padRow('DISCOUNT:', `-Rs. ${discountAmount.toLocaleString()}`));
   }
-
+  if (credits) lines.push(padRow('CREDIT NOTES:', '-Rs. ' + credits.toLocaleString()));
   lines.push(divider('='));
   lines.push(padRow('TOTAL AMOUNT:', `Rs. ${totalAmount.toLocaleString()}`));
   lines.push(padRow('AMOUNT PAID:', `Rs. ${paidAmount.toLocaleString()}`));
-
   if (cashTendered !== null) {
     lines.push(padRow('CASH TENDERED:', `Rs. ${cashTendered.toLocaleString()}`));
   }
@@ -216,7 +167,6 @@ async function generateThermalCustomerReceipt(invoiceData, customBranding = null
     lines.push(divider('-'));
     lines.push(padRow('BALANCE DUE:', `Rs. ${balanceDue.toLocaleString()}`));
   }
-
   lines.push(divider('='));
   lines.push('');
   lines.push(padCenter('Thank you for choosing DF PRO!'));
@@ -225,15 +175,11 @@ async function generateThermalCustomerReceipt(invoiceData, customBranding = null
   if (branding.ntn_number) lines.push(padCenter(`NTN: ${branding.ntn_number}`));
   lines.push(divider('-'));
   lines.push(padCenter('Software by AutoWash Management'));
-
-  const logoHtml = branding.logo_url
-    ? `<div class="text-center mb-2"><img src="${branding.logo_url}" alt="Logo" style="max-width: ${branding.logo_size || 120}px; max-height: 85px; object-fit: contain; margin: 0 auto; display: block;" /></div>`
-    : '';
-
+  const logoHtml = branding.logo_url ? `<div class="text-center mb-2"><img src="${branding.logo_url}" alt="Logo" style="max-width: ${branding.logo_size || 120}px; max-height: 85px; object-fit: contain; margin: 0 auto; display: block;" /></div>` : '';
   return {
     plain_text: lines.join('\n'),
     formatted_html: `
-      <div class="thermal-receipt font-mono text-black text-xs leading-tight w-[72mm] mx-auto p-2 bg-white" style="font-family: 'Courier New', Courier, monospace; width: 72mm; color: #000;">
+      <div class="thermal-receipt font-mono text-black text-xs leading-tight w-[72mm] mx-auto p-2 bg-white" style="font-family: Arial, Helvetica, sans-serif; font-weight: 700; width: 72mm; color: #000;">
         ${logoHtml}
         <div class="text-center font-bold text-sm border-b-2 border-black pb-1 mb-2">
           ${branding.business_name || 'DF PRO CAR WASH & DETAILING'}<br />
@@ -256,16 +202,12 @@ async function generateThermalCustomerReceipt(invoiceData, customBranding = null
             </tr>
           </thead>
           <tbody>
-            ${services
-              .map(
-                (s) => `
+            ${services.map(s => `
               <tr>
                 <td class="py-0.5">${s.service?.name || s.name}</td>
                 <td class="py-0.5 text-right font-medium">Rs. ${parseFloat(s.price_charged || s.price || 0).toLocaleString()}</td>
               </tr>
-            `
-              )
-              .join('')}
+            `).join('')}
           </tbody>
         </table>
         <div class="border-t border-dashed border-black pt-1 space-y-0.5 text-xs">
@@ -289,12 +231,11 @@ async function generateThermalCustomerReceipt(invoiceData, customBranding = null
           <p class="text-[9px] text-gray-500 mt-1">Software by AutoWash Management</p>
         </div>
       </div>
-    `,
+    `
   };
 }
-
 module.exports = {
   getBranding,
   generateThermalIntakeTicket,
-  generateThermalCustomerReceipt,
+  generateThermalCustomerReceipt
 };

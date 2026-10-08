@@ -1,10 +1,14 @@
 require('dotenv').config();
 const cron = require('node-cron');
 const prisma = require('../prisma');
-const { sendTelegramMessage } = require('../services/notification.service');
-
+const {
+  sendTelegramMessage
+} = require('../services/notification.service');
 function fmtCurrency(num) {
-  return Number(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return Number(num || 0).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 }
 
 /**
@@ -13,100 +17,148 @@ function fmtCurrency(num) {
  * @returns {Promise<Object>} Formatted summary data
  */
 async function compileEodMetrics() {
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const endOfDay = new Date();
-  endOfDay.setHours(23, 59, 59, 999);
-
+  const {
+    start: startOfDay,
+    end: endOfDay
+  } = require('../utils/business-time').bounds(require('../utils/business-time').dayKey());
   // 1. Invoices today (strict immutable ledger)
   const invoices = await prisma.invoice.findMany({
     where: {
-      created_at: { gte: startOfDay, lte: endOfDay },
+      created_at: {
+        gte: startOfDay,
+        lte: endOfDay
+      }
     },
     include: {
       job_card: {
-        include: { vehicle: true },
+        include: {
+          vehicle: true
+        }
       },
-      refunds: true,
-    },
+      refunds: true
+    }
   });
-
   const grossRevenue = invoices.reduce((sum, inv) => sum + parseFloat(inv.total_amount), 0);
-  const cashRevenue = invoices
-    .filter((inv) => inv.payment_method === 'Cash')
-    .reduce((sum, inv) => sum + parseFloat(inv.total_amount), 0);
-  const bankRevenue = invoices
-    .filter((inv) => inv.payment_method === 'Bank' || inv.payment_method === 'Card')
-    .reduce((sum, inv) => sum + parseFloat(inv.total_amount), 0);
-
+  const payments = await prisma.payment.findMany({
+    where: {
+      created_at: {
+        gte: startOfDay,
+        lte: endOfDay
+      }
+    }
+  });
+  const deposits = await prisma.customerDeposit.findMany({
+    where: {
+      created_at: {
+        gte: startOfDay,
+        lte: endOfDay
+      }
+    }
+  });
+  const cashRevenue = payments.filter(p => p.payment_method === 'Cash').reduce((s, p) => s + Number(p.amount), 0);
+  const bankRevenue = payments.filter(p => p.payment_method !== 'Cash').reduce((s, p) => s + Number(p.amount), 0);
   // 2. Operational Expenses today
   const expenses = await prisma.expense.findMany({
     where: {
-      created_at: { gte: startOfDay, lte: endOfDay },
-    },
+      created_at: {
+        gte: startOfDay,
+        lte: endOfDay
+      }
+    }
   });
   const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
 
   // 3. Refunds issued today
   const refunds = await prisma.refund.findMany({
     where: {
-      created_at: { gte: startOfDay, lte: endOfDay },
-    },
+      created_at: {
+        gte: startOfDay,
+        lte: endOfDay
+      }
+    }
   });
   const totalRefunds = refunds.reduce((sum, ref) => sum + parseFloat(ref.amount), 0);
-
-  const netSurplus = grossRevenue - totalExpenses - totalRefunds;
+  const netSurplus = cashRevenue + bankRevenue + deposits.reduce((s, d) => s + Number(d.amount), 0) - totalExpenses - totalRefunds;
 
   // 4. Physical Bay Cars Breakdown (Jack 1, Jack 2, Detailing Center)
   const finishedJobsToday = await prisma.jobCard.findMany({
     where: {
-      status: { in: ['READY_FOR_BILLING', 'COMPLETED', 'Completed'] },
-      OR: [
-        { completed_at: { gte: startOfDay, lte: endOfDay } },
-        { updated_at: { gte: startOfDay, lte: endOfDay } },
-      ],
+      status: {
+        in: ['READY_FOR_BILLING', 'COMPLETED', 'Completed']
+      },
+      OR: [{
+        completed_at: {
+          gte: startOfDay,
+          lte: endOfDay
+        }
+      }]
     },
     include: {
       services: true,
-      worker: true,
-    },
+      assigned_workers: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              flat_commission: true,
+              commission_rate: true
+            }
+          }
+        }
+      },
+      worker: {
+        select: {
+          id: true,
+          name: true,
+          commission_rate: true
+        }
+      }
+    }
   });
-
-  const jack1Cars = finishedJobsToday.filter((j) => j.assigned_location === 'JACK_1').length;
-  const jack2Cars = finishedJobsToday.filter((j) => j.assigned_location === 'JACK_2').length;
-  const detailingCars = finishedJobsToday.filter((j) => j.assigned_location === 'DETAILING_CENTER').length;
+  const jack1Cars = finishedJobsToday.filter(j => j.assigned_location === 'JACK_1').length;
+  const jack2Cars = finishedJobsToday.filter(j => j.assigned_location === 'JACK_2').length;
+  const detailingCars = finishedJobsToday.filter(j => ['DETAILING_CENTER', 'DETAILING_BAY_1', 'DETAILING_BAY_2'].includes(j.assigned_location)).length;
   const otherCars = finishedJobsToday.length - (jack1Cars + jack2Cars + detailingCars);
 
   // Worker commissions
-  const workerCommissionTotal = finishedJobsToday.reduce((sum, job) => {
-    const rate = job.worker ? parseFloat(job.worker.commission_rate) : 0;
-    const jobSubtotal = job.services.reduce((sSum, s) => sSum + parseFloat(s.price_charged), 0);
-    return sum + (jobSubtotal * rate) / 100;
-  }, 0);
+  const {
+    assignmentRows,
+    jobEarnings
+  } = require('../controllers/staff-performance.controller');
+  const workerCommissionTotal = finishedJobsToday.reduce((sum, job) => sum + assignmentRows(job).reduce((earned, a) => earned + jobEarnings(job, a), 0), 0);
 
   // 5. Cash Register Sessions (Shift Reconciliation & Till Variances)
   const registerSessionsToday = await prisma.registerSession.findMany({
     where: {
-      created_at: { gte: startOfDay, lte: endOfDay },
+      created_at: {
+        gte: startOfDay,
+        lte: endOfDay
+      }
     },
-    include: { opened_by: true },
-    orderBy: { opened_at: 'asc' },
+    include: {
+      opened_by: {
+        select: {
+          id: true,
+          name: true,
+          role: true
+        }
+      }
+    },
+    orderBy: {
+      opened_at: 'asc'
+    }
   });
-
-  const closedSessions = registerSessionsToday.filter((s) => s.status === 'CLOSED');
+  const closedSessions = registerSessionsToday.filter(s => s.status === 'CLOSED');
   const totalTillVariance = closedSessions.reduce((sum, s) => sum + parseFloat(s.variance || 0), 0);
-  const openSessionsCount = registerSessionsToday.filter((s) => s.status === 'OPEN').length;
+  const openSessionsCount = registerSessionsToday.filter(s => s.status === 'OPEN').length;
 
   // 6. Closing Ledger Balances
   const ledgerAccounts = await prisma.ledger.findMany();
-  const cashDrawer = ledgerAccounts.find((a) => a.account_type === 'Cash_Drawer');
-  const mainBank = ledgerAccounts.find((a) => a.account_type === 'Main_Bank');
-
+  const cashDrawer = ledgerAccounts.find(a => a.account_type === 'Cash_Drawer');
+  const mainBank = ledgerAccounts.find(a => a.account_type === 'Main_Bank');
   const cashBalance = parseFloat(cashDrawer?.current_balance || 0);
   const bankBalance = parseFloat(mainBank?.current_balance || 0);
   const totalVaultAssets = cashBalance + bankBalance;
-
   return {
     dateStr: new Date().toLocaleDateString('en-GB'),
     carsCount: finishedJobsToday.length,
@@ -114,7 +166,7 @@ async function compileEodMetrics() {
       jack_1: jack1Cars,
       jack_2: jack2Cars,
       detailing_center: detailingCars,
-      unassigned_or_legacy: otherCars,
+      unassigned_or_legacy: otherCars
     },
     invoicesCount: invoices.length,
     grossRevenue,
@@ -124,6 +176,7 @@ async function compileEodMetrics() {
     totalExpenses,
     refundsCount: refunds.length,
     totalRefunds,
+    advancesCollected: deposits.reduce((sum, d) => sum + Number(d.amount), 0),
     netSurplus,
     workerCommissionTotal,
     registerSummary: {
@@ -131,11 +184,11 @@ async function compileEodMetrics() {
       closed_shifts: closedSessions.length,
       open_shifts: openSessionsCount,
       total_variance: totalTillVariance,
-      sessions: registerSessionsToday,
+      sessions: registerSessionsToday
     },
     cashBalance,
     bankBalance,
-    totalVaultAssets,
+    totalVaultAssets
   };
 }
 
@@ -145,7 +198,7 @@ async function compileEodMetrics() {
  * @returns {string}
  */
 function formatEodTelegramReport(m) {
-  let varianceAlert = '• Till Reconciliation: *Rs. 0.00 (ALL SHIFTS BALANCED ✅)*';
+  let varianceAlert = '• Till Reconciliation: *Rs. 0.00 (COUNTS BALANCED ✅)*';
   if (Math.abs(m.registerSummary.total_variance) > 0.01) {
     if (m.registerSummary.total_variance < 0) {
       varianceAlert = `• ⚠️ *CASH TILL SHORTAGE:* *-Rs. ${fmtCurrency(Math.abs(m.registerSummary.total_variance))} (MISSING MONEY)*`;
@@ -153,41 +206,7 @@ function formatEodTelegramReport(m) {
       varianceAlert = `• 💵 *CASH TILL OVERAGE:* *+Rs. ${fmtCurrency(m.registerSummary.total_variance)} (SURPLUS)*`;
     }
   }
-
-  const lines = [
-    `📊 *END OF DAY FINANCIAL CLOSING REPORT*`,
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `📅 *Closing Date:* ${m.dateStr} (23:59 EOD)`,
-    `🚗 *Total Vehicles Washed:* *${m.carsCount} Cars*`,
-    `   ├─ 🚿 *Washing Jack 1 (Team 1):* ${m.baysBreakdown.jack_1} cars`,
-    `   ├─ 🚿 *Washing Jack 2 (Team 2):* ${m.baysBreakdown.jack_2} cars`,
-    `   └─ ✨ *Detailing Center:* ${m.baysBreakdown.detailing_center} cars`,
-    m.baysBreakdown.unassigned_or_legacy > 0 ? `   └─ 🚗 *Other/Legacy:* ${m.baysBreakdown.unassigned_or_legacy} cars` : null,
-    `🧾 *Invoices Settled:* ${m.invoicesCount}`,
-    ``,
-    `💰 *DAILY REVENUE & EARNINGS*`,
-    `• Gross Revenue: *Rs. ${fmtCurrency(m.grossRevenue)}*`,
-    `  ├─ Cash Drawer Collections: Rs. ${fmtCurrency(m.cashRevenue)}`,
-    `  └─ Bank / Card Collections: Rs. ${fmtCurrency(m.bankRevenue)}`,
-    `• Operational Expenses: *Rs. ${fmtCurrency(m.totalExpenses)}* (${m.expensesCount} Vouchers)`,
-    m.totalRefunds > 0 ? `• Approved Refunds: *Rs. ${fmtCurrency(m.totalRefunds)}* (${m.refundsCount} Voids)` : null,
-    `• *Net Daily Cash Flow:* *${m.netSurplus >= 0 ? '+' : ''}Rs. ${fmtCurrency(m.netSurplus)}*`,
-    ``,
-    `🏪 *CASH REGISTER SHIFT AUDIT*`,
-    `• Total Shifts Tracked: ${m.registerSummary.total_shifts} (${m.registerSummary.closed_shifts} Closed${m.registerSummary.open_shifts > 0 ? `, ${m.registerSummary.open_shifts} still OPEN` : ''})`,
-    varianceAlert,
-    ``,
-    `👥 *STAFF PERFORMANCE & COMMISSIONS*`,
-    `• Total Daily Commission: Rs. ${fmtCurrency(m.workerCommissionTotal)}`,
-    ``,
-    `🏦 *CLOSING VAULT LEDGER BALANCES*`,
-    `• Cash Drawer Vault: *Rs. ${fmtCurrency(m.cashBalance)}*`,
-    `• Main Bank Account: *Rs. ${fmtCurrency(m.bankBalance)}*`,
-    `• *Combined Shop Net Worth:* *Rs. ${fmtCurrency(m.totalVaultAssets)}*`,
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `🔒 _Automated Partner Audit • 100% On-Premises Verified_`,
-  ];
-
+  const lines = [`📊 *END OF DAY FINANCIAL CLOSING REPORT*`, `━━━━━━━━━━━━━━━━━━━━━━━━━━━`, `📅 *Closing Date:* ${m.dateStr} (23:59 EOD)`, `🚗 *Total Vehicles Washed:* *${m.carsCount} Cars*`, `   ├─ 🚿 *Washing Jack 1 (Team 1):* ${m.baysBreakdown.jack_1} cars`, `   ├─ 🚿 *Washing Jack 2 (Team 2):* ${m.baysBreakdown.jack_2} cars`, `   └─ ✨ *Detailing Center:* ${m.baysBreakdown.detailing_center} cars`, m.baysBreakdown.unassigned_or_legacy > 0 ? `   └─ 🚗 *Other/Legacy:* ${m.baysBreakdown.unassigned_or_legacy} cars` : null, `🧾 *Invoices Settled:* ${m.invoicesCount}`, ``, `💰 *DAILY REVENUE & EARNINGS*`, `• Gross Revenue: *Rs. ${fmtCurrency(m.grossRevenue)}*`, `  ├─ Cash Drawer Collections: Rs. ${fmtCurrency(m.cashRevenue)}`, `  └─ Bank / Card Collections: Rs. ${fmtCurrency(m.bankRevenue)}`, `• Operational Expenses: *Rs. ${fmtCurrency(m.totalExpenses)}* (${m.expensesCount} Vouchers)`, m.totalRefunds > 0 ? `• Approved Refunds: *Rs. ${fmtCurrency(m.totalRefunds)}* (${m.refundsCount} Voids)` : null, `• *Net Daily Cash Flow:* *${m.netSurplus >= 0 ? '+' : ''}Rs. ${fmtCurrency(m.netSurplus)}*`, ``, `🏪 *CASH DRAWER COUNTS*`, `• Total Counts Tracked: ${m.registerSummary.total_shifts} (${m.registerSummary.closed_shifts} Closed${m.registerSummary.open_shifts > 0 ? `, ${m.registerSummary.open_shifts} still OPEN` : ''})`, varianceAlert, ``, `👥 *STAFF PERFORMANCE & COMMISSIONS*`, `• Total Daily Commission: Rs. ${fmtCurrency(m.workerCommissionTotal)}`, ``, `🏦 *CLOSING VAULT LEDGER BALANCES*`, `• Cash Drawer Vault: *Rs. ${fmtCurrency(m.cashBalance)}*`, `• Main Bank Account: *Rs. ${fmtCurrency(m.bankBalance)}*`, `• *Combined Cash/Bank Assets:* *Rs. ${fmtCurrency(m.totalVaultAssets)}*`, `━━━━━━━━━━━━━━━━━━━━━━━━━━━`, `🔒 _Automated Partner Audit • Shop report_`];
   return lines.filter(Boolean).join('\n');
 }
 
@@ -202,8 +221,13 @@ async function runEodReportNow() {
     console.log('[EODCron] Generated Report Preview:\n' + reportText);
 
     // Write to AlertOutbox table so background worker guarantees delivery
-    await prisma.alertOutbox.create({
-      data: {
+    await prisma.alertOutbox.upsert({
+      where: {
+        event_key: 'eod:' + require('../utils/business-time').dayKey()
+      },
+      update: {},
+      create: {
+        event_key: 'eod:' + require('../utils/business-time').dayKey(),
         type: 'TELEGRAM',
         payload: {
           event: 'EOD_REPORT',
@@ -211,18 +235,27 @@ async function runEodReportNow() {
           message: reportText,
           gross_revenue: metrics.grossRevenue,
           cars_count: metrics.carsCount,
-          variance: metrics.registerSummary.total_variance,
-        },
-      },
+          variance: metrics.registerSummary.total_variance
+        }
+      }
     });
 
     // Also attempt immediate direct dispatch
-    const dispatchResult = await sendTelegramMessage(reportText);
+    const dispatchResult = {
+      queued: true
+    };
     console.log('[EODCron] EOD Report dispatch status:', dispatchResult);
-    return { success: true, metrics, dispatchResult };
+    return {
+      success: true,
+      metrics,
+      dispatchResult
+    };
   } catch (err) {
     console.error('[EODCron] Critical error executing EOD cron:', err);
-    return { success: false, error: err.message };
+    return {
+      success: false,
+      error: err.message
+    };
   }
 }
 
@@ -231,18 +264,17 @@ async function runEodReportNow() {
  */
 function initEodCron() {
   const schedule = '59 23 * * *';
-
   cron.schedule(schedule, async () => {
     console.log('[EODCron] ⏰ 23:59 Triggered: Initiating scheduled daily financial settlement...');
     await runEodReportNow();
+  }, {
+    timezone: 'Asia/Karachi'
   });
-
   console.log(`[EODCron] Scheduled EOD Financial Audit Daemon initialized (Schedule: "${schedule}" daily).`);
 }
-
 module.exports = {
   compileEodMetrics,
   formatEodTelegramReport,
   runEodReportNow,
-  initEodCron,
+  initEodCron
 };

@@ -18,22 +18,29 @@ function normalizeMediaType(input) {
  */
 async function uploadJobCardMediaHandler(req, res, next) {
   try {
-    const { id } = req.params;
-    const { type, notes } = req.body;
-
+    const {
+      id
+    } = req.params;
+    const {
+      type,
+      notes
+    } = req.body;
     if (!req.file) {
       return res.status(400).json({
         status: 'error',
-        message: 'No image file uploaded. Field "image" or "file" is required.',
+        message: 'No image file uploaded. Field "image" or "file" is required.'
       });
     }
 
     // Verify Job Card exists
     const jobCard = await prisma.jobCard.findUnique({
-      where: { id },
-      include: { vehicle: true },
+      where: {
+        id
+      },
+      include: {
+        vehicle: true
+      }
     });
-
     if (!jobCard) {
       // Clean up uploaded file if JobCard not found
       if (req.file.path && fs.existsSync(req.file.path)) {
@@ -41,26 +48,23 @@ async function uploadJobCardMediaHandler(req, res, next) {
       }
       return res.status(404).json({
         status: 'error',
-        message: `Job Card with ID "${id}" does not exist.`,
+        message: `Job Card with ID "${id}" does not exist.`
       });
     }
-
     const mediaType = normalizeMediaType(type);
     const relativeFilePath = `/uploads/vehicles/${req.file.filename}`;
-
     const createdMedia = await prisma.vehicleMedia.create({
       data: {
         job_card_id: id,
         file_path: relativeFilePath,
         type: mediaType,
-        notes: notes ? String(notes).trim() : null,
-      },
+        notes: notes ? String(notes).trim() : null
+      }
     });
-
     return res.status(201).json({
       status: 'success',
       message: `Inspection photo uploaded successfully for ${jobCard.vehicle.registration_number}.`,
-      data: createdMedia,
+      data: createdMedia
     });
   } catch (error) {
     next(error);
@@ -73,16 +77,20 @@ async function uploadJobCardMediaHandler(req, res, next) {
  */
 async function getJobCardMediaHandler(req, res, next) {
   try {
-    const { id } = req.params;
-
+    const {
+      id
+    } = req.params;
     const media = await prisma.vehicleMedia.findMany({
-      where: { job_card_id: id },
-      orderBy: { uploaded_at: 'desc' },
+      where: {
+        job_card_id: id
+      },
+      orderBy: {
+        uploaded_at: 'desc'
+      }
     });
-
     return res.status(200).json({
       status: 'success',
-      data: media,
+      data: media
     });
   } catch (error) {
     next(error);
@@ -95,45 +103,33 @@ async function getJobCardMediaHandler(req, res, next) {
  */
 async function deleteJobCardMediaHandler(req, res, next) {
   try {
-    const { mediaId } = req.params;
-
+    const {
+      mediaId
+    } = req.params;
     const targetMedia = await prisma.vehicleMedia.findUnique({
-      where: { id: mediaId },
+      where: {
+        id: mediaId
+      }
     });
-
     if (!targetMedia) {
       return res.status(404).json({
         status: 'error',
-        message: `Media record "${mediaId}" not found.`,
+        message: `Media record "${mediaId}" not found.`
       });
     }
-
-    // Delete local file if it exists
-    const filename = path.basename(targetMedia.file_path);
-    const fullPath = path.join(__dirname, '../../public/uploads/vehicles', filename);
-    if (fs.existsSync(fullPath)) {
-      try {
-        fs.unlinkSync(fullPath);
-      } catch (err) {
-        console.warn('Could not remove file from disk:', err.message);
-      }
-    }
-
-    await prisma.vehicleMedia.delete({
-      where: { id: mediaId },
+    await require('../services/finance.service').audit(prisma, req, 'MEDIA_DELETION_REQUEST', 'Evidence retained; deletion request recorded.', {
+      media_id: mediaId
     });
-
     return res.status(200).json({
       status: 'success',
-      message: 'Inspection media photo deleted successfully.',
+      message: 'Inspection evidence retained. Deletion request recorded for owner review.'
     });
   } catch (error) {
     next(error);
   }
 }
-
 module.exports = {
   uploadJobCardMediaHandler,
   getJobCardMediaHandler,
-  deleteJobCardMediaHandler,
+  deleteJobCardMediaHandler
 };

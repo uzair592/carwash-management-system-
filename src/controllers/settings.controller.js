@@ -1,4 +1,8 @@
-const { getAllSettings, updateSetting, getSetting } = require('../services/settings.service');
+const {
+  getAllSettings,
+  updateSetting,
+  getSetting
+} = require('../services/settings.service');
 
 /**
  * GET /api/settings
@@ -9,7 +13,7 @@ async function getSettingsHandler(req, res, next) {
     const flags = getAllSettings();
     return res.status(200).json({
       status: 'success',
-      data: flags,
+      data: flags
     });
   } catch (error) {
     next(error);
@@ -23,27 +27,27 @@ async function getSettingsHandler(req, res, next) {
  */
 async function updateSettingsHandler(req, res, next) {
   try {
-    const { key, value } = req.body;
-
-    if (!key || value === undefined) {
+    const {
+      key,
+      value
+    } = req.body;
+    if (!key || typeof value !== 'boolean') {
       return res.status(400).json({
         status: 'error',
-        message: 'Missing "key" or "value" in request body.',
+        message: 'Missing "key" or "value" in request body.'
       });
     }
-
     const updated = await updateSetting(key, value);
     return res.status(200).json({
       status: 'success',
       message: `Feature flag "${key}" updated successfully.`,
-      data: updated,
+      data: updated
     });
   } catch (error) {
     next(error);
   }
 }
-
 module.exports = {
   getSettingsHandler,
-  updateSettingsHandler,
+  updateSettingsHandler
 };

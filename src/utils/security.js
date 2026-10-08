@@ -21,7 +21,6 @@ function verifySecret(secret, storedHash) {
   if (!storedHash.includes(':')) {
     return String(secret).trim() === String(storedHash).trim();
   }
-
   try {
     const [salt, key] = storedHash.split(':');
     if (!salt || !key) return false;
@@ -32,39 +31,59 @@ function verifySecret(secret, storedHash) {
     return false;
   }
 }
-
-/**
- * Generates an authentication session token / signature
- */
-function generateToken(payload) {
-  const data = JSON.stringify(payload);
-  const secret = process.env.JWT_SECRET || 'df-pro-carwash-secure-local-secret-2026';
-  const signature = crypto.createHmac('sha256', secret).update(data).digest('hex');
-  return Buffer.from(JSON.stringify({ data: payload, sig: signature })).toString('base64');
+let installationSecret;
+function signingSecret() {
+  if (process.env.JWT_SECRET && process.env.JWT_SECRET !== 'carwash_super_secret_jwt_key_local_2026') {
+    if (process.env.JWT_SECRET.length < 32) throw new Error('JWT_SECRET must contain at least 32 characters.');
+    return process.env.JWT_SECRET;
+  }
+  if (installationSecret) return installationSecret;
+  const fs = require('fs'),
+    path = require('path');
+  const directory = process.env.PRIVATE_DATA_DIR || path.join(__dirname, '../../private');
+  fs.mkdirSync(directory, {
+    recursive: true,
+    mode: 0o700
+  });
+  const file = path.join(directory, 'session-secret');
+  try {
+    fs.writeFileSync(file, crypto.randomBytes(48).toString('hex'), {
+      flag: 'wx',
+      mode: 0o600
+    });
+  } catch (error) {
+    if (error.code !== 'EEXIST') throw error;
+  }
+  installationSecret = fs.readFileSync(file, 'utf8').trim();
+  return installationSecret;
 }
-
-/**
- * Verifies an authentication session token
- */
+function generateToken(payload) {
+  const data = {
+    ...payload,
+    issued_at: Date.now(),
+    expires_at: Date.now() + 8 * 60 * 60 * 1000
+  };
+  const sig = crypto.createHmac('sha256', signingSecret()).update(JSON.stringify(data)).digest('hex');
+  return Buffer.from(JSON.stringify({
+    data,
+    sig
+  })).toString('base64url');
+}
 function verifyToken(token) {
   if (!token) return null;
   try {
-    const raw = Buffer.from(token, 'base64').toString('utf8');
-    const parsed = JSON.parse(raw);
-    const secret = process.env.JWT_SECRET || 'df-pro-carwash-secure-local-secret-2026';
-    const expectedSig = crypto.createHmac('sha256', secret).update(JSON.stringify(parsed.data)).digest('hex');
-    if (crypto.timingSafeEqual(Buffer.from(parsed.sig, 'hex'), Buffer.from(expectedSig, 'hex'))) {
-      return parsed.data;
-    }
-    return null;
-  } catch (e) {
+    const parsed = JSON.parse(Buffer.from(token, 'base64url').toString());
+    if (!Number.isFinite(parsed.data?.expires_at) || parsed.data.expires_at <= Date.now()) return null;
+    const expected = crypto.createHmac('sha256', signingSecret()).update(JSON.stringify(parsed.data)).digest();
+    const signature = Buffer.from(parsed.sig || '', 'hex');
+    return signature.length === expected.length && crypto.timingSafeEqual(signature, expected) ? parsed.data : null;
+  } catch {
     return null;
   }
 }
-
 module.exports = {
   hashSecret,
   verifySecret,
   generateToken,
-  verifyToken,
+  verifyToken
 };
