@@ -17,6 +17,7 @@ import {
   Lock,
   Coins
 } from 'lucide-react';
+import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 
 export default function InvestorDashboard() {
@@ -130,13 +131,13 @@ export default function InvestorDashboard() {
   // PIN Lock Screen if not authenticated
   if (!isUnlocked && !isAdmin) {
     return (
-      <div className="max-w-md mx-auto my-16 p-8 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl text-center space-y-6 animate-fadeIn">
-        <div className="w-16 h-16 bg-sky-950/80 border-2 border-sky-500 rounded-2xl flex items-center justify-center mx-auto text-sky-400 shadow-xl shadow-sky-500/20">
+      <div className="max-w-md mx-auto my-16 p-8 bg-white border border-slate-200 rounded-xl shadow-sm text-center space-y-6 animate-fadeIn">
+        <div className="w-16 h-16 bg-sky-50 border-2 border-sky-500 rounded-lg flex items-center justify-center mx-auto text-sky-700 shadow-sm">
           <Lock className="w-8 h-8" />
         </div>
         <div>
-          <h3 className="text-xl font-black text-white">Investor Portal Locked</h3>
-          <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+          <h3 className="text-xl font-semibold text-slate-900">Investor Portal Locked</h3>
+          <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
             Remote tunnel security enabled. Enter your confidential Investor PIN to view live shop finances and bay activity.
           </p>
         </div>
@@ -153,10 +154,10 @@ export default function InvestorDashboard() {
               }}
               placeholder="••••"
               autoFocus
-              className="w-full text-center tracking-[0.5em] text-2xl font-mono py-3.5 bg-slate-950 border-2 border-slate-800 rounded-2xl text-white focus:outline-none focus:border-sky-500"
+              className="w-full text-center tracking-[0.5em] text-2xl tabular-nums py-3.5 bg-slate-50 border-2 border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:border-sky-500"
             />
             {pinError && (
-              <p className="text-xs text-rose-400 font-semibold mt-2 flex items-center justify-center gap-1.5">
+              <p className="text-xs text-rose-700 font-semibold mt-2 flex items-center justify-center gap-1.5">
                 <AlertCircle className="w-3.5 h-3.5" />
                 {pinError}
               </p>
@@ -167,14 +168,14 @@ export default function InvestorDashboard() {
             <button
               type="button"
               onClick={() => setPinInput('1122')}
-              className="p-2 bg-slate-950 border border-slate-800 rounded-xl text-[11px] font-mono text-slate-400 hover:text-white hover:border-slate-700 transition text-center"
+              className="p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs tabular-nums text-slate-500 hover:text-slate-900 hover:border-slate-200 transition text-center"
             >
               Demo Partner PIN: 1122
             </button>
             <button
               type="button"
               onClick={() => setPinInput('1234')}
-              className="p-2 bg-slate-950 border border-slate-800 rounded-xl text-[11px] font-mono text-slate-400 hover:text-white hover:border-slate-700 transition text-center"
+              className="p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs tabular-nums text-slate-500 hover:text-slate-900 hover:border-slate-200 transition text-center"
             >
               Admin Master: 1234
             </button>
@@ -183,7 +184,7 @@ export default function InvestorDashboard() {
           <button
             type="submit"
             disabled={isVerifyingPin || !pinInput}
-            className="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 disabled:opacity-50 text-white font-black py-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl shadow-sky-500/25 transition active:scale-95"
+            className="w-full bg-gradient-to-r from-sky-500 text-white to-blue-600 hover:from-sky-400 hover:to-blue-500 disabled:opacity-50 text-slate-900 font-semibold py-4 rounded-lg text-xs flex items-center justify-center gap-2 shadow-sm transition active:scale-95"
           >
             {isVerifyingPin ? (
               <>
@@ -199,7 +200,7 @@ export default function InvestorDashboard() {
           </button>
         </form>
 
-        <p className="text-[10px] text-slate-500 font-mono">
+        <p className="text-xs text-slate-500 tabular-nums">
           🔒 Cloudflare Tunnel Ready • Encrypted Local Vault
         </p>
       </div>
@@ -209,39 +210,39 @@ export default function InvestorDashboard() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Top Banner & Absentee Partner Security Badge */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-2xl backdrop-blur-xl">
+      <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 shadow-sm ">
         <div className="flex items-center gap-4">
-          <div className="p-3.5 bg-sky-500/10 border border-sky-500/30 rounded-2xl text-sky-400">
+          <div className="p-3.5 bg-sky-500/10 border border-sky-500/30 rounded-lg text-sky-700">
             <Eye className="w-8 h-8" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                Investor & Partner Portal
+              <h2 className="text-2xl sm:text-2xl font-semibold text-slate-900 tracking-tight">
+                Business overview
               </h2>
-              <span className="bg-emerald-950 text-emerald-300 font-mono text-[10px] uppercase font-bold px-2 py-0.5 rounded border border-emerald-800">
+              <span className="bg-emerald-50 text-emerald-700 tabular-nums text-xs uppercase font-bold px-2 py-0.5 rounded border border-emerald-200">
                 Read-Only Audit
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
-              Zero-leakage absentee partner oversight • Jack 1, Jack 2 & Detailing Bay Accounting
+            <p className="text-xs text-slate-500 mt-1">
+              Sales, balances and workshop activity in one place.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <button
-            onClick={fetchLiveData}
-            className="bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition"
+            onClick={() => fetchLiveData()}
+            className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition"
           >
-            <RefreshCw className="w-3.5 h-3.5 text-sky-400" />
+            <RefreshCw className="w-3.5 h-3.5 text-sky-700" />
             Live Sync ({lastSync.toLocaleTimeString()})
           </button>
 
           <button
             onClick={handleManualEodPush}
             disabled={isTriggeringEod}
-            className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-sky-500/20 transition active:scale-95"
+            className="bg-gradient-to-r from-sky-500 text-white to-blue-600 hover:from-sky-400 hover:to-blue-500 disabled:opacity-50 text-slate-900 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition active:scale-95"
           >
             <Send className="w-3.5 h-3.5" />
             {isTriggeringEod ? 'Sending...' : 'Push EOD to Telegram'}
@@ -251,7 +252,7 @@ export default function InvestorDashboard() {
             <button
               onClick={handleLockSession}
               title="Lock Investor Session"
-              className="bg-slate-950 hover:bg-rose-950/60 border border-slate-800 hover:border-rose-700/60 text-slate-400 hover:text-rose-300 p-2.5 rounded-xl transition"
+              className="bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-500 hover:text-rose-700 p-2.5 rounded-xl transition"
             >
               <Lock className="w-3.5 h-3.5" />
             </button>
@@ -261,16 +262,16 @@ export default function InvestorDashboard() {
 
       {toast && (
         <div
-          className={`p-4 rounded-2xl text-xs font-semibold flex items-center gap-2.5 ${
+          className={`p-4 rounded-lg text-xs font-semibold flex items-center gap-2.5 ${
             toast.type === 'success'
-              ? 'bg-emerald-950/90 border border-emerald-500 text-emerald-200'
-              : 'bg-rose-950/90 border border-rose-500 text-rose-200'
+              ? 'bg-emerald-50 border border-emerald-500 text-emerald-700'
+              : 'bg-rose-50 border border-rose-500 text-rose-700'
           }`}
         >
           {toast.type === 'success' ? (
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
           ) : (
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <AlertCircle className="w-4 h-4 text-rose-700 shrink-0" />
           )}
           {toast.text}
         </div>
@@ -279,130 +280,130 @@ export default function InvestorDashboard() {
       {/* Top 4 KPI Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Metric 1: Gross Revenue */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+        <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm relative overflow-hidden">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
             Today's Gross Revenue
           </span>
-          <div className="text-2xl font-black font-mono text-emerald-400 mt-1">
+          <div className="text-2xl font-semibold tabular-nums text-emerald-700 mt-1">
             Rs. {Number(summary.gross_revenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-slate-400 mt-2 flex justify-between font-mono">
+          <div className="text-xs text-slate-500 mt-2 flex justify-between tabular-nums">
             <span>Cash: Rs. {Number(summary.cash_revenue || 0).toLocaleString()}</span>
             <span>Bank: Rs. {Number(summary.bank_revenue || 0).toLocaleString()}</span>
           </div>
         </div>
 
         {/* Metric 2: Net Cash Flow */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-            Net Daily Cash Flow
+        <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+            Reported net profit
           </span>
-          <div className={`text-2xl font-black font-mono mt-1 ${
-            (summary.net_profit || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'
+          <div className={`text-2xl font-semibold tabular-nums mt-1 ${
+            (summary.net_profit || 0) >= 0 ? 'text-emerald-700' : 'text-rose-700'
           }`}>
             {(summary.net_profit || 0) >= 0 ? '+' : ''}
             Rs. {Number(summary.net_profit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-slate-400 mt-2 font-mono">
+          <div className="text-xs text-slate-500 mt-2 tabular-nums">
             Expenses Deducted: Rs. {Number(summary.total_expenses || 0).toLocaleString()}
           </div>
         </div>
 
         {/* Metric 3: Total Washes */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+        <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
             Vehicles Finished Today
           </span>
-          <div className="text-2xl font-black font-mono text-white mt-1 flex items-center gap-2">
-            <Car className="w-6 h-6 text-sky-400" />
+          <div className="text-2xl font-semibold tabular-nums text-slate-900 mt-1 flex items-center gap-2">
+            <Car className="w-6 h-6 text-sky-700" />
             {summary.cars_washed_today || 0} Cars
           </div>
-          <div className="text-[11px] text-slate-400 mt-2 font-mono">
+          <div className="text-xs text-slate-500 mt-2 tabular-nums">
             Live in Bays: {summary.active_in_bay || 0} | Queued: {summary.queued_in_intake || 0}
           </div>
         </div>
 
         {/* Metric 4: Cash Drawer Vault */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-            Cash Drawer Till Vault
+        <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+            Cash balance
           </span>
-          <div className="text-2xl font-black font-mono text-amber-300 mt-1 flex items-center gap-2">
-            <Vault className="w-5 h-5 text-amber-400" />
+          <div className="text-2xl font-semibold tabular-nums text-amber-700 mt-1 flex items-center gap-2">
+            <Vault className="w-5 h-5 text-amber-700" />
             Rs. {Number(vaults.cash_drawer || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-slate-400 mt-2 font-mono">
+          <div className="text-xs text-slate-500 mt-2 tabular-nums">
             Main Bank: Rs. {Number(vaults.main_bank || 0).toLocaleString()}
           </div>
         </div>
       </div>
 
       {/* PHYSICAL BAY BREAKDOWN CARDS: Jack 1, Jack 2, Detailing Center */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200">
           <div>
-            <h3 className="font-extrabold text-base text-white flex items-center gap-2">
-              <Layers className="w-5 h-5 text-sky-400" />
+            <h3 className="font-semibold text-base text-slate-900 flex items-center gap-2">
+              <Layers className="w-5 h-5 text-sky-700" />
               Physical Work Areas Productivity Today
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">Vehicles washed and processed per physical zone</p>
+            <p className="text-xs text-slate-500 mt-0.5">Vehicles washed and processed per physical zone</p>
           </div>
-          <span className="text-xs font-mono bg-slate-950 border border-slate-800 text-slate-400 px-3 py-1 rounded-xl">
+          <span className="text-xs tabular-nums bg-slate-50 border border-slate-200 text-slate-500 px-3 py-1 rounded-xl">
             {summary.cars_washed_today || 0} Total Completed
           </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
           {/* Jack 1 */}
-          <div className="bg-slate-950 border border-slate-800/90 rounded-2xl p-4 flex items-center justify-between">
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex items-center justify-between">
             <div>
-              <span className="text-[10px] uppercase font-bold text-sky-400 font-mono block">Hydraulic Bay 1</span>
-              <h4 className="text-base font-black text-white mt-0.5">Washing Jack 1</h4>
-              <p className="text-xs text-slate-400">Wash Team 1</p>
+              <span className="text-xs uppercase font-bold text-sky-700 tabular-nums block">Hydraulic Bay 1</span>
+              <h4 className="text-base font-semibold text-slate-900 mt-0.5">Washing Jack 1</h4>
+              <p className="text-xs text-slate-500">Wash Team 1</p>
             </div>
             <div className="text-right">
-              <span className="font-mono text-3xl font-black text-amber-300">{baysBreakdown.jack_1 || 0}</span>
-              <span className="text-[10px] text-slate-500 uppercase font-bold block">Cars Done</span>
+              <span className="tabular-nums text-2xl font-semibold text-amber-700">{baysBreakdown.jack_1 || 0}</span>
+              <span className="text-xs text-slate-500 uppercase font-bold block">Cars Done</span>
             </div>
           </div>
 
           {/* Jack 2 */}
-          <div className="bg-slate-950 border border-slate-800/90 rounded-2xl p-4 flex items-center justify-between">
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex items-center justify-between">
             <div>
-              <span className="text-[10px] uppercase font-bold text-sky-400 font-mono block">Hydraulic Bay 2</span>
-              <h4 className="text-base font-black text-white mt-0.5">Washing Jack 2</h4>
-              <p className="text-xs text-slate-400">Wash Team 2</p>
+              <span className="text-xs uppercase font-bold text-sky-700 tabular-nums block">Hydraulic Bay 2</span>
+              <h4 className="text-base font-semibold text-slate-900 mt-0.5">Washing Jack 2</h4>
+              <p className="text-xs text-slate-500">Wash Team 2</p>
             </div>
             <div className="text-right">
-              <span className="font-mono text-3xl font-black text-amber-300">{baysBreakdown.jack_2 || 0}</span>
-              <span className="text-[10px] text-slate-500 uppercase font-bold block">Cars Done</span>
+              <span className="tabular-nums text-2xl font-semibold text-amber-700">{baysBreakdown.jack_2 || 0}</span>
+              <span className="text-xs text-slate-500 uppercase font-bold block">Cars Done</span>
             </div>
           </div>
 
           {/* Detailing Studio */}
-          <div className="bg-slate-950 border border-slate-800/90 rounded-2xl p-4 flex items-center justify-between">
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex items-center justify-between">
             <div>
-              <span className="text-[10px] uppercase font-bold text-purple-400 font-mono block">Studio Bay 3</span>
-              <h4 className="text-base font-black text-white mt-0.5">Detailing Center</h4>
-              <p className="text-xs text-slate-400">Detailing Team</p>
+              <span className="text-xs uppercase font-bold text-purple-700 tabular-nums block">Studio Bay 3</span>
+              <h4 className="text-base font-semibold text-slate-900 mt-0.5">Detailing Center</h4>
+              <p className="text-xs text-slate-500">Detailing Team</p>
             </div>
             <div className="text-right">
-              <span className="font-mono text-3xl font-black text-purple-300">{baysBreakdown.detailing_center || 0}</span>
-              <span className="text-[10px] text-slate-500 uppercase font-bold block">Cars Detailed</span>
+              <span className="tabular-nums text-2xl font-semibold text-purple-700">{baysBreakdown.detailing_center || 0}</span>
+              <span className="text-xs text-slate-500 uppercase font-bold block">Cars Detailed</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* CASH REGISTER SESSIONS AUDIT & TILL DISCREPANCIES */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
           <div>
-            <h3 className="font-extrabold text-base text-white flex items-center gap-2">
-              <Coins className="w-5 h-5 text-amber-400" />
+            <h3 className="font-semibold text-base text-slate-900 flex items-center gap-2">
+              <Coins className="w-5 h-5 text-amber-700" />
               Cash Register Shifts & Till Reconciliation
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               Auditing cashier shifts, starting float change, counted cash, and till variances
             </p>
           </div>
@@ -410,17 +411,17 @@ export default function InvestorDashboard() {
           {/* Till Variance Indicator */}
           <div>
             {Math.abs(registerSummary.total_variance || 0) < 0.01 ? (
-              <span className="text-xs font-mono font-bold bg-emerald-950 text-emerald-300 border border-emerald-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-xs tabular-nums font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
                 All Tills Balanced (Rs. 0.00 Variance)
               </span>
             ) : registerSummary.total_variance < 0 ? (
-              <span className="text-xs font-mono font-bold bg-rose-950 text-rose-300 border border-rose-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5 animate-pulse">
-                <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+              <span className="text-xs tabular-nums font-bold bg-rose-50 text-rose-700 border border-rose-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5 ">
+                <AlertCircle className="w-3.5 h-3.5 text-rose-700" />
                 Till Shortage: -Rs. {Math.abs(registerSummary.total_variance).toLocaleString()}
               </span>
             ) : (
-              <span className="text-xs font-mono font-bold bg-sky-950 text-sky-300 border border-sky-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+              <span className="text-xs tabular-nums font-bold bg-sky-50 text-sky-700 border border-sky-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
                 Till Surplus: +Rs. {registerSummary.total_variance.toLocaleString()}
               </span>
             )}
@@ -433,9 +434,9 @@ export default function InvestorDashboard() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-mono">
+            <table className="w-full text-left text-xs tabular-nums">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px]">
+                <tr className="border-b border-slate-200 text-slate-500 uppercase text-xs">
                   <th className="py-2.5 px-3">Status</th>
                   <th className="py-2.5 px-3">Cashier</th>
                   <th className="py-2.5 px-3">Opened</th>
@@ -445,48 +446,48 @@ export default function InvestorDashboard() {
                   <th className="py-2.5 px-3 text-right">Variance</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 text-slate-300">
+              <tbody className="divide-y divide-slate-200/60 text-slate-600">
                 {registerSummary.sessions.map((sess) => (
-                  <tr key={sess.id} className="hover:bg-slate-800/30 transition">
+                  <tr key={sess.id} className="hover:bg-slate-100 transition">
                     <td className="py-3 px-3">
                       <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                        className={`text-xs font-bold px-2 py-0.5 rounded border ${
                           sess.status === 'OPEN'
-                            ? 'bg-amber-950 text-amber-300 border-amber-800'
-                            : 'bg-slate-950 text-slate-400 border-slate-800'
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-slate-50 text-slate-500 border-slate-200'
                         }`}
                       >
                         {sess.status}
                       </span>
                     </td>
-                    <td className="py-3 px-3 font-semibold text-white">
+                    <td className="py-3 px-3 font-semibold text-slate-900">
                       {sess.opened_by?.name || 'Cashier'}
                     </td>
-                    <td className="py-3 px-3 text-slate-400">
+                    <td className="py-3 px-3 text-slate-500">
                       {new Date(sess.opened_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </td>
-                    <td className="py-3 px-3 text-slate-400">
+                    <td className="py-3 px-3 text-slate-500">
                       {sess.closed_at
                         ? new Date(sess.closed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         : 'Active'}
                     </td>
-                    <td className="py-3 px-3 text-right text-slate-200">
+                    <td className="py-3 px-3 text-right text-slate-700">
                       Rs. {parseFloat(sess.starting_cash).toLocaleString()}
                     </td>
-                    <td className="py-3 px-3 text-right text-white font-bold">
+                    <td className="py-3 px-3 text-right text-slate-900 font-bold">
                       {sess.actual_counted_cash
                         ? `Rs. ${parseFloat(sess.actual_counted_cash).toLocaleString()}`
                         : 'In Till'}
                     </td>
-                    <td className="py-3 px-3 text-right font-black">
+                    <td className="py-3 px-3 text-right font-semibold">
                       {sess.variance !== null && sess.variance !== undefined ? (
                         <span
                           className={
                             Math.abs(parseFloat(sess.variance)) < 0.01
-                              ? 'text-emerald-400'
+                              ? 'text-emerald-700'
                               : parseFloat(sess.variance) < 0
-                              ? 'text-rose-400'
-                              : 'text-sky-400'
+                              ? 'text-rose-700'
+                              : 'text-sky-700'
                           }
                         >
                           {Math.abs(parseFloat(sess.variance)) < 0.01
@@ -506,15 +507,15 @@ export default function InvestorDashboard() {
       </div>
 
       {/* 2-Column Section: Live Bay Operations & Recent Invoices */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Left: Real-Time Bay Occupancy */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <h3 className="font-bold text-base text-white flex items-center gap-2">
-              <Activity className="w-4 h-4 text-emerald-400" />
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+            <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-emerald-700" />
               Live Bay Occupancy
             </h3>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-xs text-slate-500 tabular-nums">
               {bays.in_progress.length} active wash bays
             </span>
           </div>
@@ -523,21 +524,21 @@ export default function InvestorDashboard() {
             {bays.in_progress.map((item) => (
               <div
                 key={item.job_card_id}
-                className="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 flex items-center justify-between"
+                className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex items-center justify-between"
               >
                 <div>
-                  <span className="font-mono text-lg font-black text-amber-300">
+                  <span className="tabular-nums text-lg font-semibold text-amber-700">
                     {item.plate}
                   </span>
-                  <p className="text-xs text-slate-400">
-                    {item.make_model} • Tech: <span className="text-slate-200">{item.worker}</span>
+                  <p className="text-xs text-slate-500">
+                    {item.make_model} • Tech: <span className="text-slate-700">{item.worker}</span>
                   </p>
-                  <p className="text-[11px] text-slate-500 truncate max-w-xs mt-0.5">
+                  <p className="text-xs text-slate-500 truncate max-w-xs mt-0.5">
                     {item.services}
                   </p>
                 </div>
                 <div className="text-right">
-                  <span className="bg-amber-950 text-amber-300 text-[10px] font-bold font-mono px-2 py-0.5 rounded border border-amber-800">
+                  <span className="bg-amber-50 text-amber-700 text-xs font-bold tabular-nums px-2 py-0.5 rounded border border-amber-200">
                     In Progress
                   </span>
                 </div>
@@ -553,13 +554,13 @@ export default function InvestorDashboard() {
         </div>
 
         {/* Right: Recent Settled Invoices */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <h3 className="font-bold text-base text-white flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-sky-400" />
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+            <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-sky-700" />
               Recent Invoices & Audited Receipts
             </h3>
-            <span className="text-xs text-slate-400 font-mono">
+            <span className="text-xs text-slate-500 tabular-nums">
               Last {invoices.length} invoices
             </span>
           </div>
@@ -568,20 +569,20 @@ export default function InvestorDashboard() {
             {invoices.map((inv) => (
               <div
                 key={inv.invoice_number}
-                className="bg-slate-950/70 border border-slate-800/80 rounded-2xl p-4 flex items-center justify-between font-mono"
+                className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex items-center justify-between tabular-nums"
               >
                 <div>
-                  <span className="text-sky-400 text-xs font-bold">#{inv.invoice_number}</span>
-                  <p className="text-sm font-black text-amber-300">{inv.plate}</p>
-                  <span className="text-[10px] text-slate-400">
+                  <span className="text-sky-700 text-xs font-bold">#{inv.invoice_number}</span>
+                  <p className="text-sm font-semibold text-amber-700">{inv.plate}</p>
+                  <span className="text-xs text-slate-500">
                     {new Date(inv.time).toLocaleTimeString()} • Tender: {inv.payment_method}
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-base font-black text-emerald-400">
+                  <span className="text-base font-semibold text-emerald-700">
                     Rs. {Number(inv.amount).toLocaleString()}
                   </span>
-                  <span className="block text-[10px] text-emerald-500 font-bold uppercase">
+                  <span className="block text-xs text-emerald-500 font-bold uppercase">
                     Settled & Logged
                   </span>
                 </div>

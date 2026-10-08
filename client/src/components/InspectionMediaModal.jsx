@@ -105,15 +105,15 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
   });
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh]">
+    <div className="fixed inset-0 z-50 bg-black/85  flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+      <div className="bg-white border border-slate-200 rounded-xl max-w-4xl w-full shadow-sm overflow-hidden flex flex-col my-auto max-h-[92vh]">
         {/* Toast */}
         {toast && (
           <div
-            className={`fixed top-6 right-6 z-50 p-4 rounded-2xl border shadow-2xl flex items-center gap-3 ${
+            className={`fixed top-5 right-6 z-50 p-4 rounded-lg border shadow-sm flex items-center gap-3 ${
               toast.type === 'success'
-                ? 'bg-emerald-950 border-emerald-800 text-emerald-200'
-                : 'bg-rose-950 border-rose-800 text-rose-200'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-rose-50 border-rose-200 text-rose-700'
             }`}
           >
             {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
@@ -122,19 +122,19 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
         )}
 
         {/* Header */}
-        <div className="p-6 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-3.5">
-            <div className="p-3 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-2xl">
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 text-amber-700 rounded-lg">
               <Camera className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-xl font-black text-white">Digital Vehicle Inspection</h3>
-                <span className="font-mono text-sm font-bold bg-amber-950 text-amber-300 px-2 py-0.5 rounded border border-amber-800">
+                <h3 className="text-xl font-semibold text-slate-900">Digital Vehicle Inspection</h3>
+                <span className="tabular-nums text-sm font-bold bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-200">
                   {jobCard.vehicle?.registration_number}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Ticket #{jobCard.ticket_number} • Pre-existing damage & after-detailing liability protection
               </p>
             </div>
@@ -142,18 +142,18 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
 
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
+            className="p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1">
+        <div className="p-5 overflow-y-auto space-y-6 flex-1">
           {/* Upload Form Card */}
-          <div className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-5 shadow-inner">
-            <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-3">
-              <UploadCloud className="w-4 h-4 text-sky-400" />
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 shadow-none">
+            <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-3">
+              <UploadCloud className="w-4 h-4 text-sky-700" />
               Upload Inspection Photo
             </h4>
 
@@ -161,8 +161,8 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Photo Drop Area / File Input */}
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Select Image File / Camera Capture</label>
-                  <label className="border-2 border-dashed border-slate-800 hover:border-sky-500/60 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition bg-slate-900/40 hover:bg-slate-900/80 min-h-[140px]">
+                  <label className="text-xs text-slate-500 block mb-1">Select Image File / Camera Capture</label>
+                  <label className="border-2 border-dashed border-slate-200 hover:border-sky-500/60 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition bg-white hover:bg-white min-h-[140px]">
                     {previewUrl ? (
                       <div className="relative w-full h-32 flex items-center justify-center">
                         <img
@@ -170,15 +170,15 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
                           alt="Preview"
                           className="max-h-32 rounded-lg object-contain"
                         />
-                        <span className="absolute bottom-1 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded">
+                        <span className="absolute bottom-1 bg-black/70 text-slate-900 text-xs px-2 py-0.5 rounded">
                           Click to Change
                         </span>
                       </div>
                     ) : (
                       <>
                         <Camera className="w-8 h-8 text-slate-500 mb-2" />
-                        <span className="text-xs font-semibold text-slate-300">Click to capture / browse photo</span>
-                        <span className="text-[10px] text-slate-500 mt-0.5">JPG, PNG, WEBP up to 15MB</span>
+                        <span className="text-xs font-semibold text-slate-600">Click to capture / browse photo</span>
+                        <span className="text-xs text-slate-500 mt-0.5">JPG, PNG, WEBP up to 15MB</span>
                       </>
                     )}
                     <input
@@ -194,11 +194,11 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
                 {/* Metadata: Type & Notes */}
                 <div className="space-y-3">
                   <div>
-                    <label className="text-xs text-slate-400 block mb-1">Inspection Type</label>
+                    <label className="text-xs text-slate-500 block mb-1">Inspection Type</label>
                     <select
                       value={mediaType}
                       onChange={(e) => setMediaType(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-sky-500"
                     >
                       <option value="DAMAGE_PROOF">⚠️ Pre-existing Damage Proof (Scratches/Dents)</option>
                       <option value="BEFORE">📸 Intake Photo (Before Wash)</option>
@@ -207,13 +207,13 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
                   </div>
 
                   <div>
-                    <label className="text-xs text-slate-400 block mb-1">Observation Notes</label>
+                    <label className="text-xs text-slate-500 block mb-1">Observation Notes</label>
                     <textarea
                       rows={3}
                       placeholder="e.g. Scratches on left front fender, bumper scuff on passenger side..."
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-sky-500"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder-slate-600 focus:outline-none focus:border-sky-500"
                     />
                   </div>
                 </div>
@@ -223,7 +223,7 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
                 <button
                   type="submit"
                   disabled={!selectedImage || isUploading}
-                  className="bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 transition"
+                  className="bg-sky-500 text-white hover:bg-sky-400 disabled:opacity-50 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 transition"
                 >
                   {isUploading ? (
                     <>
@@ -243,18 +243,18 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <FileImage className="w-4 h-4 text-emerald-400" />
-                <h4 className="text-sm font-bold text-white">
+                <FileImage className="w-4 h-4 text-emerald-700" />
+                <h4 className="text-sm font-bold text-slate-900">
                   Attached Vehicle Photos ({mediaList.length})
                 </h4>
               </div>
 
               {/* Filter tabs */}
-              <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-[11px]">
+              <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200 text-xs">
                 <button
                   onClick={() => setFilterType('ALL')}
                   className={`px-2.5 py-1 rounded-lg font-semibold transition ${
-                    filterType === 'ALL' ? 'bg-sky-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
+                    filterType === 'ALL' ? 'bg-sky-500 text-white text-slate-950 font-bold' : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
                   All ({mediaList.length})
@@ -264,7 +264,7 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
                   className={`px-2.5 py-1 rounded-lg font-semibold transition ${
                     filterType === 'DAMAGE_PROOF'
                       ? 'bg-amber-500 text-slate-950 font-bold'
-                      : 'text-amber-400/80 hover:text-amber-300'
+                      : 'text-amber-700/80 hover:text-amber-700'
                   }`}
                 >
                   Damage Proof
@@ -273,8 +273,8 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
                   onClick={() => setFilterType('AFTER')}
                   className={`px-2.5 py-1 rounded-lg font-semibold transition ${
                     filterType === 'AFTER'
-                      ? 'bg-emerald-500 text-slate-950 font-bold'
-                      : 'text-emerald-400/80 hover:text-emerald-300'
+                      ? 'bg-emerald-500 text-white text-slate-950 font-bold'
+                      : 'text-emerald-700/80 hover:text-emerald-700'
                   }`}
                 >
                   After Wash
@@ -284,10 +284,10 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
 
             {isLoading ? (
               <div className="text-center py-10 text-slate-500 text-xs flex items-center justify-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-sky-400" /> Loading inspection gallery...
+                <Loader2 className="w-4 h-4 animate-spin text-sky-700" /> Loading inspection gallery...
               </div>
             ) : filteredMedia.length === 0 ? (
-              <div className="text-center py-12 bg-slate-950/40 border border-slate-800/60 rounded-2xl text-slate-500 text-xs">
+              <div className="text-center py-12 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 text-xs">
                 No inspection photos uploaded under this filter.
               </div>
             ) : (
@@ -295,7 +295,7 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
                 {filteredMedia.map((item) => (
                   <div
                     key={item.id}
-                    className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden group flex flex-col justify-between shadow-lg"
+                    className="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden group flex flex-col justify-between shadow-sm"
                   >
                     <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
                       <img
@@ -308,7 +308,7 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
                       />
                       <button
                         onClick={() => setLightboxImage(item.file_path)}
-                        className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition"
+                        className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/90 text-slate-900 rounded-lg opacity-0 group-hover:opacity-100 transition"
                         title="View Fullscreen"
                       >
                         <Maximize2 className="w-3.5 h-3.5" />
@@ -316,12 +316,12 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
 
                       {/* Type Badge */}
                       <span
-                        className={`absolute bottom-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-md ${
+                        className={`absolute bottom-2 left-2 text-xs font-bold px-2 py-0.5 rounded-full  ${
                           item.type === 'DAMAGE_PROOF'
-                            ? 'bg-amber-950/80 text-amber-300 border border-amber-800'
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
                             : item.type === 'AFTER'
-                            ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800'
-                            : 'bg-sky-950/80 text-sky-300 border border-sky-800'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-sky-50 text-sky-700 border border-sky-200'
                         }`}
                       >
                         {item.type === 'DAMAGE_PROOF'
@@ -334,10 +334,10 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
 
                     <div className="p-3 text-xs flex-1 flex flex-col justify-between">
                       <div>
-                        <p className="text-slate-300 line-clamp-2">
+                        <p className="text-slate-600 line-clamp-2">
                           {item.notes || <span className="italic text-slate-500">No notes logged</span>}
                         </p>
-                        <span className="text-[10px] text-slate-500 font-mono block mt-1">
+                        <span className="text-xs text-slate-500 tabular-nums block mt-1">
                           {new Date(item.uploaded_at).toLocaleString()}
                         </span>
                       </div>
@@ -345,7 +345,7 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
                       <div className="pt-2 mt-2 border-t border-slate-900 flex justify-end">
                         <button
                           onClick={() => handleDeleteMedia(item.id)}
-                          className="text-slate-500 hover:text-rose-400 p-1 rounded transition text-[11px] flex items-center gap-1"
+                          className="text-slate-500 hover:text-rose-700 p-1 rounded transition text-xs flex items-center gap-1"
                           title="Remove Photo"
                         >
                           <Trash2 className="w-3.5 h-3.5" /> Remove
@@ -369,11 +369,11 @@ export default function InspectionMediaModal({ jobCard, onClose, onMediaUpdated 
           <img
             src={lightboxImage}
             alt="Full Inspection Photo"
-            className="max-h-[90vh] max-w-[90vw] object-contain rounded-2xl shadow-2xl"
+            className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg shadow-sm"
           />
           <button
             onClick={() => setLightboxImage(null)}
-            className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition"
+            className="absolute top-5 right-6 p-3 bg-white/10 hover:bg-white/20 text-slate-900 rounded-full transition"
           >
             <X className="w-6 h-6" />
           </button>
