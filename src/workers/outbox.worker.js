@@ -1,104 +1,110 @@
 const prisma = require('../prisma');
-const { sendTelegramMessage } = require('../services/notification.service');
-
-let outboxInterval = null;
-let isProcessing = false;
-
-/**
- * Background worker processing pending alerts from the AlertOutbox table.
- * Runs on a 5-second polling loop.
- * Guarantees zero revenue leakage or checkout disruption if internet is offline.
- */
+const {
+  sendTelegramMessage,
+  sendSMSReceipt
+} = require('../services/notification.service');
+const F = require('../services/finance.service');
+let timer = null,
+  busy = false;
 async function processOutboxQueue() {
-  if (isProcessing) return;
-  isProcessing = true;
-
+  if (busy) return;
+  busy = true;
   try {
-    const pendingAlerts = await prisma.alertOutbox.findMany({
-      where: { status: 'PENDING' },
-      orderBy: { created_at: 'asc' },
-      take: 10,
+    await prisma.alertOutbox.updateMany({
+      where: {
+        status: 'PROCESSING',
+        next_attempt_at: {
+          lte: new Date()
+        }
+      },
+      data: {
+        status: 'PENDING'
+      }
     });
-
-    if (pendingAlerts.length === 0) {
-      isProcessing = false;
-      return;
-    }
-
-    for (const alert of pendingAlerts) {
+    const candidates = await prisma.alertOutbox.findMany({
+      where: {
+        status: {
+          in: ['PENDING', 'FAILED']
+        },
+        next_attempt_at: {
+          lte: new Date()
+        }
+      },
+      orderBy: {
+        created_at: 'asc'
+      },
+      take: 10
+    });
+    for (const alert of candidates) {
+      const claim = await prisma.alertOutbox.updateMany({
+        where: {
+          id: alert.id,
+          status: {
+            in: ['PENDING', 'FAILED']
+          }
+        },
+        data: {
+          status: 'PROCESSING',
+          attempts: {
+            increment: 1
+          },
+          next_attempt_at: new Date(Date.now() + 120000)
+        }
+      });
+      if (!claim.count) continue;
       try {
         const payload = typeof alert.payload === 'string' ? JSON.parse(alert.payload) : alert.payload;
-        const textMessage = payload.text || payload.message || JSON.stringify(payload);
-
-        const dispatchResult = await sendTelegramMessage(textMessage);
-
-        if (dispatchResult.sent) {
+        const result = alert.type === 'SMS' ? await sendSMSReceipt(payload.phone, payload.text) : await sendTelegramMessage(payload.text || payload.message);
+        if (result.sent) {
           await prisma.alertOutbox.update({
-            where: { id: alert.id },
+            where: {
+              id: alert.id
+            },
             data: {
               status: 'SENT',
               processed_at: new Date(),
-            },
-          });
-          console.log(`[OutboxWorker] Alert ${alert.id} delivered successfully.`);
-        } else if (dispatchResult.reason === 'FLAG_DISABLED') {
-          // Feature flag disabled, mark as SENT/SKIPPED to avoid clogging
-          await prisma.alertOutbox.update({
-            where: { id: alert.id },
-            data: {
-              status: 'SENT',
-              error_message: 'Skipped: Feature flag disabled',
-              processed_at: new Date(),
-            },
+              error_message: null
+            }
           });
         } else {
           await prisma.alertOutbox.update({
-            where: { id: alert.id },
+            where: {
+              id: alert.id
+            },
             data: {
               status: 'FAILED',
-              error_message: dispatchResult.error || dispatchResult.reason || 'Failed to dispatch',
-            },
+              error_message: result.error || result.reason || 'Delivery failed',
+              next_attempt_at: new Date(Date.now() + Math.min(3600000, 5000 * 2 ** Math.min(alert.attempts || 0, 10)))
+            }
           });
         }
-      } catch (err) {
-        console.error(`[OutboxWorker] Error dispatching alert ${alert.id}:`, err.message);
+      } catch (e) {
         await prisma.alertOutbox.update({
-          where: { id: alert.id },
+          where: {
+            id: alert.id
+          },
           data: {
             status: 'FAILED',
-            error_message: err.message,
-          },
+            error_message: e.message,
+            next_attempt_at: new Date(Date.now() + 30000)
+          }
         });
       }
     }
-  } catch (err) {
-    console.error('[OutboxWorker] Fatal error reading AlertOutbox table:', err.message);
   } finally {
-    isProcessing = false;
+    busy = false;
   }
 }
-
-/**
- * Starts the Outbox worker polling every 5 seconds
- */
 function initOutboxWorker() {
-  if (outboxInterval) clearInterval(outboxInterval);
-  outboxInterval = setInterval(processOutboxQueue, 5000);
-  console.log('[OutboxWorker] Telegram Alert Outbox daemon initialized (5s poll loop).');
+  if (timer) clearInterval(timer);
+  timer = setInterval(() => processOutboxQueue().catch(e => console.error('[Outbox]', e.message)), 5000);
 }
-
-/**
- * Stops the Outbox worker
- */
 function stopOutboxWorker() {
-  if (outboxInterval) {
-    clearInterval(outboxInterval);
-    outboxInterval = null;
-  }
+  clearInterval(timer);
+  timer = null;
 }
-
 module.exports = {
-  initOutboxWorker,
-  stopOutboxWorker,
   processOutboxQueue,
+  initOutboxWorker,
+  stopOutboxWorker
 };

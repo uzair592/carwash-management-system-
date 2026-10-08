@@ -29,3 +29,16 @@ Thumbs.db
 # Local Media Uploads (Heavy customer photos)
 public/uploads/
 /public/uploads/
+
+node_modules/
+client/node_modules/
+client/dist/
+.env
+private/
+backups/
+public/uploads/
+*.log
+
+node_modules
+client/node_modules
+private/

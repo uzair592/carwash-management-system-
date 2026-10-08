@@ -3,12 +3,33 @@ const router = express.Router();
 const prisma = require('../prisma');
 
 // Controllers
-const { getSettingsHandler, updateSettingsHandler } = require('../controllers/settings.controller');
-const { vehicleIntakeHandler, getVehicleHandler } = require('../controllers/vehicle.controller');
-const { updateJobCardStatusHandler, listJobCardsHandler, getJobCardHandler } = require('../controllers/jobcard.controller');
-const { checkoutHandler, listInvoicesHandler, reversePaymentHandler } = require('../controllers/invoice.controller');
-const { createExpenseHandler, listExpensesHandler } = require('../controllers/expense.controller');
-const { processPayment, recordExpense } = require('../services/ledger.service');
+const {
+  getSettingsHandler,
+  updateSettingsHandler
+} = require('../controllers/settings.controller');
+const {
+  vehicleIntakeHandler,
+  getVehicleHandler
+} = require('../controllers/vehicle.controller');
+const {
+  updateJobCardStatusHandler,
+  listJobCardsHandler,
+  getJobCardHandler
+} = require('../controllers/jobcard.controller');
+const {
+  checkoutHandler,
+  listInvoicesHandler,
+  reversePaymentHandler,
+  collectPaymentHandler
+} = require('../controllers/invoice.controller');
+const {
+  createExpenseHandler,
+  listExpensesHandler
+} = require('../controllers/expense.controller');
+const {
+  processPayment,
+  recordExpense
+} = require('../services/ledger.service');
 const dashboardRoutes = require('./dashboard.routes');
 const payrollRoutes = require('./payroll.routes');
 const {
@@ -16,13 +37,16 @@ const {
   createInventoryHandler,
   updateInventoryHandler,
   restockInventoryHandler,
-  linkServiceInventoryHandler,
+  linkServiceInventoryHandler
 } = require('../controllers/inventory.controller');
-const { upload } = require('../services/upload.service');
+const {
+  upload,
+  validateImage
+} = require('../services/upload.service');
 const {
   uploadJobCardMediaHandler,
   getJobCardMediaHandler,
-  deleteJobCardMediaHandler,
+  deleteJobCardMediaHandler
 } = require('../controllers/media.controller');
 const {
   rapidIntakeHandler,
@@ -31,17 +55,17 @@ const {
   completeJobCardHandler,
   getLiveBayStatusHandler,
   verifyAdminPinHandler,
-  issueRefundHandler,
+  issueRefundHandler
 } = require('../controllers/physical-bays.controller');
 const {
   getCurrentSessionHandler,
   openSessionHandler,
   closeSessionHandler,
-  getHistorySessionsHandler,
+  getHistorySessionsHandler
 } = require('../controllers/register.controller');
 const {
   generateThermalIntakeTicket,
-  generateThermalCustomerReceipt,
+  generateThermalCustomerReceipt
 } = require('../services/printer.service');
 const {
   getMonthlyPayrollHandler,
@@ -50,40 +74,45 @@ const {
   getMonthlyDividendsHandler,
   dispatchDividendsHandler,
   listYieldMappingsHandler,
-  createYieldMappingHandler,
+  createYieldMappingHandler
 } = require('../controllers/financials.controller');
-const { authenticateUser, requireRole } = require('../middleware/auth.middleware');
-const { listAuditLogsHandler } = require('../controllers/audit.controller');
+const {
+  authenticateUser,
+  requireRole
+} = require('../middleware/auth.middleware');
+const {
+  listAuditLogsHandler
+} = require('../controllers/audit.controller');
 const {
   createDepositHandler,
   listDepositsHandler,
-  listActiveDepositsHandler,
+  listActiveDepositsHandler
 } = require('../controllers/deposit.controller');
 const {
   createTransferHandler,
-  listTransfersHandler,
+  listTransfersHandler
 } = require('../controllers/transfer.controller');
 const {
   issueMaterialHandler,
-  getJobCardMaterialsHandler,
+  getJobCardMaterialsHandler
 } = require('../controllers/material.controller');
 const {
   createPartnerTransactionHandler,
   getPartnerTransactionsHandler,
-  listAllPartnerTransactionsHandler,
+  listAllPartnerTransactionsHandler
 } = require('../controllers/partner-tx.controller');
 const {
   listBankAccountsHandler,
   createBankAccountHandler,
   updateBankAccountHandler,
   deleteBankAccountHandler,
-  getBankAccountTransactionsHandler,
+  getBankAccountTransactionsHandler
 } = require('../controllers/bank.controller');
 const {
   getBrandingHandler,
   updateBrandingHandler,
   uploadLogoHandler,
-  removeLogoHandler,
+  removeLogoHandler
 } = require('../controllers/branding.controller');
 const {
   loginHandler,
@@ -92,16 +121,20 @@ const {
   updateUserHandler,
   resetPasswordHandler,
   updatePinHandler,
-  toggleUserStatusHandler,
+  toggleUserStatusHandler
 } = require('../controllers/user.controller');
 const {
   listServicesHandler,
   createServiceHandler,
   updateServiceHandler,
-  overrideJobCardServicePriceHandler,
+  overrideJobCardServicePriceHandler
 } = require('../controllers/service.controller');
-const { listCustomersHandler } = require('../controllers/customer.controller');
-const { getReportsSummaryHandler } = require('../controllers/reports.controller');
+const {
+  listCustomersHandler
+} = require('../controllers/customer.controller');
+const {
+  getReportsSummaryHandler
+} = require('../controllers/reports.controller');
 
 // ---------------------------------------------------------------------------
 // 1. Health & Service Diagnostics (Public)
@@ -110,7 +143,7 @@ router.get('/health', (req, res) => {
   res.status(200).json({
     status: 'healthy',
     service: 'DF PRO Car Wash & Detailing Management System Core API',
-    timestamp: new Date().toISOString(),
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -119,13 +152,50 @@ router.post('/auth/login', loginHandler);
 
 // Authenticate user across all subsequent API routes
 router.use(authenticateUser);
+router.get('/auth/me', (req, res) => res.json({
+  status: 'success',
+  user: req.user
+}));
+router.post('/auth/logout', async (req, res, next) => {
+  try {
+    await prisma.user.update({
+      where: {
+        id: req.user.id
+      },
+      data: {
+        session_version: {
+          increment: 1
+        }
+      }
+    });
+    res.clearCookie('dfpro_session');
+    res.json({
+      status: 'success'
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+router.use((req, res, next) => {
+  if (req.user.role === 'INVESTOR') return req.method === 'GET' && ['/dashboard/live', '/branding'].includes(req.path) ? next() : res.status(403).json({
+    status: 'error',
+    message: 'Investor accounts are read-only.'
+  });
+  if (req.user.role !== 'WORKER') return next();
+  const read = req.method === 'GET' && /^(\/bays\/|\/job-cards(?:\/|$)|\/services$|\/users$|\/branding$|\/inventory$|\/materials\/job-card\/|\/leaderboard$)/.test(req.path);
+  const work = req.method === 'PATCH' && /^\/job-cards\/[^/]+\/(start|complete)$/.test(req.path) || req.method === 'POST' && (req.path === '/materials/issue' || /^\/job-cards\/[^/]+\/media$/.test(req.path));
+  return read || work ? next() : res.status(403).json({
+    status: 'error',
+    message: 'Worker access is limited to workshop tasks.'
+  });
+});
 router.post('/auth/verify-pin', verifyAdminPinHandler);
 
 // ---------------------------------------------------------------------------
 // 2. Dynamic Feature Flags & Investor Dashboard
 // ---------------------------------------------------------------------------
-router.get('/settings', getSettingsHandler);
-router.patch('/settings', updateSettingsHandler);
+router.get('/settings', requireRole(['ADMIN', 'MANAGER']), getSettingsHandler);
+router.patch('/settings', requireRole(['ADMIN', 'MANAGER']), updateSettingsHandler);
 router.use('/dashboard', dashboardRoutes);
 
 // ---------------------------------------------------------------------------
@@ -137,8 +207,23 @@ router.get('/vehicles/:registration', getVehicleHandler);
 router.get('/vehicles/lookup/:plate', checkPlateHandler);
 router.get('/bays/check-plate/:plate', checkPlateHandler);
 router.get('/customers', listCustomersHandler);
+router.get('/camera/arrivals', requireRole(['ADMIN', 'MANAGER', 'CASHIER']), async (req, res, next) => {
+  try {
+    res.json({
+      status: 'success',
+      data: await prisma.cameraArrival.findMany({
+        orderBy: {
+          arrived_at: 'desc'
+        },
+        take: 10
+      })
+    });
+  } catch (e) {
+    next(e);
+  }
+});
 router.get('/loyalty', listCustomersHandler);
-router.get('/reports/summary', getReportsSummaryHandler);
+router.get('/reports/summary', requireRole(['ADMIN', 'MANAGER']), getReportsSummaryHandler);
 
 // ---------------------------------------------------------------------------
 // 4. Physical Work Areas (Jack 1, Jack 2, Detailing Bays 1 & 2) & Job Cards
@@ -157,8 +242,8 @@ router.patch('/job-cards/:jobCardId/services/:serviceId/price-override', overrid
 // 4b. Cash Register Sessions (Shift Open / Close / Variance Reconciliation)
 // ---------------------------------------------------------------------------
 router.get('/register/current', getCurrentSessionHandler);
-router.post('/register/open', openSessionHandler);
-router.post('/register/close', closeSessionHandler);
+router.post('/register/open', requireRole(['ADMIN', 'MANAGER']), openSessionHandler);
+router.post('/register/close', requireRole(['ADMIN', 'MANAGER']), closeSessionHandler);
 router.get('/register/history', getHistorySessionsHandler);
 
 // ---------------------------------------------------------------------------
@@ -167,7 +252,10 @@ router.get('/register/history', getHistorySessionsHandler);
 router.post('/printer/thermal-ticket', async (req, res, next) => {
   try {
     const result = await generateThermalIntakeTicket(req.body);
-    res.status(200).json({ status: 'success', data: result });
+    res.status(200).json({
+      status: 'success',
+      data: result
+    });
   } catch (err) {
     next(err);
   }
@@ -175,7 +263,10 @@ router.post('/printer/thermal-ticket', async (req, res, next) => {
 router.post('/printer/thermal-receipt', async (req, res, next) => {
   try {
     const result = await generateThermalCustomerReceipt(req.body);
-    res.status(200).json({ status: 'success', data: result });
+    res.status(200).json({
+      status: 'success',
+      data: result
+    });
   } catch (err) {
     next(err);
   }
@@ -188,6 +279,7 @@ router.post('/invoices/checkout', checkoutHandler);
 router.post('/checkout', checkoutHandler); // convenience alias
 router.post('/invoices/:id/reverse-payment', reversePaymentHandler);
 router.get('/invoices', listInvoicesHandler);
+router.post('/invoices/:id/payments', collectPaymentHandler);
 
 // ---------------------------------------------------------------------------
 // 6. Expenses
@@ -210,7 +302,7 @@ router.get('/users', listUsersHandler);
 router.post('/users', requireRole(['ADMIN']), createUserHandler);
 router.put('/users/:id', requireRole(['ADMIN']), updateUserHandler);
 router.post('/users/:id/reset-password', resetPasswordHandler);
-router.post('/users/:id/update-pin', requireRole(['ADMIN', 'MANAGER']), updatePinHandler);
+router.post('/users/:id/update-pin', requireRole(['ADMIN']), updatePinHandler);
 router.patch('/users/:id/toggle-status', requireRole(['ADMIN']), toggleUserStatusHandler);
 
 // ---------------------------------------------------------------------------
@@ -220,32 +312,42 @@ router.get('/leaderboard', async (req, res, next) => {
   try {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-
     const workers = await prisma.user.findMany({
-      where: { role: 'Worker', is_active: true },
+      where: {
+        role: 'Worker',
+        is_active: true
+      },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        commission_rate: true
+      }
     });
-
     const completedJobsToday = await prisma.jobCard.findMany({
       where: {
-        status: { in: ['Completed', 'COMPLETED'] },
-        updated_at: { gte: startOfDay },
-        worker_id: { not: null },
+        status: {
+          in: ['Completed', 'COMPLETED']
+        },
+        updated_at: {
+          gte: startOfDay
+        },
+        worker_id: {
+          not: null
+        }
       },
       include: {
-        services: true,
-      },
+        services: true
+      }
     });
-
-    const leaderboard = workers.map((worker) => {
-      const workerJobs = completedJobsToday.filter((j) => j.worker_id === worker.id);
+    const leaderboard = workers.map(worker => {
+      const workerJobs = completedJobsToday.filter(j => j.worker_id === worker.id);
       const totalServicesRevenue = workerJobs.reduce((sum, job) => {
         const jobTotal = job.services.reduce((sSum, s) => sSum + parseFloat(s.price_charged), 0);
         return sum + jobTotal;
       }, 0);
-
       const commissionRate = parseFloat(worker.commission_rate) || 0;
-      const commissionEarned = parseFloat(((totalServicesRevenue * commissionRate) / 100).toFixed(2));
-
+      const commissionEarned = parseFloat((totalServicesRevenue * commissionRate / 100).toFixed(2));
       return {
         id: worker.id,
         name: worker.name,
@@ -253,16 +355,14 @@ router.get('/leaderboard', async (req, res, next) => {
         commission_rate: commissionRate,
         cars_completed: workerJobs.length,
         total_revenue_generated: totalServicesRevenue,
-        estimated_commission: commissionEarned,
+        estimated_commission: commissionEarned
       };
     });
-
     leaderboard.sort((a, b) => b.cars_completed - a.cars_completed || b.estimated_commission - a.estimated_commission);
-
     res.status(200).json({
       status: 'success',
       data: leaderboard,
-      as_of: new Date().toISOString(),
+      as_of: new Date().toISOString()
     });
   } catch (err) {
     next(err);
@@ -275,67 +375,23 @@ router.get('/leaderboard', async (req, res, next) => {
 router.get('/ledger', async (req, res, next) => {
   try {
     const accounts = await prisma.ledger.findMany({
-      orderBy: { account_type: 'asc' },
+      orderBy: {
+        account_type: 'asc'
+      }
     });
-    res.status(200).json({ status: 'success', data: accounts });
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.post('/payment', async (req, res, next) => {
-  try {
-    const { amount, payment_method, customer_phone, invoice_number, vehicle_plate, services_summary, notes } = req.body;
-    if (amount === undefined || amount === null || !payment_method) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Missing required fields: "amount" and "payment_method" are required.',
-      });
-    }
-
-    const result = await processPayment(amount, payment_method, {
-      customer_phone,
-      invoice_number,
-      vehicle_plate,
-      services_summary,
-      description: notes,
-    });
-
-    return res.status(200).json({
+    res.status(200).json({
       status: 'success',
-      account_type: result.account_type,
-      previous_balance: result.previous_balance,
-      amount_changed: result.amount_changed,
-      new_balance: result.new_balance,
+      data: accounts
     });
   } catch (err) {
     next(err);
   }
 });
-
-router.post('/expense', async (req, res, next) => {
-  try {
-    const { amount, payment_method, category, description } = req.body;
-    if (amount === undefined || amount === null || !payment_method) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Missing required fields: "amount" and "payment_method" are required.',
-      });
-    }
-
-    const result = await recordExpense(amount, payment_method, { category, description });
-
-    return res.status(200).json({
-      status: 'success',
-      account_type: result.account_type,
-      previous_balance: result.previous_balance,
-      amount_changed: result.amount_changed,
-      new_balance: result.new_balance,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+router.post('/payment', (req, res) => res.status(410).json({
+  status: 'error',
+  message: 'Collect payments through an invoice.'
+}));
+router.post('/expense', createExpenseHandler);
 
 // ---------------------------------------------------------------------------
 // 8b. Multiple Bank Accounts
@@ -351,7 +407,7 @@ router.get('/banks/:id/transactions', getBankAccountTransactionsHandler);
 // ---------------------------------------------------------------------------
 router.get('/branding', getBrandingHandler);
 router.patch('/branding', requireRole(['ADMIN', 'MANAGER']), updateBrandingHandler);
-router.post('/branding/logo', upload.single('logo'), uploadLogoHandler);
+router.post('/branding/logo', requireRole(['ADMIN', 'MANAGER']), upload.single('logo'), validateImage, uploadLogoHandler);
 router.delete('/branding/logo', requireRole(['ADMIN', 'MANAGER']), removeLogoHandler);
 
 // ---------------------------------------------------------------------------
@@ -371,9 +427,9 @@ router.patch('/services/:id/link-inventory', requireRole(['ADMIN', 'MANAGER']), 
 // ---------------------------------------------------------------------------
 // 11. Digital Vehicle Inspection & Liability Media Uploads
 // ---------------------------------------------------------------------------
-router.post('/job-cards/:id/media', upload.single('image'), uploadJobCardMediaHandler);
+router.post('/job-cards/:id/media', upload.single('image'), validateImage, uploadJobCardMediaHandler);
 router.get('/job-cards/:id/media', getJobCardMediaHandler);
-router.delete('/job-cards/media/:mediaId', deleteJobCardMediaHandler);
+router.delete('/job-cards/media/:mediaId', requireRole(['ADMIN', 'MANAGER']), deleteJobCardMediaHandler);
 
 // ---------------------------------------------------------------------------
 // 12. Monthly Financial Engine: Payroll, Yield Mappings & Partner Equity (Admin Only)
@@ -389,6 +445,48 @@ router.post('/inventory/yield-mappings', requireRole(['ADMIN', 'MANAGER']), crea
 // ---------------------------------------------------------------------------
 // 13. Immutable Shop Audit Log (Admin Only)
 // ---------------------------------------------------------------------------
+router.get('/alerts', requireRole(['ADMIN', 'MANAGER']), async (req, res, next) => {
+  try {
+    res.json({
+      status: 'success',
+      data: await prisma.alertOutbox.findMany({
+        where: {
+          status: {
+            not: 'SENT'
+          }
+        },
+        orderBy: {
+          created_at: 'desc'
+        },
+        take: 50
+      })
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+router.post('/alerts/:id/retry', requireRole(['ADMIN', 'MANAGER']), async (req, res, next) => {
+  try {
+    await prisma.alertOutbox.updateMany({
+      where: {
+        id: req.params.id,
+        status: {
+          in: ['FAILED', 'PENDING']
+        }
+      },
+      data: {
+        status: 'PENDING',
+        next_attempt_at: new Date(),
+        error_message: null
+      }
+    });
+    res.json({
+      status: 'success'
+    });
+  } catch (e) {
+    next(e);
+  }
+});
 router.get('/audit-logs', requireRole(['ADMIN']), listAuditLogsHandler);
 
 // ---------------------------------------------------------------------------
@@ -416,5 +514,4 @@ router.get('/materials/job-card/:id', getJobCardMaterialsHandler);
 router.post('/partners/:id/transactions', requireRole(['ADMIN']), createPartnerTransactionHandler);
 router.get('/partners/:id/transactions', requireRole(['ADMIN']), getPartnerTransactionsHandler);
 router.get('/partners/transactions', requireRole(['ADMIN']), listAllPartnerTransactionsHandler);
-
 module.exports = router;

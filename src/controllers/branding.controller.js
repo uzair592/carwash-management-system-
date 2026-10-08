@@ -10,15 +10,15 @@ async function getOrCreateBranding() {
       data: {
         business_name: 'DF PRO Car Wash & Detailing Center',
         tagline: 'Premium Auto Care & Ceramic Studio',
-        address: 'Main Commercial Avenue, Phase 5, DHA',
-        phone: '+92 300 1234567',
-        email: 'info@dfprodetailing.com',
-        ntn_number: '1234567-8',
+        address: '',
+        phone: '',
+        email: '',
+        ntn_number: '',
         logo_url: null,
         logo_size: 120,
         loyalty_threshold: 5,
-        show_business_name: true,
-      },
+        show_business_name: true
+      }
     });
   }
   return branding;
@@ -33,7 +33,7 @@ async function getBrandingHandler(req, res, next) {
     const branding = await getOrCreateBranding();
     return res.status(200).json({
       status: 'success',
-      data: branding,
+      data: branding
     });
   } catch (error) {
     next(error);
@@ -60,11 +60,12 @@ async function updateBrandingHandler(req, res, next) {
       invoice_template,
       token_template,
       vehicle_makes,
-      show_business_name,
+      show_business_name
     } = req.body;
-
     const updated = await prisma.businessBranding.update({
-      where: { id: branding.id },
+      where: {
+        id: branding.id
+      },
       data: {
         business_name: business_name !== undefined ? String(business_name).trim() : undefined,
         tagline: tagline !== undefined ? String(tagline).trim() : undefined,
@@ -78,8 +79,8 @@ async function updateBrandingHandler(req, res, next) {
         invoice_template: invoice_template !== undefined ? String(invoice_template).trim() : undefined,
         token_template: token_template !== undefined ? String(token_template).trim() : undefined,
         vehicle_makes: vehicle_makes !== undefined ? String(vehicle_makes).trim() : undefined,
-        show_business_name: show_business_name !== undefined ? Boolean(show_business_name) : undefined,
-      },
+        show_business_name: show_business_name !== undefined ? Boolean(show_business_name) : undefined
+      }
     });
 
     // Audit log update
@@ -92,15 +93,14 @@ async function updateBrandingHandler(req, res, next) {
         metadata: {
           business_name: updated.business_name,
           logo_size: updated.logo_size,
-          loyalty_threshold: updated.loyalty_threshold,
-        },
-      },
+          loyalty_threshold: updated.loyalty_threshold
+        }
+      }
     });
-
     return res.status(200).json({
       status: 'success',
       message: 'Business branding settings saved successfully.',
-      data: updated,
+      data: updated
     });
   } catch (error) {
     next(error);
@@ -115,31 +115,31 @@ async function uploadLogoHandler(req, res, next) {
   try {
     const branding = await getOrCreateBranding();
     let logoUrl = null;
-
     if (req.file) {
-      logoUrl = `/uploads/${req.file.filename}`;
+      logoUrl = `/uploads/vehicles/${req.file.filename}`;
     } else if (req.body.logo_base64) {
       logoUrl = req.body.logo_base64;
     } else if (req.body.logo_url) {
       logoUrl = req.body.logo_url;
     }
-
     if (!logoUrl) {
       return res.status(400).json({
         status: 'error',
-        message: 'No logo file or image data provided.',
+        message: 'No logo file or image data provided.'
       });
     }
-
     const updated = await prisma.businessBranding.update({
-      where: { id: branding.id },
-      data: { logo_url: logoUrl },
+      where: {
+        id: branding.id
+      },
+      data: {
+        logo_url: logoUrl
+      }
     });
-
     return res.status(200).json({
       status: 'success',
       message: 'Logo updated successfully.',
-      data: updated,
+      data: updated
     });
   } catch (error) {
     next(error);
@@ -154,24 +154,26 @@ async function removeLogoHandler(req, res, next) {
   try {
     const branding = await getOrCreateBranding();
     const updated = await prisma.businessBranding.update({
-      where: { id: branding.id },
-      data: { logo_url: null },
+      where: {
+        id: branding.id
+      },
+      data: {
+        logo_url: null
+      }
     });
-
     return res.status(200).json({
       status: 'success',
       message: 'Logo removed successfully.',
-      data: updated,
+      data: updated
     });
   } catch (error) {
     next(error);
   }
 }
-
 module.exports = {
   getOrCreateBranding,
   getBrandingHandler,
   updateBrandingHandler,
   uploadLogoHandler,
-  removeLogoHandler,
+  removeLogoHandler
 };

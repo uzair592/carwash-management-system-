@@ -1,36 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Boxes,
-  Users,
-  AlertTriangle,
-  PlusCircle,
-  RefreshCw,
-  DollarSign,
-  TrendingUp,
-  Package,
-  Calendar,
-  Lock,
-  Unlock,
-  CheckCircle2,
-  AlertCircle,
-  FileSpreadsheet,
-  ArrowRight,
-  ShieldCheck,
-  ChevronLeft,
-  ChevronRight,
-  Sparkles,
-  PieChart,
-  Percent,
-  Layers,
-  Send,
-  Link as LinkIcon,
-  HelpCircle,
-  Award,
-  Wallet,
-  ShieldAlert,
-  Filter,
-  FileText,
-} from 'lucide-react';
+import { Boxes, Users, AlertTriangle, PlusCircle, RefreshCw, DollarSign, TrendingUp, Package, Calendar, Lock, Unlock, CheckCircle2, AlertCircle, FileSpreadsheet, ArrowRight, ShieldCheck, ChevronLeft, ChevronRight, Sparkles, PieChart, Percent, Layers, Send, Link as LinkIcon, HelpCircle, Award, Wallet, ShieldAlert, Filter, FileText } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import AdminServicesTab from '../components/admin/AdminServicesTab';
@@ -38,9 +7,14 @@ import AdminStaffTab from '../components/admin/AdminStaffTab';
 import AdminBanksTab from '../components/admin/AdminBanksTab';
 import AdminBrandingTab from '../components/admin/AdminBrandingTab';
 import { Tag, Building2, Landmark } from 'lucide-react';
-
 export default function AdminManagement() {
-  const { isAdmin } = useAuth();
+  const {
+    isAdmin
+  } = useAuth();
+  const [paymentBanks, setPaymentBanks] = useState([]);
+  useEffect(() => {
+    axios.get('/api/banks').then(r => setPaymentBanks(r.data.data.accounts)).catch(() => {});
+  }, []);
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(true); // Pre-unlocked for smooth DX
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
@@ -60,7 +34,7 @@ export default function AdminManagement() {
     unit_type: 'ML',
     current_stock: '',
     cost_per_unit: '',
-    low_stock_threshold: '10',
+    low_stock_threshold: '10'
   });
 
   // Service Inventory Mappings state
@@ -70,7 +44,7 @@ export default function AdminManagement() {
   const [yieldForm, setYieldForm] = useState({
     service_id: '',
     inventory_id: '',
-    deduction_amount: '',
+    deduction_amount: ''
   });
 
   // Payroll state
@@ -80,7 +54,7 @@ export default function AdminManagement() {
   const [salaryForm, setSalaryForm] = useState({
     base_salary: '',
     commission_rate: '',
-    flat_commission: '',
+    flat_commission: ''
   });
 
   // Partner Dividends & Equity state
@@ -93,7 +67,7 @@ export default function AdminManagement() {
     id: '',
     partner_name: '',
     equity_percentage: '',
-    phone: '',
+    phone: ''
   });
 
   // Partner Drawings & Capital Transaction state
@@ -103,7 +77,7 @@ export default function AdminManagement() {
     type: 'DRAWING',
     amount: '',
     payment_method: 'CASH',
-    notes: '',
+    notes: ''
   });
 
   // Cash-to-Bank Ledger Transfer state
@@ -112,7 +86,7 @@ export default function AdminManagement() {
     from_account: 'Cash_Drawer',
     to_account: 'Main_Bank',
     amount: '',
-    notes: '',
+    notes: ''
   });
 
   // Audit Logs state
@@ -122,9 +96,11 @@ export default function AdminManagement() {
 
   // Notifications
   const [toast, setToast] = useState(null);
-
   const showToast = (type, text) => {
-    setToast({ type, text });
+    setToast({
+      type,
+      text
+    });
     setTimeout(() => setToast(null), 4000);
   };
 
@@ -147,10 +123,7 @@ export default function AdminManagement() {
   // Fetch Services & Yield Mappings
   const fetchYieldData = async () => {
     try {
-      const [mapsRes, srvRes] = await Promise.all([
-        axios.get('/api/inventory/yield-mappings'),
-        axios.get('/api/services'),
-      ]);
+      const [mapsRes, srvRes] = await Promise.all([axios.get('/api/inventory/yield-mappings'), axios.get('/api/services')]);
       if (mapsRes.data?.data) setYieldMappings(mapsRes.data.data);
       if (srvRes.data?.data) setServicesList(srvRes.data.data);
     } catch (err) {
@@ -159,7 +132,7 @@ export default function AdminManagement() {
   };
 
   // Fetch Payroll for chosen month
-  const fetchPayroll = async (month) => {
+  const fetchPayroll = async month => {
     setIsLoadingPayroll(true);
     try {
       const res = await axios.get(`/api/financials/payroll?month=${month}`);
@@ -175,13 +148,10 @@ export default function AdminManagement() {
   };
 
   // Fetch Partner Dividends & Equity
-  const fetchDividends = async (month) => {
+  const fetchDividends = async month => {
     setIsLoadingDividends(true);
     try {
-      const [divRes, eqRes] = await Promise.all([
-        axios.get(`/api/financials/dividends?month=${month}`),
-        axios.get('/api/financials/equity'),
-      ]);
+      const [divRes, eqRes] = await Promise.all([axios.get(`/api/financials/dividends?month=${month}`), axios.get('/api/financials/equity')]);
       if (divRes.data?.data) setDividendData(divRes.data.data);
       if (eqRes.data?.data) setPartnersList(eqRes.data.data);
     } catch (err) {
@@ -196,10 +166,7 @@ export default function AdminManagement() {
   const fetchAuditLogs = async (filterVal = auditFilter) => {
     setIsLoadingAudit(true);
     try {
-      const url =
-        filterVal && filterVal !== 'ALL'
-          ? `/api/audit-logs?limit=100&action=${filterVal}`
-          : '/api/audit-logs?limit=100';
+      const url = filterVal && filterVal !== 'ALL' ? `/api/audit-logs?limit=100&action=${filterVal}` : '/api/audit-logs?limit=100';
       const res = await axios.get(url);
       if (res.data?.data) {
         setAuditLogs(res.data.data);
@@ -211,7 +178,6 @@ export default function AdminManagement() {
       setIsLoadingAudit(false);
     }
   };
-
   useEffect(() => {
     if (isAdminUnlocked) {
       fetchInventory();
@@ -223,7 +189,7 @@ export default function AdminManagement() {
   }, [isAdminUnlocked, currentMonth]);
 
   // Handle PIN unlock
-  const handlePinSubmit = (e) => {
+  const handlePinSubmit = e => {
     e.preventDefault();
     if (pinInput === '1234') {
       setIsAdminUnlocked(true);
@@ -235,12 +201,12 @@ export default function AdminManagement() {
   };
 
   // Restock action
-  const handleRestockSubmit = async (e) => {
+  const handleRestockSubmit = async e => {
     e.preventDefault();
     if (!restockModal || !restockQty) return;
     try {
       const res = await axios.post(`/api/inventory/${restockModal.id}/restock`, {
-        quantity_added: parseFloat(restockQty),
+        quantity_added: parseFloat(restockQty)
       });
       showToast('success', res.data.message || 'Inventory restocked successfully!');
       setRestockModal(null);
@@ -252,7 +218,7 @@ export default function AdminManagement() {
   };
 
   // Create new inventory item
-  const handleCreateItemSubmit = async (e) => {
+  const handleCreateItemSubmit = async e => {
     e.preventDefault();
     try {
       await axios.post('/api/inventory', newItemForm);
@@ -263,7 +229,7 @@ export default function AdminManagement() {
         unit_type: 'ML',
         current_stock: '',
         cost_per_unit: '',
-        low_stock_threshold: '10',
+        low_stock_threshold: '10'
       });
       fetchInventory();
     } catch (err) {
@@ -272,13 +238,17 @@ export default function AdminManagement() {
   };
 
   // Create or Update Yield Mapping
-  const handleYieldMappingSubmit = async (e) => {
+  const handleYieldMappingSubmit = async e => {
     e.preventDefault();
     try {
       await axios.post('/api/inventory/yield-mappings', yieldForm);
       showToast('success', 'Service inventory yield deduction mapped successfully!');
       setYieldModal(false);
-      setYieldForm({ service_id: '', inventory_id: '', deduction_amount: '' });
+      setYieldForm({
+        service_id: '',
+        inventory_id: '',
+        deduction_amount: ''
+      });
       fetchYieldData();
     } catch (err) {
       showToast('error', err.response?.data?.message || err.message);
@@ -286,14 +256,14 @@ export default function AdminManagement() {
   };
 
   // Update staff salary & commission
-  const handleSalarySubmit = async (e) => {
+  const handleSalarySubmit = async e => {
     e.preventDefault();
     if (!editSalaryModal) return;
     try {
       await axios.patch(`/api/payroll/users/${editSalaryModal.user_id}/salary`, {
         base_salary: parseFloat(salaryForm.base_salary) || 0,
         commission_rate: parseFloat(salaryForm.commission_rate) || 0,
-        flat_commission: parseFloat(salaryForm.flat_commission) || 0,
+        flat_commission: parseFloat(salaryForm.flat_commission) || 0
       });
       showToast('success', `Updated compensation for ${editSalaryModal.name}`);
       setEditSalaryModal(null);
@@ -304,13 +274,18 @@ export default function AdminManagement() {
   };
 
   // Partner Equity Submit
-  const handlePartnerSubmit = async (e) => {
+  const handlePartnerSubmit = async e => {
     e.preventDefault();
     try {
       await axios.post('/api/financials/equity', partnerForm);
       showToast('success', `Partner equity saved successfully!`);
       setEditPartnerModal(null);
-      setPartnerForm({ id: '', partner_name: '', equity_percentage: '', phone: '' });
+      setPartnerForm({
+        id: '',
+        partner_name: '',
+        equity_percentage: '',
+        phone: ''
+      });
       fetchDividends(currentMonth);
     } catch (err) {
       showToast('error', err.response?.data?.message || err.message);
@@ -318,14 +293,20 @@ export default function AdminManagement() {
   };
 
   // Partner Transaction Submit (Drawings / Capital)
-  const handlePartnerTxSubmit = async (e) => {
+  const handlePartnerTxSubmit = async e => {
     e.preventDefault();
     if (!partnerTxForm.partner_id) return;
     try {
       const res = await axios.post(`/api/partners/${partnerTxForm.partner_id}/transactions`, partnerTxForm);
       showToast('success', res.data.message || 'Partner transaction logged successfully!');
       setPartnerTxModal(null);
-      setPartnerTxForm({ partner_id: '', type: 'DRAWING', amount: '', payment_method: 'CASH', notes: '' });
+      setPartnerTxForm({
+        partner_id: '',
+        type: 'DRAWING',
+        amount: '',
+        payment_method: 'CASH',
+        notes: ''
+      });
       fetchDividends(currentMonth);
     } catch (err) {
       showToast('error', err.response?.data?.message || err.message);
@@ -333,13 +314,18 @@ export default function AdminManagement() {
   };
 
   // Cash-to-Bank Vault Transfer Submit
-  const handleTransferSubmit = async (e) => {
+  const handleTransferSubmit = async e => {
     e.preventDefault();
     try {
       const res = await axios.post('/api/ledger/transfer', transferForm);
       showToast('success', res.data.message || 'Ledger transfer executed successfully!');
       setTransferModal(false);
-      setTransferForm({ from_account: 'Cash_Drawer', to_account: 'Main_Bank', amount: '', notes: '' });
+      setTransferForm({
+        from_account: 'Cash_Drawer',
+        to_account: 'Main_Bank',
+        amount: '',
+        notes: ''
+      });
     } catch (err) {
       showToast('error', err.response?.data?.message || err.message);
     }
@@ -349,7 +335,9 @@ export default function AdminManagement() {
   const handleDispatchDividends = async () => {
     setIsDispatchingDividends(true);
     try {
-      const res = await axios.post('/api/financials/dividends/dispatch', { month: currentMonth });
+      const res = await axios.post('/api/financials/dividends/dispatch', {
+        month: currentMonth
+      });
       showToast('success', res.data.message || 'Monthly dividend dossier queued in Telegram Outbox!');
     } catch (err) {
       showToast('error', err.response?.data?.message || 'Failed to dispatch dividends to Telegram.');
@@ -359,7 +347,7 @@ export default function AdminManagement() {
   };
 
   // Month navigation
-  const shiftMonth = (delta) => {
+  const shiftMonth = delta => {
     const [y, m] = currentMonth.split('-').map(Number);
     const date = new Date(y, m - 1 + delta, 1);
     const newMonthStr = date.toISOString().slice(0, 7);
@@ -368,8 +356,7 @@ export default function AdminManagement() {
 
   // PIN Lock Screen
   if (!isAdminUnlocked) {
-    return (
-      <div className="max-w-md mx-auto my-12 p-8 bg-white border border-slate-200 rounded-xl shadow-sm text-center">
+    return <div className="max-w-md mx-auto my-12 p-8 bg-white border border-slate-200 rounded-xl shadow-sm text-center">
         <div className="w-16 h-16 bg-sky-500/10 border border-sky-500/30 text-sky-700 rounded-lg flex items-center justify-center mx-auto mb-6">
           <Lock className="w-8 h-8" />
         </div>
@@ -379,50 +366,28 @@ export default function AdminManagement() {
         </p>
 
         <form onSubmit={handlePinSubmit} className="mt-6 space-y-4">
-          <input
-            type="password"
-            maxLength={6}
-            placeholder="Enter management PIN"
-            value={pinInput}
-            onChange={(e) => setPinInput(e.target.value)}
-            className="w-full text-center text-2xl tracking-widest tabular-nums bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:border-sky-500"
-            autoFocus
-          />
+          <input type="password" maxLength={6} placeholder="Enter management PIN" value={pinInput} onChange={e => setPinInput(e.target.value)} className="w-full text-center text-2xl tracking-widest tabular-nums bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:border-sky-500" autoFocus />
           {pinError && <p className="text-xs text-rose-700">{pinError}</p>}
-          <button
-            type="submit"
-            className="w-full bg-sky-500 text-white hover:bg-sky-400 text-slate-950 font-bold py-3 rounded-xl transition flex items-center justify-center gap-2"
-          >
+          <button type="submit" className="w-full bg-sky-500 text-white hover:bg-sky-400 text-slate-950 font-bold py-3 rounded-xl transition flex items-center justify-center gap-2">
             <Unlock className="w-4 h-4" /> Unlock Admin Panel
           </button>
         </form>
-      </div>
-    );
+      </div>;
   }
 
   // Inventory Totals
   const totalInvValue = inventory.reduce((sum, item) => sum + item.current_stock * item.cost_per_unit, 0);
-  const lowStockCount = inventory.filter((item) => item.is_low_stock).length;
+  const lowStockCount = inventory.filter(item => item.is_low_stock).length;
 
   // Partner equity sum
   const currentPartners = dividendData?.partners || partnersList;
   const totalEquitySum = currentPartners.reduce((acc, p) => acc + (parseFloat(p.equity_percentage) || 0), 0);
-
-  return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+  return <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* Toast Notification */}
-      {toast && (
-        <div
-          className={`fixed bottom-6 right-6 z-50 p-4 rounded-lg border shadow-sm flex items-center gap-3 ${
-            toast.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-              : 'bg-rose-50 border-rose-200 text-rose-700'
-          }`}
-        >
+      {toast && <div className={`fixed bottom-6 right-6 z-50 p-4 rounded-lg border shadow-sm flex items-center gap-3 ${toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
           {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
           <span className="text-sm font-semibold">{toast.text}</span>
-        </div>
-      )}
+        </div>}
 
       {/* Top Banner & Tab Navigation */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 shadow-sm ">
@@ -447,97 +412,87 @@ export default function AdminManagement() {
 
         {/* Tab Toggle Buttons */}
         <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
-          {[
-            { id: 'services', label: 'Services Catalog', icon: Tag, color: 'blue' },
-            ...(isAdmin
-              ? [
-                  { id: 'staff', label: 'Staff & Roles', icon: Users, color: 'blue' },
-                  { id: 'banks', label: 'Bank Accounts', icon: Landmark, color: 'blue' },
-                  { id: 'branding', label: 'Logo & Branding', icon: Building2, color: 'blue' },
-                ]
-              : []),
-            {
-              id: 'inventory',
-              label: 'Inventory',
-              icon: Boxes,
-              color: 'sky',
-              badge: lowStockCount > 0 ? (
-                <span className="bg-rose-500 text-white text-xs px-1.5 py-0.2 rounded-full font-bold">
+          {[{
+          id: 'services',
+          label: 'Services Catalog',
+          icon: Tag,
+          color: 'blue'
+        }, ...(isAdmin ? [{
+          id: 'staff',
+          label: 'Staff & Roles',
+          icon: Users,
+          color: 'blue'
+        }, {
+          id: 'banks',
+          label: 'Bank Accounts',
+          icon: Landmark,
+          color: 'blue'
+        }, {
+          id: 'branding',
+          label: 'Logo & Branding',
+          icon: Building2,
+          color: 'blue'
+        }] : []), {
+          id: 'inventory',
+          label: 'Inventory',
+          icon: Boxes,
+          color: 'sky',
+          badge: lowStockCount > 0 ? <span className="bg-rose-500 text-white text-xs px-1.5 py-0.2 rounded-full font-bold">
                   {lowStockCount}
-                </span>
-              ) : null,
-            },
-            ...(isAdmin
-              ? [
-                  { id: 'payroll', label: 'Monthly Payroll', icon: Users, color: 'sky' },
-                  { id: 'dividends', label: 'Partner Profit Split', icon: PieChart, color: 'emerald' },
-                  {
-                    id: 'audit',
-                    label: 'Audit Log',
-                    icon: ShieldAlert,
-                    color: 'rose',
-                    onClick: () => {
-                      setActiveAdminTab('audit');
-                      fetchAuditLogs(auditFilter);
-                    },
-                    badge: auditLogs.length > 0 ? (
-                      <span className="bg-rose-50 text-rose-700 tabular-nums text-xs px-1.5 py-0.2 rounded-full border border-rose-200">
+                </span> : null
+        }, ...(isAdmin ? [{
+          id: 'payroll',
+          label: 'Monthly Payroll',
+          icon: Users,
+          color: 'sky'
+        }, {
+          id: 'dividends',
+          label: 'Partner Profit Split',
+          icon: PieChart,
+          color: 'emerald'
+        }, {
+          id: 'audit',
+          label: 'Audit Log',
+          icon: ShieldAlert,
+          color: 'rose',
+          onClick: () => {
+            setActiveAdminTab('audit');
+            fetchAuditLogs(auditFilter);
+          },
+          badge: auditLogs.length > 0 ? <span className="bg-rose-50 text-rose-700 tabular-nums text-xs px-1.5 py-0.2 rounded-full border border-rose-200">
                         {auditLogs.length}
-                      </span>
-                    ) : null,
-                  },
-                ]
-              : []),
-          ].map((tab) => {
-            const IconComponent = tab.icon;
-            const isActive = activeAdminTab === tab.id;
-            let activeClass = 'bg-blue-600 text-white shadow-sm';
-            if (tab.color === 'sky') activeClass = 'bg-sky-500 text-white text-slate-950 shadow-sm';
-            if (tab.color === 'emerald') activeClass = 'bg-emerald-500 text-white text-slate-950 shadow-sm';
-            if (tab.color === 'rose') activeClass = 'bg-rose-500 text-white shadow-sm';
-
-            let inactiveClass = 'text-slate-600 hover:text-slate-900';
-            if (tab.color === 'sky' || tab.color === 'emerald') inactiveClass = 'text-slate-500 hover:text-slate-900';
-            if (tab.color === 'rose') inactiveClass = 'text-rose-700/80 hover:text-rose-700 hover:bg-rose-50';
-
-            return (
-              <button
-                key={tab.id}
-                onClick={tab.onClick || (() => setActiveAdminTab(tab.id))}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-                  isActive ? activeClass : inactiveClass
-                }`}
-              >
+                      </span> : null
+        }] : [])].map(tab => {
+          const IconComponent = tab.icon;
+          const isActive = activeAdminTab === tab.id;
+          let activeClass = 'bg-blue-600 text-white shadow-sm';
+          if (tab.color === 'sky') activeClass = 'bg-sky-500 text-white text-slate-950 shadow-sm';
+          if (tab.color === 'emerald') activeClass = 'bg-emerald-500 text-white text-slate-950 shadow-sm';
+          if (tab.color === 'rose') activeClass = 'bg-rose-500 text-white shadow-sm';
+          let inactiveClass = 'text-slate-600 hover:text-slate-900';
+          if (tab.color === 'sky' || tab.color === 'emerald') inactiveClass = 'text-slate-500 hover:text-slate-900';
+          if (tab.color === 'rose') inactiveClass = 'text-rose-700/80 hover:text-rose-700 hover:bg-rose-50';
+          return <button key={tab.id} onClick={tab.onClick || (() => setActiveAdminTab(tab.id))} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${isActive ? activeClass : inactiveClass}`}>
                 <IconComponent className="w-4 h-4" />
                 {tab.label}
                 {tab.badge}
-              </button>
-            );
-          })}
+              </button>;
+        })}
         </div>
       </div>
 
       {/* ============================================================== */}
       {/* NEW TABS: SERVICES, STAFF, BANKS, BRANDING */}
       {/* ============================================================== */}
-      {activeAdminTab === 'services' && (
-        <AdminServicesTab onRefreshNeeded={fetchYieldData} />
-      )}
-      {activeAdminTab === 'staff' && (
-        <AdminStaffTab />
-      )}
-      {activeAdminTab === 'banks' && (
-        <AdminBanksTab />
-      )}
-      {activeAdminTab === 'branding' && (
-        <AdminBrandingTab />
-      )}
+      {activeAdminTab === 'services' && <AdminServicesTab onRefreshNeeded={fetchYieldData} />}
+      {activeAdminTab === 'staff' && <AdminStaffTab />}
+      {activeAdminTab === 'banks' && <AdminBanksTab />}
+      {activeAdminTab === 'branding' && <AdminBrandingTab />}
 
       {/* ============================================================== */}
       {/* TAB 1: INVENTORY YIELD & CONSUMABLE MANAGEMENT */}
       {/* ============================================================== */}
-      {activeAdminTab === 'inventory' && (
-        <div className="space-y-6">
+      {activeAdminTab === 'inventory' && <div className="space-y-6">
           {/* Quick Metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white border border-slate-200 p-5 rounded-lg">
@@ -566,7 +521,7 @@ export default function AdminManagement() {
                 <LinkIcon className="w-4 h-4 text-emerald-700" />
               </div>
               <p className="text-2xl font-semibold text-emerald-700 mt-2">{yieldMappings.length} Mappings</p>
-              <p className="text-xs text-slate-500 mt-1">Deducted automatically on invoice</p>
+              <p className="text-xs text-slate-500 mt-1">Issued by workers during the job</p>
             </div>
 
             <div className="bg-white border border-slate-200 p-5 rounded-lg">
@@ -575,7 +530,9 @@ export default function AdminManagement() {
                 <DollarSign className="w-4 h-4 text-emerald-700" />
               </div>
               <p className="text-2xl font-semibold text-slate-900 mt-2">
-                Rs. {totalInvValue.toLocaleString('en-US', { minimumFractionDigits: 0 })}
+                Rs. {totalInvValue.toLocaleString('en-US', {
+              minimumFractionDigits: 0
+            })}
               </p>
               <p className="text-xs text-slate-500 mt-1">Current assets on premises</p>
             </div>
@@ -594,17 +551,10 @@ export default function AdminManagement() {
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  onClick={fetchInventory}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-600 p-2.5 rounded-xl transition"
-                  title="Refresh Stock"
-                >
+                <button onClick={fetchInventory} className="bg-slate-100 hover:bg-slate-200 text-slate-600 p-2.5 rounded-xl transition" title="Refresh Stock">
                   <RefreshCw className={`w-4 h-4 ${isLoadingInv ? 'animate-spin' : ''}`} />
                 </button>
-                <button
-                  onClick={() => setNewConsumableModal(true)}
-                  className="bg-sky-500 text-white hover:bg-sky-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2"
-                >
+                <button onClick={() => setNewConsumableModal(true)} className="bg-sky-500 text-white hover:bg-sky-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2">
                   <PlusCircle className="w-4 h-4" /> Add Consumable
                 </button>
               </div>
@@ -625,8 +575,7 @@ export default function AdminManagement() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 text-slate-600">
-                  {inventory.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-100 transition">
+                  {inventory.map(item => <tr key={item.id} className="hover:bg-slate-100 transition">
                       <td className="py-3.5 px-4 font-bold text-slate-900 flex items-center gap-2">
                         {item.item_name}
                       </td>
@@ -636,51 +585,45 @@ export default function AdminManagement() {
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-right tabular-nums font-bold text-slate-900">
-                        {item.current_stock.toLocaleString('en-US', { minimumFractionDigits: 1 })}{' '}
+                        {item.current_stock.toLocaleString('en-US', {
+                    minimumFractionDigits: 1
+                  })}{' '}
                         <span className="text-slate-500 text-xs">{item.unit_type}</span>
                       </td>
                       <td className="py-3.5 px-4 text-right tabular-nums text-slate-600">
-                        Rs. {item.cost_per_unit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        Rs. {item.cost_per_unit.toLocaleString('en-US', {
+                    minimumFractionDigits: 2
+                  })}
                       </td>
                       <td className="py-3.5 px-4 text-right tabular-nums font-bold text-emerald-700">
                         Rs. {(item.current_stock * item.cost_per_unit).toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                        })}
+                    minimumFractionDigits: 2
+                  })}
                       </td>
                       <td className="py-3.5 px-4 text-center tabular-nums text-slate-500">
                         {item.low_stock_threshold} {item.unit_type}
                       </td>
                       <td className="py-3.5 px-4 text-center">
-                        {item.is_low_stock ? (
-                          <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 text-xs tabular-nums px-2 py-0.5 rounded font-bold border border-rose-200">
+                        {item.is_low_stock ? <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 text-xs tabular-nums px-2 py-0.5 rounded font-bold border border-rose-200">
                             <AlertTriangle className="w-3 h-3" /> Low Stock Alert
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-xs tabular-nums px-2 py-0.5 rounded font-bold border border-emerald-200">
+                          </span> : <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-xs tabular-nums px-2 py-0.5 rounded font-bold border border-emerald-200">
                             <CheckCircle2 className="w-3 h-3" /> Healthy Stock
-                          </span>
-                        )}
+                          </span>}
                       </td>
                       <td className="py-3.5 px-4 text-center">
-                        <button
-                          onClick={() => {
-                            setRestockModal(item);
-                            setRestockQty('');
-                          }}
-                          className="text-xs bg-slate-100 hover:bg-emerald-600 text-white hover:text-slate-950 text-slate-700 px-3 py-1 rounded-lg font-semibold transition"
-                        >
+                        <button onClick={() => {
+                    setRestockModal(item);
+                    setRestockQty('');
+                  }} className="text-xs bg-slate-100 hover:bg-emerald-600 text-white hover:text-slate-950 text-slate-700 px-3 py-1 rounded-lg font-semibold transition">
                           + Restock
                         </button>
                       </td>
-                    </tr>
-                  ))}
-                  {inventory.length === 0 && (
-                    <tr>
+                    </tr>)}
+                  {inventory.length === 0 && <tr>
                       <td colSpan={8} className="text-center py-8 text-slate-500">
                         No consumables tracked. Click "Add Consumable" to register stock.
                       </td>
-                    </tr>
-                  )}
+                    </tr>}
                 </tbody>
               </table>
             </div>
@@ -694,14 +637,11 @@ export default function AdminManagement() {
                   <LinkIcon className="w-5 h-5 text-emerald-700" /> Service Yield Rules (Deduction on Checkout)
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  When a customer is invoiced, the exact chemical/roll quantity is deducted automatically in an atomic transaction.
+                  Workers record actual chemical or film usage during the job. Each issue reduces stock and records its cost in one transaction.
                 </p>
               </div>
 
-              <button
-                onClick={() => setYieldModal(true)}
-                className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2"
-              >
+              <button onClick={() => setYieldModal(true)} className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2">
                 <PlusCircle className="w-4 h-4" /> Map Consumable to Service
               </button>
             </div>
@@ -719,8 +659,7 @@ export default function AdminManagement() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 text-slate-600">
-                  {yieldMappings.map((map) => (
-                    <tr key={map.id} className="hover:bg-slate-100 transition">
+                  {yieldMappings.map(map => <tr key={map.id} className="hover:bg-slate-100 transition">
                       <td className="py-3.5 px-4 font-bold text-slate-900">{map.service?.name}</td>
                       <td className="py-3.5 px-4 text-slate-700">{map.inventory?.item_name}</td>
                       <td className="py-3.5 px-4 text-center tabular-nums">
@@ -733,35 +672,30 @@ export default function AdminManagement() {
                       </td>
                       <td className="py-3.5 px-4 text-right tabular-nums text-emerald-700 font-bold">
                         Rs. {(map.deduction_amount * (map.inventory?.cost_per_unit || 0)).toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                        })}
+                    minimumFractionDigits: 2
+                  })}
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-xs tabular-nums px-2 py-0.5 rounded font-bold border border-emerald-200">
                           <ShieldCheck className="w-3 h-3" /> Auto-Deducted
                         </span>
                       </td>
-                    </tr>
-                  ))}
-                  {yieldMappings.length === 0 && (
-                    <tr>
+                    </tr>)}
+                  {yieldMappings.length === 0 && <tr>
                       <td colSpan={6} className="text-center py-6 text-slate-500">
                         No yield rules mapped yet. Map a service to an inventory item to automate deductions.
                       </td>
-                    </tr>
-                  )}
+                    </tr>}
                 </tbody>
               </table>
             </div>
           </div>
-        </div>
-      )}
+        </div>}
 
       {/* ============================================================== */}
       {/* TAB 2: STAFF PAYROLL ENGINE */}
       {/* ============================================================== */}
-      {activeAdminTab === 'payroll' && (
-        <div className="space-y-6">
+      {activeAdminTab === 'payroll' && <div className="space-y-6">
           {/* Payroll Header & Month Navigation */}
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
@@ -775,34 +709,17 @@ export default function AdminManagement() {
 
             {/* Month Picker Controls */}
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-lg">
-              <button
-                onClick={() => shiftMonth(-1)}
-                className="p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition"
-                title="Previous Month"
-              >
+              <button onClick={() => shiftMonth(-1)} className="p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition" title="Previous Month">
                 <ChevronLeft className="w-4 h-4" />
               </button>
 
-              <input
-                type="month"
-                value={currentMonth}
-                onChange={(e) => setCurrentMonth(e.target.value)}
-                className="bg-transparent text-slate-900 tabular-nums text-sm px-2 py-1 focus:outline-none cursor-pointer"
-              />
+              <input type="month" value={currentMonth} onChange={e => setCurrentMonth(e.target.value)} className="bg-transparent text-slate-900 tabular-nums text-sm px-2 py-1 focus:outline-none cursor-pointer" />
 
-              <button
-                onClick={() => shiftMonth(1)}
-                className="p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition"
-                title="Next Month"
-              >
+              <button onClick={() => shiftMonth(1)} className="p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition" title="Next Month">
                 <ChevronRight className="w-4 h-4" />
               </button>
 
-              <button
-                onClick={() => fetchPayroll(currentMonth)}
-                className="bg-sky-500 text-white hover:bg-sky-400 text-slate-950 p-2 rounded-xl transition"
-                title="Refresh Payroll"
-              >
+              <button onClick={() => fetchPayroll(currentMonth)} className="bg-sky-500 text-white hover:bg-sky-400 text-slate-950 p-2 rounded-xl transition" title="Refresh Payroll">
                 <RefreshCw className={`w-4 h-4 ${isLoadingPayroll ? 'animate-spin' : ''}`} />
               </button>
             </div>
@@ -822,8 +739,8 @@ export default function AdminManagement() {
               <span className="text-xs text-slate-500 font-medium">Total Base Salaries</span>
               <p className="text-2xl font-semibold text-slate-700 mt-2">
                 Rs. {(payrollData?.summary?.total_base_salaries || 0).toLocaleString('en-US', {
-                  minimumFractionDigits: 0,
-                })}
+              minimumFractionDigits: 0
+            })}
               </p>
               <p className="text-xs text-slate-500 mt-1">Fixed monthly payroll commitments</p>
             </div>
@@ -832,8 +749,8 @@ export default function AdminManagement() {
               <span className="text-xs text-slate-500 font-medium">Total Commissions</span>
               <p className="text-2xl font-semibold text-amber-700 mt-2">
                 Rs. {(payrollData?.summary?.total_commissions || 0).toLocaleString('en-US', {
-                  minimumFractionDigits: 0,
-                })}
+              minimumFractionDigits: 0
+            })}
               </p>
               <p className="text-xs text-slate-500 mt-1">Earned from completed wash & detailing jobs</p>
             </div>
@@ -842,8 +759,8 @@ export default function AdminManagement() {
               <span className="text-xs text-emerald-700 font-medium">Grand Total Payroll Payout</span>
               <p className="text-2xl font-semibold text-emerald-700 mt-2">
                 Rs. {(payrollData?.summary?.total_payroll_expense || 0).toLocaleString('en-US', {
-                  minimumFractionDigits: 0,
-                })}
+              minimumFractionDigits: 0
+            })}
               </p>
               <p className="text-xs text-emerald-500/80 mt-1">Base Salaries + Total Commissions</p>
             </div>
@@ -876,78 +793,67 @@ export default function AdminManagement() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 text-slate-600">
-                  {payrollData?.payroll?.map((staff) => (
-                    <tr key={staff.user_id} className="hover:bg-slate-100 transition">
+                  {payrollData?.payroll?.map(staff => <tr key={staff.user_id} className="hover:bg-slate-100 transition">
                       <td className="py-3.5 px-4 font-bold text-slate-900">{staff.name}</td>
                       <td className="py-3.5 px-4">
-                        <span
-                          className={`text-xs tabular-nums px-2 py-0.5 rounded font-bold ${
-                            staff.role === 'Admin'
-                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                              : staff.role === 'Cashier'
-                              ? 'bg-sky-50 text-sky-700 border border-sky-200'
-                              : 'bg-amber-50 text-amber-700 border border-amber-200'
-                          }`}
-                        >
+                        <span className={`text-xs tabular-nums px-2 py-0.5 rounded font-bold ${staff.role === 'Admin' ? 'bg-purple-50 text-purple-700 border border-purple-200' : staff.role === 'Cashier' ? 'bg-sky-50 text-sky-700 border border-sky-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
                           {staff.role} {staff.team ? `(${staff.team})` : ''}
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-right tabular-nums text-slate-700">
-                        Rs. {staff.base_salary.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        Rs. {staff.base_salary.toLocaleString('en-US', {
+                    minimumFractionDigits: 2
+                  })}
                       </td>
                       <td className="py-3.5 px-4 text-center tabular-nums font-bold text-slate-900">
                         {staff.completed_jobs_count}
                       </td>
                       <td className="py-3.5 px-4 text-right tabular-nums text-slate-500">
-                        Rs. {staff.total_revenue_generated.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        Rs. {staff.total_revenue_generated.toLocaleString('en-US', {
+                    minimumFractionDigits: 2
+                  })}
                       </td>
                       <td className="py-3.5 px-4 text-center tabular-nums text-amber-700 font-bold">
-                        {staff.commission_mode === 'FLAT_PER_CAR'
-                          ? `Rs. ${staff.flat_commission} / car`
-                          : `${staff.commission_rate}%`}
+                        {staff.commission_mode === 'FLAT_PER_CAR' ? `Rs. ${staff.flat_commission} / car` : `${staff.commission_rate}%`}
                       </td>
                       <td className="py-3.5 px-4 text-right tabular-nums font-bold text-amber-700">
-                        Rs. {staff.commissions_earned.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        Rs. {staff.commissions_earned.toLocaleString('en-US', {
+                    minimumFractionDigits: 2
+                  })}
                       </td>
                       <td className="py-3.5 px-4 text-right tabular-nums font-semibold text-emerald-700 text-sm">
-                        Rs. {staff.total_payout.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        Rs. {staff.total_payout.toLocaleString('en-US', {
+                    minimumFractionDigits: 2
+                  })}
                       </td>
                       <td className="py-3.5 px-4 text-center">
-                        <button
-                          onClick={() => {
-                            setEditSalaryModal(staff);
-                            setSalaryForm({
-                              base_salary: staff.base_salary,
-                              commission_rate: staff.commission_rate,
-                              flat_commission: staff.flat_commission || 0,
-                            });
-                          }}
-                          className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2.5 py-1 rounded-lg transition"
-                        >
+                        <button onClick={() => {
+                    setEditSalaryModal(staff);
+                    setSalaryForm({
+                      base_salary: staff.base_salary,
+                      commission_rate: staff.commission_rate,
+                      flat_commission: staff.flat_commission || 0
+                    });
+                  }} className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2.5 py-1 rounded-lg transition">
                           Edit Pay
                         </button>
                       </td>
-                    </tr>
-                  ))}
-                  {(!payrollData?.payroll || payrollData?.payroll.length === 0) && (
-                    <tr>
+                    </tr>)}
+                  {(!payrollData?.payroll || payrollData?.payroll.length === 0) && <tr>
                       <td colSpan={9} className="text-center py-8 text-slate-500">
                         No staff records found for month {currentMonth}.
                       </td>
-                    </tr>
-                  )}
+                    </tr>}
                 </tbody>
               </table>
             </div>
           </div>
-        </div>
-      )}
+        </div>}
 
       {/* ============================================================== */}
       {/* TAB 3: PARTNER EQUITY & PROFIT SPLIT ENGINE */}
       {/* ============================================================== */}
-      {activeAdminTab === 'dividends' && (
-        <div className="space-y-6">
+      {activeAdminTab === 'dividends' && <div className="space-y-6">
           {/* Header & Telegram Outbox Dispatch */}
           <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
             <div>
@@ -968,44 +874,23 @@ export default function AdminManagement() {
             <div className="flex flex-wrap items-center gap-3">
               {/* Month Picker Controls */}
               <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-lg">
-                <button
-                  onClick={() => shiftMonth(-1)}
-                  className="p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition"
-                  title="Previous Month"
-                >
+                <button onClick={() => shiftMonth(-1)} className="p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition" title="Previous Month">
                   <ChevronLeft className="w-4 h-4" />
                 </button>
 
-                <input
-                  type="month"
-                  value={currentMonth}
-                  onChange={(e) => setCurrentMonth(e.target.value)}
-                  className="bg-transparent text-slate-900 tabular-nums text-sm px-2 py-1 focus:outline-none cursor-pointer"
-                />
+                <input type="month" value={currentMonth} onChange={e => setCurrentMonth(e.target.value)} className="bg-transparent text-slate-900 tabular-nums text-sm px-2 py-1 focus:outline-none cursor-pointer" />
 
-                <button
-                  onClick={() => shiftMonth(1)}
-                  className="p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition"
-                  title="Next Month"
-                >
+                <button onClick={() => shiftMonth(1)} className="p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition" title="Next Month">
                   <ChevronRight className="w-4 h-4" />
                 </button>
 
-                <button
-                  onClick={() => fetchDividends(currentMonth)}
-                  className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 p-2 rounded-xl transition"
-                  title="Refresh Financials"
-                >
+                <button onClick={() => fetchDividends(currentMonth)} className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 p-2 rounded-xl transition" title="Refresh Financials">
                   <RefreshCw className={`w-4 h-4 ${isLoadingDividends ? 'animate-spin' : ''}`} />
                 </button>
               </div>
 
               {/* Push to Telegram Button */}
-              <button
-                onClick={handleDispatchDividends}
-                disabled={isDispatchingDividends}
-                className="bg-sky-500 text-white hover:bg-sky-400 disabled:opacity-50 text-slate-950 font-bold px-4 py-2.5 rounded-lg text-xs transition flex items-center gap-2 shadow-sm"
-              >
+              <button onClick={handleDispatchDividends} disabled={isDispatchingDividends} className="bg-sky-500 text-white hover:bg-sky-400 disabled:opacity-50 text-slate-950 font-bold px-4 py-2.5 rounded-lg text-xs transition flex items-center gap-2 shadow-sm">
                 <Send className={`w-4 h-4 ${isDispatchingDividends ? '' : ''}`} />
                 {isDispatchingDividends ? 'Queueing Dossier...' : 'Push to Telegram Outbox'}
               </button>
@@ -1018,8 +903,8 @@ export default function AdminManagement() {
               <span className="text-xs text-slate-500 font-medium">1. Gross Revenue</span>
               <p className="text-2xl font-semibold text-slate-900 mt-2">
                 Rs. {(dividendData?.summary?.gross_revenue || 0).toLocaleString('en-US', {
-                  minimumFractionDigits: 0,
-                })}
+              minimumFractionDigits: 0
+            })}
               </p>
               <p className="text-xs text-slate-500 mt-1">Sum of all customer invoices</p>
             </div>
@@ -1028,8 +913,8 @@ export default function AdminManagement() {
               <span className="text-xs text-slate-500 font-medium">2. Operating Expenses</span>
               <p className="text-2xl font-semibold text-rose-700 mt-2">
                 - Rs. {(dividendData?.summary?.total_expenses || 0).toLocaleString('en-US', {
-                  minimumFractionDigits: 0,
-                })}
+              minimumFractionDigits: 0
+            })}
               </p>
               <p className="text-xs text-slate-500 mt-1">Shop rent, utilities, tea, misc</p>
             </div>
@@ -1038,8 +923,8 @@ export default function AdminManagement() {
               <span className="text-xs text-slate-500 font-medium">3. Staff Payroll</span>
               <p className="text-2xl font-semibold text-amber-700 mt-2">
                 - Rs. {(dividendData?.summary?.total_payroll || 0).toLocaleString('en-US', {
-                  minimumFractionDigits: 0,
-                })}
+              minimumFractionDigits: 0
+            })}
               </p>
               <p className="text-xs text-slate-500 mt-1">Base salaries + commissions</p>
             </div>
@@ -1048,8 +933,8 @@ export default function AdminManagement() {
               <span className="text-xs text-slate-500 font-medium">4. Consumables COGS</span>
               <p className="text-2xl font-semibold text-indigo-700 mt-2">
                 - Rs. {(dividendData?.summary?.cogs || 0).toLocaleString('en-US', {
-                  minimumFractionDigits: 0,
-                })}
+              minimumFractionDigits: 0
+            })}
               </p>
               <p className="text-xs text-slate-500 mt-1">Chemicals & PPF rolls used</p>
             </div>
@@ -1063,8 +948,8 @@ export default function AdminManagement() {
               </div>
               <p className="text-2xl font-semibold text-emerald-700 mt-2">
                 Rs. {(dividendData?.summary?.net_distributable_profit || 0).toLocaleString('en-US', {
-                  minimumFractionDigits: 0,
-                })}
+              minimumFractionDigits: 0
+            })}
               </p>
               <p className="text-xs text-emerald-500/80 mt-1">Available for Partner Dividends</p>
             </div>
@@ -1079,11 +964,7 @@ export default function AdminManagement() {
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
                   Total Equity Registered:{' '}
-                  <span
-                    className={`tabular-nums font-bold ${
-                      Math.abs(totalEquitySum - 100) < 0.1 ? 'text-emerald-700' : 'text-amber-700'
-                    }`}
-                  >
+                  <span className={`tabular-nums font-bold ${Math.abs(totalEquitySum - 100) < 0.1 ? 'text-emerald-700' : 'text-amber-700'}`}>
                     {totalEquitySum.toFixed(1)}%
                   </span>
                   {Math.abs(totalEquitySum - 100) >= 0.1 && ' (Warning: Equity shares do not equal 100%)'}
@@ -1091,19 +972,20 @@ export default function AdminManagement() {
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setTransferModal(true)}
-                  className="bg-sky-500/10 hover:bg-sky-500/20 text-sky-700 border border-sky-500/30 font-bold px-3.5 py-2.5 rounded-xl text-xs transition flex items-center gap-2"
-                >
+                <button onClick={() => setActiveAdminTab('banks')} className="bg-sky-500/10 hover:bg-sky-500/20 text-sky-700 border border-sky-500/30 font-bold px-3.5 py-2.5 rounded-xl text-xs transition flex items-center gap-2">
                   <Wallet className="w-4 h-4" /> Transfer Cash to Bank
                 </button>
-                <button
-                  onClick={() => {
-                    setPartnerForm({ id: '', partner_name: '', equity_percentage: '', phone: '' });
-                    setEditPartnerModal({ isNew: true });
-                  }}
-                  className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2"
-                >
+                <button onClick={() => {
+              setPartnerForm({
+                id: '',
+                partner_name: '',
+                equity_percentage: '',
+                phone: ''
+              });
+              setEditPartnerModal({
+                isNew: true
+              });
+            }} className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2">
                   <PlusCircle className="w-4 h-4" /> Add Partner
                 </button>
               </div>
@@ -1112,32 +994,19 @@ export default function AdminManagement() {
             {/* Partner Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {(dividendData?.partners || partnersList).map((partner, pIdx) => {
-                const equityPct = parseFloat(partner.equity_percentage) || 0;
-                const netProfit = dividendData?.summary?.net_distributable_profit || 0;
-                const calculatedDividend =
-                  partner.dividend_amount !== undefined
-                    ? partner.dividend_amount
-                    : Math.round(((netProfit * equityPct) / 100) * 100) / 100;
-                const drawingsDeducted = parseFloat(partner.drawings_amount || 0);
-                const finalNetPayout =
-                  partner.net_payout !== undefined
-                    ? partner.net_payout
-                    : Math.max(0, calculatedDividend - drawingsDeducted);
-
-                return (
-                  <div
-                    key={partner.id || partner.partner_id || partner.partner_name || `partner-${pIdx}`}
-                    className="bg-slate-50 border border-slate-200 hover:border-slate-200 rounded-lg p-5 transition flex flex-col justify-between"
-                  >
+            const equityPct = parseFloat(partner.equity_percentage) || 0;
+            const netProfit = dividendData?.summary?.net_distributable_profit || 0;
+            const calculatedDividend = partner.dividend_amount !== undefined ? partner.dividend_amount : Math.round(netProfit * equityPct / 100 * 100) / 100;
+            const drawingsDeducted = parseFloat(partner.drawings_amount || 0);
+            const finalNetPayout = partner.net_payout !== undefined ? partner.net_payout : Math.max(0, calculatedDividend - drawingsDeducted);
+            return <div key={partner.id || partner.partner_id || partner.partner_name || `partner-${pIdx}`} className="bg-slate-50 border border-slate-200 hover:border-slate-200 rounded-lg p-5 transition flex flex-col justify-between">
                     <div>
                       <div className="flex items-start justify-between">
                         <div>
                           <h4 className="text-base font-bold text-slate-900">{partner.partner_name}</h4>
-                          {partner.phone && (
-                            <span className="text-xs text-slate-500 tabular-nums mt-0.5 block">
+                          {partner.phone && <span className="text-xs text-slate-500 tabular-nums mt-0.5 block">
                               {partner.phone}
-                            </span>
-                          )}
+                            </span>}
                         </div>
                         <span className="bg-sky-50 text-sky-700 tabular-nums text-xs font-bold px-2.5 py-1 rounded-full border border-sky-200">
                           {equityPct.toFixed(1)}% Equity
@@ -1146,72 +1015,68 @@ export default function AdminManagement() {
 
                       {/* Visual Progress Bar */}
                       <div className="w-full bg-white h-2 rounded-full mt-4 overflow-hidden">
-                        <div
-                          className="bg-gradient-to-r from-emerald-500 text-white to-sky-500 h-full rounded-full transition-all duration-500"
-                          style={{ width: `${Math.min(100, equityPct)}%` }}
-                        />
+                        <div className="bg-gradient-to-r from-emerald-500 text-white to-sky-500 h-full rounded-full transition-all duration-500" style={{
+                    width: `${Math.min(100, equityPct)}%`
+                  }} />
                       </div>
 
                       <div className="mt-5 pt-4 border-t border-slate-200 space-y-2">
                         <div className="flex justify-between items-center text-xs text-slate-500">
                           <span>Gross Dividend Share:</span>
                           <span className="tabular-nums text-slate-700">
-                            Rs. {calculatedDividend.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            Rs. {calculatedDividend.toLocaleString('en-US', {
+                        minimumFractionDigits: 2
+                      })}
                           </span>
                         </div>
-                        {drawingsDeducted > 0 && (
-                          <div className="flex justify-between items-center text-xs text-amber-700">
+                        {drawingsDeducted > 0 && <div className="flex justify-between items-center text-xs text-amber-700">
                             <span>Drawings Taken from Till:</span>
                             <span className="tabular-nums font-bold">
-                              -Rs. {drawingsDeducted.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                              -Rs. {drawingsDeducted.toLocaleString('en-US', {
+                        minimumFractionDigits: 2
+                      })}
                             </span>
-                          </div>
-                        )}
+                          </div>}
                         <div className="pt-2 border-t border-slate-200 flex justify-between items-baseline">
                           <span className="text-xs text-emerald-700 uppercase tracking-wider font-bold">
                             Net Equity Payout:
                           </span>
                           <p className="text-xl font-semibold text-emerald-700 tabular-nums">
-                            Rs. {finalNetPayout.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            Rs. {finalNetPayout.toLocaleString('en-US', {
+                        minimumFractionDigits: 2
+                      })}
                           </p>
                         </div>
                       </div>
                     </div>
 
                     <div className="mt-5 pt-3 flex items-center justify-between gap-2 border-t border-slate-900">
-                      <button
-                        onClick={() => {
-                          setPartnerTxForm({
-                            partner_id: partner.partner_id || partner.id,
-                            type: 'DRAWING',
-                            amount: '',
-                            payment_method: 'CASH',
-                            notes: '',
-                          });
-                          setPartnerTxModal(partner);
-                        }}
-                        className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-2.5 py-1.5 rounded-xl transition border border-amber-200 font-semibold"
-                      >
+                      <button onClick={() => {
+                  setPartnerTxForm({
+                    partner_id: partner.partner_id || partner.id,
+                    type: 'DRAWING',
+                    amount: '',
+                    payment_method: 'CASH',
+                    notes: ''
+                  });
+                  setPartnerTxModal(partner);
+                }} className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-2.5 py-1.5 rounded-xl transition border border-amber-200 font-semibold">
                         Record Drawing
                       </button>
-                      <button
-                        onClick={() => {
-                          setEditPartnerModal(partner);
-                          setPartnerForm({
-                            id: partner.id,
-                            partner_name: partner.partner_name,
-                            equity_percentage: partner.equity_percentage,
-                            phone: partner.phone || '',
-                          });
-                        }}
-                        className="text-xs bg-white hover:bg-slate-100 text-slate-600 px-3 py-1.5 rounded-xl transition border border-slate-200"
-                      >
+                      <button onClick={() => {
+                  setEditPartnerModal(partner);
+                  setPartnerForm({
+                    id: partner.id,
+                    partner_name: partner.partner_name,
+                    equity_percentage: partner.equity_percentage,
+                    phone: partner.phone || ''
+                  });
+                }} className="text-xs bg-white hover:bg-slate-100 text-slate-600 px-3 py-1.5 rounded-xl transition border border-slate-200">
                         Edit Share
                       </button>
                     </div>
-                  </div>
-                );
-              })}
+                  </div>;
+          })}
             </div>
           </div>
 
@@ -1240,8 +1105,7 @@ export default function AdminManagement() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 text-slate-600">
-                  {dividendData?.cogs_breakdown?.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-slate-100 transition">
+                  {dividendData?.cogs_breakdown?.map((item, idx) => <tr key={idx} className="hover:bg-slate-100 transition">
                       <td className="py-3 px-4 font-bold text-slate-900">{item.inventory_name}</td>
                       <td className="py-3 px-4 text-center tabular-nums">
                         <span className="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded font-bold">
@@ -1252,32 +1116,31 @@ export default function AdminManagement() {
                         {item.total_units_consumed} {item.unit}
                       </td>
                       <td className="py-3 px-4 text-right tabular-nums text-slate-500">
-                        Rs. {item.cost_per_unit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        Rs. {item.cost_per_unit.toLocaleString('en-US', {
+                    minimumFractionDigits: 2
+                  })}
                       </td>
                       <td className="py-3 px-4 text-right tabular-nums font-bold text-indigo-700">
-                        Rs. {item.total_cogs.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        Rs. {item.total_cogs.toLocaleString('en-US', {
+                    minimumFractionDigits: 2
+                  })}
                       </td>
-                    </tr>
-                  ))}
-                  {(!dividendData?.cogs_breakdown || dividendData.cogs_breakdown.length === 0) && (
-                    <tr>
+                    </tr>)}
+                  {(!dividendData?.cogs_breakdown || dividendData.cogs_breakdown.length === 0) && <tr>
                       <td colSpan={5} className="text-center py-6 text-slate-500">
                         No consumable yield deductions recorded for this month.
                       </td>
-                    </tr>
-                  )}
+                    </tr>}
                 </tbody>
               </table>
             </div>
           </div>
-        </div>
-      )}
+        </div>}
 
       {/* ============================================================== */}
       {/* TAB 4: IMMUTABLE AUDIT LOG */}
       {/* ============================================================== */}
-      {activeAdminTab === 'audit' && (
-        <div className="space-y-6">
+      {activeAdminTab === 'audit' && <div className="space-y-6">
           {/* Header & Control Bar */}
           <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-7 shadow-sm">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1304,15 +1167,11 @@ export default function AdminManagement() {
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
                   <Filter className="w-4 h-4 text-slate-500" />
-                  <select
-                    value={auditFilter}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setAuditFilter(val);
-                      fetchAuditLogs(val);
-                    }}
-                    className="bg-transparent text-xs text-slate-700 font-semibold focus:outline-none cursor-pointer"
-                  >
+                  <select value={auditFilter} onChange={e => {
+                const val = e.target.value;
+                setAuditFilter(val);
+                fetchAuditLogs(val);
+              }} className="bg-transparent text-xs text-slate-700 font-semibold focus:outline-none cursor-pointer">
                     <option value="ALL" className="bg-white">All Audit Events</option>
                     <option value="REGISTER_VARIANCE" className="bg-white">Register Cash Variances</option>
                     <option value="INVOICE_REFUND" className="bg-white">Credit Notes / Refunds</option>
@@ -1322,12 +1181,7 @@ export default function AdminManagement() {
                   </select>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => fetchAuditLogs(auditFilter)}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-900 p-2.5 rounded-xl transition flex items-center gap-2 text-xs font-bold"
-                  title="Reload Audit Logs"
-                >
+                <button type="button" onClick={() => fetchAuditLogs(auditFilter)} className="bg-slate-100 hover:bg-slate-200 text-slate-900 p-2.5 rounded-xl transition flex items-center gap-2 text-xs font-bold" title="Reload Audit Logs">
                   <RefreshCw className={`w-4 h-4 ${isLoadingAudit ? 'animate-spin text-rose-700' : ''}`} />
                   <span className="hidden sm:inline">Refresh</span>
                 </button>
@@ -1345,19 +1199,19 @@ export default function AdminManagement() {
               <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
                 <span className="text-xs text-rose-700 uppercase font-bold block">Cash Variances</span>
                 <span className="text-xl tabular-nums font-semibold text-rose-700 mt-1 block">
-                  {auditLogs.filter((l) => l.action === 'REGISTER_VARIANCE').length}
+                  {auditLogs.filter(l => l.action === 'REGISTER_VARIANCE').length}
                 </span>
               </div>
               <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
                 <span className="text-xs text-amber-700 uppercase font-bold block">Credit Refunds</span>
                 <span className="text-xl tabular-nums font-semibold text-amber-700 mt-1 block">
-                  {auditLogs.filter((l) => l.action === 'INVOICE_REFUND').length}
+                  {auditLogs.filter(l => l.action === 'INVOICE_REFUND').length}
                 </span>
               </div>
               <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
                 <span className="text-xs text-purple-700 uppercase font-bold block">Authorized Discounts</span>
                 <span className="text-xl tabular-nums font-semibold text-purple-700 mt-1 block">
-                  {auditLogs.filter((l) => l.action === 'INVOICE_DISCOUNT').length}
+                  {auditLogs.filter(l => l.action === 'INVOICE_DISCOUNT').length}
                 </span>
               </div>
             </div>
@@ -1377,61 +1231,44 @@ export default function AdminManagement() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200/80 text-slate-600">
-                  {auditLogs.map((log) => {
-                    const actionBadge = (() => {
-                      switch (log.action) {
-                        case 'REGISTER_VARIANCE':
-                          return (
-                            <span className="bg-rose-50 text-rose-700 border border-rose-200 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
+                  {auditLogs.map(log => {
+                const actionBadge = (() => {
+                  switch (log.action) {
+                    case 'REGISTER_VARIANCE':
+                      return <span className="bg-rose-50 text-rose-700 border border-rose-200 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
                               REGISTER VARIANCE
-                            </span>
-                          );
-                        case 'INVOICE_REFUND':
-                          return (
-                            <span className="bg-amber-50 text-amber-700 border border-amber-200 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
+                            </span>;
+                    case 'INVOICE_REFUND':
+                      return <span className="bg-amber-50 text-amber-700 border border-amber-200 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
                               CREDIT REFUND
-                            </span>
-                          );
-                        case 'INVOICE_DISCOUNT':
-                          return (
-                            <span className="bg-purple-50 text-purple-700 border border-purple-200 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
+                            </span>;
+                    case 'INVOICE_DISCOUNT':
+                      return <span className="bg-purple-50 text-purple-700 border border-purple-200 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
                               DISCOUNT OVERRIDE
-                            </span>
-                          );
-                        case 'INVENTORY_RESTOCK':
-                          return (
-                            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
+                            </span>;
+                    case 'INVENTORY_RESTOCK':
+                      return <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
                               STOCK RESTOCK
-                            </span>
-                          );
-                        case 'INVENTORY_ADJUSTMENT':
-                          return (
-                            <span className="bg-sky-50 text-sky-700 border border-sky-200 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
+                            </span>;
+                    case 'INVENTORY_ADJUSTMENT':
+                      return <span className="bg-sky-50 text-sky-700 border border-sky-200 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
                               MANUAL STOCK
-                            </span>
-                          );
-                        default:
-                          return (
-                            <span className="bg-slate-100 text-slate-600 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
+                            </span>;
+                    default:
+                      return <span className="bg-slate-100 text-slate-600 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
                               {log.action}
-                            </span>
-                          );
-                      }
-                    })();
-
-                    const dateStr = log.created_at
-                      ? new Date(log.created_at).toLocaleString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          second: '2-digit',
-                        })
-                      : 'N/A';
-
-                    return (
-                      <tr key={log.id} className="hover:bg-slate-100 transition">
+                            </span>;
+                  }
+                })();
+                const dateStr = log.created_at ? new Date(log.created_at).toLocaleString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit'
+                }) : 'N/A';
+                return <tr key={log.id} className="hover:bg-slate-100 transition">
                         <td className="py-3.5 px-4 tabular-nums text-slate-500 whitespace-nowrap">
                           {dateStr}
                         </td>
@@ -1445,33 +1282,19 @@ export default function AdminManagement() {
                           <span className="font-semibold text-slate-900">
                             {log.performed_by_name || 'System / Staff'}
                           </span>
-                          {log.performed_by_user_id && (
-                            <span className="block tabular-nums text-xs text-slate-500 truncate max-w-[120px]">
+                          {log.performed_by_user_id && <span className="block tabular-nums text-xs text-slate-500 truncate max-w-[120px]">
                               {log.performed_by_user_id}
-                            </span>
-                          )}
+                            </span>}
                         </td>
                         <td className="py-3.5 px-4 text-right tabular-nums text-xs text-slate-500">
-                          {log.metadata ? (
-                            <span
-                              title={JSON.stringify(log.metadata, null, 2)}
-                              className="bg-slate-50 px-2 py-1 rounded border border-slate-200 inline-block max-w-[180px] truncate"
-                            >
-                              {Object.entries(log.metadata)
-                                .slice(0, 2)
-                                .map(([k, v]) => `${k}: ${v}`)
-                                .join(' • ')}
-                            </span>
-                          ) : (
-                            '—'
-                          )}
+                          {log.metadata ? <span title={JSON.stringify(log.metadata, null, 2)} className="bg-slate-50 px-2 py-1 rounded border border-slate-200 inline-block max-w-[180px] truncate">
+                              {Object.entries(log.metadata).slice(0, 2).map(([k, v]) => `${k}: ${v}`).join(' • ')}
+                            </span> : '—'}
                         </td>
-                      </tr>
-                    );
-                  })}
+                      </tr>;
+              })}
 
-                  {auditLogs.length === 0 && !isLoadingAudit && (
-                    <tr>
+                  {auditLogs.length === 0 && !isLoadingAudit && <tr>
                       <td colSpan={5} className="py-12 text-center text-slate-500">
                         <ShieldAlert className="w-10 h-10 text-slate-700 mx-auto mb-2 opacity-50" />
                         <p className="font-medium">No audit events match the selected criteria.</p>
@@ -1479,28 +1302,23 @@ export default function AdminManagement() {
                           Sensitive actions such as variances, discounts, and refunds will appear here in real time.
                         </p>
                       </td>
-                    </tr>
-                  )}
-                  {isLoadingAudit && (
-                    <tr>
+                    </tr>}
+                  {isLoadingAudit && <tr>
                       <td colSpan={5} className="py-12 text-center text-slate-500">
                         <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-rose-700" />
                         <p>Loading tamper-evident audit logs...</p>
                       </td>
-                    </tr>
-                  )}
+                    </tr>}
                 </tbody>
               </table>
             </div>
           </div>
-        </div>
-      )}
+        </div>}
 
       {/* ============================================================== */}
       {/* RESTOCK MODAL */}
       {/* ============================================================== */}
-      {restockModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+      {restockModal && <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-xl p-5 max-w-md w-full shadow-sm">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <PlusCircle className="w-5 h-5 text-emerald-700" /> Restock Consumable Shipment
@@ -1515,17 +1333,7 @@ export default function AdminManagement() {
                   Current Stock: {restockModal.current_stock} {restockModal.unit_type}
                 </label>
                 <div className="relative mt-1">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    required
-                    placeholder={`Quantity to add in ${restockModal.unit_type}`}
-                    value={restockQty}
-                    onChange={(e) => setRestockQty(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums focus:outline-none focus:border-emerald-500"
-                    autoFocus
-                  />
+                  <input type="number" step="0.01" min="0.01" required placeholder={`Quantity to add in ${restockModal.unit_type}`} value={restockQty} onChange={e => setRestockQty(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums focus:outline-none focus:border-emerald-500" autoFocus />
                   <span className="absolute right-4 top-2.5 text-slate-500 text-xs tabular-nums">
                     {restockModal.unit_type}
                   </span>
@@ -1533,30 +1341,21 @@ export default function AdminManagement() {
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setRestockModal(null)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
-                >
+                <button type="button" onClick={() => setRestockModal(null)} className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
-                >
+                <button type="submit" className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition">
                   Confirm Restock
                 </button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+        </div>}
 
       {/* ============================================================== */}
       {/* NEW CONSUMABLE MODAL */}
       {/* ============================================================== */}
-      {newConsumableModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+      {newConsumableModal && <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-xl p-5 max-w-md w-full shadow-sm">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Package className="w-5 h-5 text-sky-700" /> New Consumable Item
@@ -1566,24 +1365,19 @@ export default function AdminManagement() {
             <form onSubmit={handleCreateItemSubmit} className="mt-5 space-y-4">
               <div>
                 <label className="text-xs text-slate-500">Item Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Ceramic Coating 9H Pro"
-                  value={newItemForm.item_name}
-                  onChange={(e) => setNewItemForm({ ...newItemForm, item_name: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500"
-                />
+                <input type="text" required placeholder="e.g. Ceramic Coating 9H Pro" value={newItemForm.item_name} onChange={e => setNewItemForm({
+              ...newItemForm,
+              item_name: e.target.value
+            })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500" />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-slate-500">Unit Type</label>
-                  <select
-                    value={newItemForm.unit_type}
-                    onChange={(e) => setNewItemForm({ ...newItemForm, unit_type: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500"
-                  >
+                  <select value={newItemForm.unit_type} onChange={e => setNewItemForm({
+                ...newItemForm,
+                unit_type: e.target.value
+              })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500">
                     <option value="ML">ML (Milliliters)</option>
                     <option value="ROLL">ROLL (PPF / Film)</option>
                     <option value="PIECE">PIECE (Pads / Towels)</option>
@@ -1593,155 +1387,106 @@ export default function AdminManagement() {
 
                 <div>
                   <label className="text-xs text-slate-500">Initial Stock</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    placeholder="e.g. 500"
-                    value={newItemForm.current_stock}
-                    onChange={(e) => setNewItemForm({ ...newItemForm, current_stock: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500"
-                  />
+                  <input type="number" step="0.01" required placeholder="e.g. 500" value={newItemForm.current_stock} onChange={e => setNewItemForm({
+                ...newItemForm,
+                current_stock: e.target.value
+              })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-slate-500">Cost Per Unit (Rs.)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    placeholder="e.g. 150"
-                    value={newItemForm.cost_per_unit}
-                    onChange={(e) => setNewItemForm({ ...newItemForm, cost_per_unit: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500"
-                  />
+                  <input type="number" step="0.01" required placeholder="e.g. 150" value={newItemForm.cost_per_unit} onChange={e => setNewItemForm({
+                ...newItemForm,
+                cost_per_unit: e.target.value
+              })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500" />
                 </div>
 
                 <div>
                   <label className="text-xs text-slate-500">Low Stock Alert Threshold</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    placeholder="e.g. 10"
-                    value={newItemForm.low_stock_threshold}
-                    onChange={(e) =>
-                      setNewItemForm({ ...newItemForm, low_stock_threshold: e.target.value })
-                    }
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500"
-                  />
+                  <input type="number" step="0.01" required placeholder="e.g. 10" value={newItemForm.low_stock_threshold} onChange={e => setNewItemForm({
+                ...newItemForm,
+                low_stock_threshold: e.target.value
+              })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500" />
                 </div>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setNewConsumableModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
-                >
+                <button type="button" onClick={() => setNewConsumableModal(false)} className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="bg-sky-500 text-white hover:bg-sky-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
-                >
+                <button type="submit" className="bg-sky-500 text-white hover:bg-sky-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition">
                   Create Consumable
                 </button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+        </div>}
 
       {/* ============================================================== */}
       {/* SERVICE INVENTORY YIELD MAPPING MODAL */}
       {/* ============================================================== */}
-      {yieldModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+      {yieldModal && <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-xl p-5 max-w-md w-full shadow-sm">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <LinkIcon className="w-5 h-5 text-emerald-700" /> Map Consumable Yield to Service
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Specify how much chemical or film is deducted automatically when this service is invoiced.
+              Set the standard material quantity for this service. Workers must record actual usage during the job.
             </p>
 
             <form onSubmit={handleYieldMappingSubmit} className="mt-5 space-y-4">
               <div>
                 <label className="text-xs text-slate-500">Select Service</label>
-                <select
-                  required
-                  value={yieldForm.service_id}
-                  onChange={(e) => setYieldForm({ ...yieldForm, service_id: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-emerald-500"
-                >
+                <select required value={yieldForm.service_id} onChange={e => setYieldForm({
+              ...yieldForm,
+              service_id: e.target.value
+            })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-emerald-500">
                   <option value="">-- Choose Billed Service --</option>
-                  {servicesList.map((srv) => (
-                    <option key={srv.id} value={srv.id}>
+                  {servicesList.map(srv => <option key={srv.id} value={srv.id}>
                       {srv.name} (Rs. {srv.base_price})
-                    </option>
-                  ))}
+                    </option>)}
                 </select>
               </div>
 
               <div>
                 <label className="text-xs text-slate-500">Select Consumable Inventory</label>
-                <select
-                  required
-                  value={yieldForm.inventory_id}
-                  onChange={(e) => setYieldForm({ ...yieldForm, inventory_id: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-emerald-500"
-                >
+                <select required value={yieldForm.inventory_id} onChange={e => setYieldForm({
+              ...yieldForm,
+              inventory_id: e.target.value
+            })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-emerald-500">
                   <option value="">-- Choose Inventory Consumable --</option>
-                  {inventory.map((inv) => (
-                    <option key={inv.id} value={inv.id}>
+                  {inventory.map(inv => <option key={inv.id} value={inv.id}>
                       {inv.item_name} ({inv.current_stock} {inv.unit_type} in stock @ Rs. {inv.cost_per_unit}/unit)
-                    </option>
-                  ))}
+                    </option>)}
                 </select>
               </div>
 
               <div>
                 <label className="text-xs text-slate-500">Deduction Amount Per Vehicle</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  required
-                  placeholder="e.g. 30 (for 30 ML) or 1.5 (for rolls)"
-                  value={yieldForm.deduction_amount}
-                  onChange={(e) => setYieldForm({ ...yieldForm, deduction_amount: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-sm mt-1 focus:outline-none focus:border-emerald-500"
-                />
+                <input type="number" step="0.01" min="0.01" required placeholder="e.g. 30 (for 30 ML) or 1.5 (for rolls)" value={yieldForm.deduction_amount} onChange={e => setYieldForm({
+              ...yieldForm,
+              deduction_amount: e.target.value
+            })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-sm mt-1 focus:outline-none focus:border-emerald-500" />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setYieldModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
-                >
+                <button type="button" onClick={() => setYieldModal(false)} className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
-                >
+                <button type="submit" className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition">
                   Save Yield Mapping
                 </button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+        </div>}
 
       {/* ============================================================== */}
       {/* EDIT SALARY / COMMISSION MODAL */}
       {/* ============================================================== */}
-      {editSalaryModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+      {editSalaryModal && <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-xl p-5 max-w-md w-full shadow-sm">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-emerald-700" /> Edit Staff Compensation
@@ -1754,68 +1499,44 @@ export default function AdminManagement() {
             <form onSubmit={handleSalarySubmit} className="mt-5 space-y-4">
               <div>
                 <label className="text-xs text-slate-500">Base Monthly Salary (Rs.)</label>
-                <input
-                  type="number"
-                  step="100"
-                  required
-                  value={salaryForm.base_salary}
-                  onChange={(e) => setSalaryForm({ ...salaryForm, base_salary: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-sm mt-1 focus:outline-none focus:border-emerald-500"
-                />
+                <input type="number" step="100" required value={salaryForm.base_salary} onChange={e => setSalaryForm({
+              ...salaryForm,
+              base_salary: e.target.value
+            })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-sm mt-1 focus:outline-none focus:border-emerald-500" />
               </div>
 
               <div>
                 <label className="text-xs text-slate-500">Flat Commission Per Car (Rs.) - Wash Teams</label>
-                <input
-                  type="number"
-                  step="10"
-                  min="0"
-                  placeholder="e.g. 150 (paid per car washed)"
-                  value={salaryForm.flat_commission}
-                  onChange={(e) => setSalaryForm({ ...salaryForm, flat_commission: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-sm mt-1 focus:outline-none focus:border-emerald-500"
-                />
+                <input type="number" step="10" min="0" placeholder="e.g. 150 (paid per car washed)" value={salaryForm.flat_commission} onChange={e => setSalaryForm({
+              ...salaryForm,
+              flat_commission: e.target.value
+            })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-sm mt-1 focus:outline-none focus:border-emerald-500" />
               </div>
 
               <div>
                 <label className="text-xs text-slate-500">Percentage Commission Rate (%) - Detailing Team</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="100"
-                  placeholder="e.g. 10 (%)"
-                  value={salaryForm.commission_rate}
-                  onChange={(e) => setSalaryForm({ ...salaryForm, commission_rate: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-sm mt-1 focus:outline-none focus:border-emerald-500"
-                />
+                <input type="number" step="0.1" min="0" max="100" placeholder="e.g. 10 (%)" value={salaryForm.commission_rate} onChange={e => setSalaryForm({
+              ...salaryForm,
+              commission_rate: e.target.value
+            })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-sm mt-1 focus:outline-none focus:border-emerald-500" />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditSalaryModal(null)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
-                >
+                <button type="button" onClick={() => setEditSalaryModal(null)} className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
-                >
+                <button type="submit" className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition">
                   Save Changes
                 </button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+        </div>}
 
       {/* ============================================================== */}
       {/* EDIT / CREATE PARTNER EQUITY MODAL */}
       {/* ============================================================== */}
-      {editPartnerModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+      {editPartnerModal && <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-xl p-5 max-w-md w-full shadow-sm">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <PieChart className="w-5 h-5 text-emerald-700" />{' '}
@@ -1828,67 +1549,44 @@ export default function AdminManagement() {
             <form onSubmit={handlePartnerSubmit} className="mt-5 space-y-4">
               <div>
                 <label className="text-xs text-slate-500">Partner Full Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Malik Umair"
-                  value={partnerForm.partner_name}
-                  onChange={(e) => setPartnerForm({ ...partnerForm, partner_name: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-xs mt-1 focus:outline-none focus:border-emerald-500"
-                />
+                <input type="text" required placeholder="e.g. Malik Umair" value={partnerForm.partner_name} onChange={e => setPartnerForm({
+              ...partnerForm,
+              partner_name: e.target.value
+            })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-xs mt-1 focus:outline-none focus:border-emerald-500" />
               </div>
 
               <div>
                 <label className="text-xs text-slate-500">Equity Share Percentage (%)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  max="100"
-                  required
-                  placeholder="e.g. 40.0"
-                  value={partnerForm.equity_percentage}
-                  onChange={(e) => setPartnerForm({ ...partnerForm, equity_percentage: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-sm mt-1 focus:outline-none focus:border-emerald-500"
-                />
+                <input type="number" step="0.1" min="0.1" max="100" required placeholder="e.g. 40.0" value={partnerForm.equity_percentage} onChange={e => setPartnerForm({
+              ...partnerForm,
+              equity_percentage: e.target.value
+            })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-sm mt-1 focus:outline-none focus:border-emerald-500" />
               </div>
 
               <div>
                 <label className="text-xs text-slate-500">Phone / Telegram Contact (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. +923001234567"
-                  value={partnerForm.phone}
-                  onChange={(e) => setPartnerForm({ ...partnerForm, phone: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-xs mt-1 focus:outline-none focus:border-emerald-500"
-                />
+                <input type="text" placeholder="e.g. +923001234567" value={partnerForm.phone} onChange={e => setPartnerForm({
+              ...partnerForm,
+              phone: e.target.value
+            })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-xs mt-1 focus:outline-none focus:border-emerald-500" />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditPartnerModal(null)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
-                >
+                <button type="button" onClick={() => setEditPartnerModal(null)} className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
-                >
+                <button type="submit" className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition">
                   Save Partner Share
                 </button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+        </div>}
 
       {/* ============================================================== */}
       {/* RECORD PARTNER TRANSACTION (DRAWINGS / CAPITAL) MODAL */}
       {/* ============================================================== */}
-      {partnerTxModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+      {partnerTxModal && <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-xl p-5 max-w-md w-full shadow-sm">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Wallet className="w-5 h-5 text-amber-700" /> Record Partner Transaction
@@ -1900,11 +1598,10 @@ export default function AdminManagement() {
             <form onSubmit={handlePartnerTxSubmit} className="mt-5 space-y-4">
               <div>
                 <label className="text-xs text-slate-500">Transaction Classification</label>
-                <select
-                  value={partnerTxForm.type}
-                  onChange={(e) => setPartnerTxForm({ ...partnerTxForm, type: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-xs mt-1 focus:outline-none focus:border-amber-500"
-                >
+                <select value={partnerTxForm.type} onChange={e => setPartnerTxForm({
+              ...partnerTxForm,
+              type: e.target.value
+            })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-xs mt-1 focus:outline-none focus:border-amber-500">
                   <option value="DRAWING">DRAWING (Personal withdrawal from till - Deducted from Equity Payout)</option>
                   <option value="CAPITAL_INVESTMENT">CAPITAL_INVESTMENT (Owner equity injection into till)</option>
                   <option value="LOAN">LOAN (Partner temporary financing)</option>
@@ -1914,39 +1611,32 @@ export default function AdminManagement() {
 
               <div>
                 <label className="text-xs text-slate-500">Amount (Rs.) *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="1"
-                  required
-                  placeholder="e.g. 10000"
-                  value={partnerTxForm.amount}
-                  onChange={(e) => setPartnerTxForm({ ...partnerTxForm, amount: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-base mt-1 focus:outline-none focus:border-amber-500"
-                />
+                <input type="number" step="0.01" min="1" required placeholder="e.g. 10000" value={partnerTxForm.amount} onChange={e => setPartnerTxForm({
+              ...partnerTxForm,
+              amount: e.target.value
+            })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-base mt-1 focus:outline-none focus:border-amber-500" />
               </div>
 
               <div>
                 <label className="text-xs text-slate-500">Source Vault Tender</label>
-                <select
-                  value={partnerTxForm.payment_method}
-                  onChange={(e) => setPartnerTxForm({ ...partnerTxForm, payment_method: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-xs mt-1 focus:outline-none focus:border-amber-500"
-                >
+                <select value={partnerTxForm.payment_method} onChange={e => setPartnerTxForm({
+              ...partnerTxForm,
+              payment_method: e.target.value
+            })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-xs mt-1 focus:outline-none focus:border-amber-500">
                   <option value="CASH">Cash Drawer (Shop Physical Cash Till)</option>
                   <option value="BANK">Main Bank (Business Bank Account)</option>
-                </select>
+                </select>{partnerTxForm.payment_method !== 'CASH' && <select required className="form-input w-full mt-2" value={partnerTxForm.bank_account_id || ''} onChange={e => setPartnerTxForm({
+              ...partnerTxForm,
+              bank_account_id: e.target.value
+            })}><option value="">Select bank account</option>{paymentBanks.map(b => <option key={b.id} value={b.id}>{b.bank_name} · {b.account_title}</option>)}</select>}
               </div>
 
               <div>
                 <label className="text-xs text-slate-500">Notes / Audit Memo</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Personal emergency withdrawal from cashier drawer"
-                  value={partnerTxForm.notes}
-                  onChange={(e) => setPartnerTxForm({ ...partnerTxForm, notes: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-amber-500"
-                />
+                <input type="text" placeholder="e.g. Personal emergency withdrawal from cashier drawer" value={partnerTxForm.notes} onChange={e => setPartnerTxForm({
+              ...partnerTxForm,
+              notes: e.target.value
+            })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-amber-500" />
               </div>
 
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
@@ -1954,30 +1644,21 @@ export default function AdminManagement() {
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setPartnerTxModal(null)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
-                >
+                <button type="button" onClick={() => setPartnerTxModal(null)} className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
-                >
+                <button type="submit" className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition">
                   Record Transaction
                 </button>
               </div>
             </form>
           </div>
-        </div>
-      )}
+        </div>}
 
       {/* ============================================================== */}
       {/* CASH-TO-BANK LEDGER VAULT TRANSFER MODAL */}
       {/* ============================================================== */}
-      {transferModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+      {transferModal && <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-xl p-5 max-w-md w-full shadow-sm">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Wallet className="w-5 h-5 text-sky-700" /> Cash-to-Bank Vault Transfer
@@ -1990,22 +1671,20 @@ export default function AdminManagement() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-slate-500">From Account</label>
-                  <select
-                    value={transferForm.from_account}
-                    onChange={(e) => setTransferForm({ ...transferForm, from_account: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1"
-                  >
+                  <select value={transferForm.from_account} onChange={e => setTransferForm({
+                ...transferForm,
+                from_account: e.target.value
+              })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1">
                     <option value="Cash_Drawer">Cash Drawer</option>
                     <option value="Main_Bank">Main Bank</option>
                   </select>
                 </div>
                 <div>
                   <label className="text-xs text-slate-500">To Account</label>
-                  <select
-                    value={transferForm.to_account}
-                    onChange={(e) => setTransferForm({ ...transferForm, to_account: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1"
-                  >
+                  <select value={transferForm.to_account} onChange={e => setTransferForm({
+                ...transferForm,
+                to_account: e.target.value
+              })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1">
                     <option value="Main_Bank">Main Bank</option>
                     <option value="Cash_Drawer">Cash Drawer</option>
                   </select>
@@ -2014,27 +1693,18 @@ export default function AdminManagement() {
 
               <div>
                 <label className="text-xs text-slate-500">Transfer Amount (Rs.) *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="1"
-                  required
-                  placeholder="e.g. 50000"
-                  value={transferForm.amount}
-                  onChange={(e) => setTransferForm({ ...transferForm, amount: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-base mt-1 focus:outline-none focus:border-sky-500"
-                />
+                <input type="number" step="0.01" min="1" required placeholder="e.g. 50000" value={transferForm.amount} onChange={e => setTransferForm({
+              ...transferForm,
+              amount: e.target.value
+            })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-base mt-1 focus:outline-none focus:border-sky-500" />
               </div>
 
               <div>
                 <label className="text-xs text-slate-500">Transfer Notes / Reason</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Night deposit to business bank branch"
-                  value={transferForm.notes}
-                  onChange={(e) => setTransferForm({ ...transferForm, notes: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500"
-                />
+                <input type="text" placeholder="e.g. Night deposit to business bank branch" value={transferForm.notes} onChange={e => setTransferForm({
+              ...transferForm,
+              notes: e.target.value
+            })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500" />
               </div>
 
               <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-700">
@@ -2042,24 +1712,15 @@ export default function AdminManagement() {
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setTransferModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
-                >
+                <button type="button" onClick={() => setTransferModal(false)} className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="bg-sky-500 text-white hover:bg-sky-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
-                >
+                <button type="submit" className="bg-sky-500 text-white hover:bg-sky-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition">
                   Execute Vault Transfer
                 </button>
               </div>
             </form>
           </div>
-        </div>
-      )}
-    </div>
-  );
+        </div>}
+    </div>;
 }

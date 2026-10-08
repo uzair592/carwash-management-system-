@@ -1,214 +1,91 @@
 const prisma = require('../prisma');
-
-/**
- * PATCH /api/job-cards/:id/status
- * Updates status (Intake -> In_Progress -> Completed)
- * Optionally adds or updates attached services
- */
+const F = require('../services/finance.service');
 async function updateJobCardStatusHandler(req, res, next) {
   try {
-    const { id } = req.params;
-    const { status, intake_notes, worker_id, services } = req.body;
-
-    const validStatuses = ['Intake', 'In_Progress', 'Completed'];
-    let formattedStatus = undefined;
-
-    if (status) {
-      // Normalize status case: e.g. "IN_PROGRESS" -> "In_Progress", "intake" -> "Intake"
-      const upper = String(status).toUpperCase();
-      if (upper === 'INTAKE') formattedStatus = 'Intake';
-      else if (upper === 'IN_PROGRESS' || upper === 'INPROGRESS') formattedStatus = 'In_Progress';
-      else if (upper === 'COMPLETED') formattedStatus = 'Completed';
-      else {
-        return res.status(400).json({
-          status: 'error',
-          message: `Invalid status "${status}". Allowed values: ${validStatuses.join(', ')}`,
-        });
-      }
+    if (req.body.status) {
+      const status = String(req.body.status).toUpperCase();
+      if (status === 'COMPLETED') return require('./physical-bays.controller').completeJobCardHandler(req, res, next);
+      if (status === 'IN_PROGRESS') return require('./physical-bays.controller').startJobCardHandler(req, res, next);
+      throw F.error('Use the workshop workflow to change status.');
     }
-
-    const existing = await prisma.jobCard.findUnique({
-      where: { id },
-      include: { services: true },
-    });
-
-    if (!existing) {
-      return res.status(404).json({
-        status: 'error',
-        message: `Job Card with ID "${id}" not found.`,
-      });
-    }
-
-    // Update job card fields
-    const updated = await prisma.jobCard.update({
-      where: { id },
-      data: {
-        ...(formattedStatus && { status: formattedStatus }),
-        ...(intake_notes !== undefined && { intake_notes }),
-        ...(worker_id !== undefined && { worker_id }),
-        updated_at: new Date(),
-      },
-      include: {
-        vehicle: true,
-        services: { include: { service: true } },
-        invoice: true,
-      },
-    });
-
-    // Optionally add new services if provided
-    if (Array.isArray(services) && services.length > 0) {
-      for (const item of services) {
-        const serviceIdOrName = typeof item === 'string' ? item : (item.service_id || item.id || item.name);
-        const serviceRecord = await prisma.service.findFirst({
-          where: {
-            OR: [
-              { id: serviceIdOrName },
-              { name: { equals: serviceIdOrName, mode: 'insensitive' } },
-            ],
-          },
-        });
-
-        if (serviceRecord) {
-          const priceCharged = item.price ? parseFloat(item.price) : parseFloat(serviceRecord.price);
-          await prisma.jobCardService.upsert({
-            where: {
-              job_card_id_service_id: {
-                job_card_id: id,
-                service_id: serviceRecord.id,
-              },
-            },
-            update: { price_charged: priceCharged },
-            create: {
-              job_card_id: id,
-              service_id: serviceRecord.id,
-              price_charged: priceCharged,
-            },
-          });
+    if (req.body.services?.length) throw F.error('Use an approved service price change before invoicing.');
+    const result = await F.transact(async tx => {
+      await F.lock(tx, 'job:' + req.params.id);
+      const job = await tx.jobCard.findUnique({
+        where: {
+          id: req.params.id
+        },
+        include: {
+          invoice: true
         }
-      }
-    }
-
-    // Fetch refreshed Job Card
-    const finalJobCard = await prisma.jobCard.findUnique({
-      where: { id },
-      include: {
-        vehicle: true,
-        services: { include: { service: true } },
-        invoice: true,
-      },
+      });
+      if (!job) throw F.error('Job not found.', 404);
+      if (job.invoice) throw F.error('Closed invoices and jobs are locked.');
+      return tx.jobCard.update({
+        where: {
+          id: job.id
+        },
+        data: {
+          intake_notes: req.body.intake_notes
+        }
+      });
     });
-
-    // Telegram notification when car wash/service is marked Completed
-    if (formattedStatus === 'Completed') {
-      try {
-        const servicesListStr = (finalJobCard.services || [])
-          .map((s) => `  • ${s.service?.name || s.name || 'Wash Service'}`)
-          .join('\n') || '  • Wash & Detailing Service';
-
-        const alertLines = [
-          `🚿 *CAR WASH / SERVICE COMPLETED*`,
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-          `🎫 *Ticket:* \`${finalJobCard.ticket_number}\``,
-          `🚘 *Vehicle Plate:* *${finalJobCard.vehicle?.registration_number}*${finalJobCard.vehicle?.make ? ` (${finalJobCard.vehicle.make} ${finalJobCard.vehicle.model || ''})` : ''}`,
-          `👤 *Customer:* ${finalJobCard.customer_name || finalJobCard.vehicle?.customer_name || 'Walk-in Customer'}`,
-          `🛠 *Services Completed:*`,
-          servicesListStr,
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-          `🏁 _Service work marked complete and ready for billing._`,
-        ].join('\n');
-
-        await prisma.alertOutbox.create({
-          data: {
-            type: 'TELEGRAM',
-            payload: { text: alertLines, event: 'SERVICE_COMPLETED' },
-            status: 'PENDING',
-          },
-        });
-
-        const { processOutboxQueue } = require('../workers/outbox.worker');
-        processOutboxQueue().catch((err) => console.warn('[Outbox] Flush notice:', err.message));
-      } catch (alertErr) {
-        console.warn('[updateJobCardStatusHandler] Outbox notice:', alertErr.message);
-      }
-    }
-
-    return res.status(200).json({
+    res.json({
       status: 'success',
-      message: `Job Card status updated to "${finalJobCard.status}".`,
-      data: finalJobCard,
+      data: result
     });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 }
-
-/**
- * GET /api/job-cards
- * List active job cards with vehicle and service info
- */
+const include = {
+  vehicle: true,
+  services: {
+    include: {
+      service: true
+    }
+  },
+  invoice: true,
+  media: true
+};
 async function listJobCardsHandler(req, res, next) {
   try {
-    const { status } = req.query;
-    const where = {};
-    if (status) {
-      where.status = status;
-    }
-
-    const jobCards = await prisma.jobCard.findMany({
-      where,
-      orderBy: { created_at: 'desc' },
-      include: {
-        vehicle: true,
-        services: { include: { service: true } },
-        invoice: true,
-        media: true,
-      },
-    });
-
-    return res.status(200).json({
+    res.json({
       status: 'success',
-      data: jobCards,
+      data: await prisma.jobCard.findMany({
+        where: req.query.status ? {
+          status: req.query.status
+        } : {},
+        include,
+        orderBy: {
+          created_at: 'desc'
+        },
+        take: 200
+      })
     });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 }
-
-/**
- * GET /api/job-cards/:id
- * Retrieve a specific job card
- */
 async function getJobCardHandler(req, res, next) {
   try {
-    const { id } = req.params;
-    const jobCard = await prisma.jobCard.findUnique({
-      where: { id },
-      include: {
-        vehicle: true,
-        services: { include: { service: true } },
-        invoice: true,
-        media: true,
+    const data = await prisma.jobCard.findUnique({
+      where: {
+        id: req.params.id
       },
+      include
     });
-
-    if (!jobCard) {
-      return res.status(404).json({
-        status: 'error',
-        message: `Job Card "${id}" not found.`,
-      });
-    }
-
-    return res.status(200).json({
+    if (!data) throw F.error('Job not found.', 404);
+    res.json({
       status: 'success',
-      data: jobCard,
+      data
     });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 }
-
 module.exports = {
   updateJobCardStatusHandler,
   listJobCardsHandler,
-  getJobCardHandler,
+  getJobCardHandler
 };

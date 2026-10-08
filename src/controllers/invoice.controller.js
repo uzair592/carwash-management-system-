@@ -1,548 +1,446 @@
 const prisma = require('../prisma');
-const { notifyPaymentReceived, sendSMSReceipt, notifyLowStock } = require('../services/notification.service');
-
-/**
- * Normalizes payment method string to Prisma enum & target ledger account.
- */
-function parsePaymentMode(input) {
-  const norm = String(input || 'CASH').trim().toUpperCase();
-  if (norm === 'CASH') {
-    return { enumVal: 'Cash', accountType: 'Cash_Drawer' };
-  }
-  if (norm === 'BANK' || norm === 'MAIN_BANK') {
-    return { enumVal: 'Bank', accountType: 'Main_Bank' };
-  }
-  if (norm === 'CARD') {
-    return { enumVal: 'Card', accountType: 'Main_Bank' };
-  }
-  return { enumVal: 'Cash', accountType: 'Cash_Drawer' };
+const F = require('../services/finance.service');
+const {
+  verifyAdminOrManagerPin
+} = require('../middleware/auth.middleware');
+async function hydrate(id) {
+  const invoice = await prisma.invoice.findUnique({
+    where: {
+      id
+    },
+    include: {
+      payments: {
+        include: {
+          bank_account: true
+        }
+      },
+      refunds: true,
+      job_card: {
+        include: {
+          vehicle: true,
+          services: {
+            include: {
+              service: true
+            }
+          }
+        }
+      },
+      deposits: true
+    }
+  });
+  const applications = await prisma.depositApplication.findMany({
+    where: {
+      invoice_id: id
+    }
+  });
+  return {
+    ...invoice,
+    deposit_applications: applications
+  };
 }
-
-/**
- * POST /api/invoices/checkout
- * Editable payment collection with support for cash tendered/change, partial payments,
- * split cash + multiple bank accounts, and immutable accounting invariants.
- */
+function response(invoice) {
+  const subtotal = invoice.line_snapshot?.reduce((s, i) => s + F.cents(i.price_charged), 0) / 100 || Number(invoice.total_amount) + Number(invoice.discount_amount);
+  const deposits_applied = invoice.deposit_applications.reduce((s, d) => s + F.cents(d.amount), 0) / 100;
+  return {
+    invoice,
+    payments: invoice.payments,
+    applied_deposits: invoice.deposits,
+    subtotal,
+    discount_amount: Number(invoice.discount_amount),
+    final_total: Number(invoice.total_amount),
+    deposits_applied,
+    payments_collected: invoice.payments.reduce((s, p) => s + F.cents(p.amount), 0) / 100,
+    cash_tendered: Number(invoice.cash_tendered || 0),
+    change_returned: Number(invoice.change_returned || 0),
+    balance_due: Number(invoice.balance_due),
+    status: invoice.status
+  };
+}
+function normalizePayments(body, due) {
+  let inputs = body.payments?.length ? body.payments : [{
+    payment_method: body.payment_method || 'CASH',
+    amount: body.collected_amount ?? due,
+    bank_account_id: body.bank_account_id,
+    tender_amount: body.cash_tendered
+  }];
+  const list = [];
+  for (const input of inputs) {
+    const n = F.amount(input.amount, {
+      zero: true
+    });
+    if (!n) continue;
+    const m = F.mode(input.payment_method);
+    const bank = input.bank_account_id || (m.account === 'Main_Bank' ? body.bank_account_id : null);
+    if (m.account === 'Main_Bank' && !bank) throw F.error('Select a bank account for each bank payment.');
+    if (m.account === 'Cash_Drawer' && bank) throw F.error('Cash payments cannot be assigned to a bank.');
+    const tender = m.method === 'Cash' ? F.amount(input.tender_amount ?? body.cash_tendered ?? n) : n;
+    if (tender < n) throw F.error('Cash tendered cannot be less than cash collected.');
+    list.push({
+      amount: n,
+      payment_method: m.method,
+      bank_account_id: bank || null,
+      tender_amount: tender,
+      change_amount: (F.cents(tender) - F.cents(n)) / 100,
+      notes: input.notes || null
+    });
+  }
+  if (list.reduce((s, p) => s + F.cents(p.amount), 0) > F.cents(due)) throw F.error('Collected amount exceeds the balance due. Enter extra cash as cash tendered.');
+  return list;
+}
+async function collect(tx, req, invoice, entries, requestKey) {
+  for (let i = 0; i < entries.length; i++) {
+    const p = entries[i];
+    const record = await tx.payment.create({
+      data: {
+        ...p,
+        invoice_id: invoice.id,
+        recorded_by_id: req.user.id,
+        request_key: requestKey + ':' + i
+      }
+    });
+    await F.movement(tx, {
+      method: p.payment_method,
+      bankId: p.bank_account_id,
+      delta: p.amount,
+      kind: 'PAYMENT',
+      sourceId: record.id
+    });
+  }
+}
 async function checkoutHandler(req, res, next) {
   try {
     const {
       job_card_id,
-      payment_method = 'CASH',
-      payments = [],
-      collected_amount,
-      cash_tendered,
-      bank_account_id,
-      applied_deposit_ids = [],
-      discount_amount = 0,
-      cashier_id,
-      admin_pin,
+      applied_deposit_ids = []
     } = req.body;
-
-    if (!job_card_id) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Field "job_card_id" is required for checkout.',
-      });
-    }
-
-    const discountNum = Math.max(0, parseFloat(discount_amount) || 0);
-
-    // Strict Accounting: Discounts require verified Admin/Manager PIN
-    if (discountNum > 0) {
-      const { verifyAdminOrManagerPin } = require('../middleware/auth.middleware');
-      const pinCheck = await verifyAdminOrManagerPin(admin_pin);
-      if (!pinCheck.isValid) {
-        return res.status(403).json({
-          status: 'error',
-          message: 'Admin or Manager PIN authorization is required to apply discounts.',
-        });
-      }
-    }
-
-    // Fetch Job Card with services, vehicle, and existing invoice
-    const targetJobCard = await prisma.jobCard.findUnique({
-      where: { id: job_card_id },
-      include: {
-        services: { include: { service: true } },
-        vehicle: true,
-        invoice: true,
-        media: true,
-      },
+    if (!job_card_id) throw F.error('A job card is required.');
+    const discount = F.amount(req.body.discount_amount ?? 0, {
+      zero: true
     });
-
-    if (!targetJobCard) {
-      return res.status(404).json({
-        status: 'error',
-        message: `Job Card with ID "${job_card_id}" does not exist.`,
-      });
-    }
-
-    if (targetJobCard.invoice) {
-      return res.status(400).json({
-        status: 'error',
-        message: `Job Card "${job_card_id}" has already been invoiced (${targetJobCard.invoice.invoice_number}). Double billing is prohibited.`,
-      });
-    }
-
-    // Compute billable subtotal
-    const subtotal = targetJobCard.services.reduce((acc, curr) => acc + parseFloat(curr.price_charged), 0);
-    const finalAmount = Math.max(0, parseFloat((subtotal - discountNum).toFixed(2)));
-
-    // Verify and calculate deposits to apply
-    let depositIds = Array.isArray(applied_deposit_ids) ? applied_deposit_ids : [applied_deposit_ids].filter(Boolean);
-    let validDeposits = [];
-    let totalDepositsApplied = 0;
-
-    if (depositIds.length > 0) {
-      validDeposits = await prisma.customerDeposit.findMany({
+    if (discount && !(await verifyAdminOrManagerPin(req.body.admin_pin)).isValid) throw F.error('Admin approval required for discount.', 403);
+    const id = await F.transact(async tx => {
+      await F.lock(tx, 'checkout:' + job_card_id);
+      const job = await tx.jobCard.findUnique({
         where: {
-          id: { in: depositIds },
-          status: 'ACTIVE',
+          id: job_card_id
         },
-      });
-
-      totalDepositsApplied = validDeposits.reduce((sum, d) => sum + parseFloat(d.amount), 0);
-    }
-
-    // Net balance due before payments
-    const netDue = Math.max(0, parseFloat((finalAmount - totalDepositsApplied).toFixed(2)));
-
-    // Normalize incoming payments
-    let normalizedPayments = [];
-
-    if (Array.isArray(payments) && payments.length > 0) {
-      for (const p of payments) {
-        const amt = parseFloat(p.amount);
-        if (amt > 0) {
-          const { enumVal, accountType } = parsePaymentMode(p.payment_method);
-          normalizedPayments.push({
-            enumVal,
-            accountType,
-            amount: amt,
-            bank_account_id: p.bank_account_id || (enumVal === 'Bank' ? bank_account_id : null) || null,
-            tender_amount: p.tender_amount ? parseFloat(p.tender_amount) : (enumVal === 'Cash' && cash_tendered ? parseFloat(cash_tendered) : amt),
-            change_amount: p.change_amount ? parseFloat(p.change_amount) : 0,
-            notes: p.notes || null,
-          });
+        include: {
+          invoice: true,
+          vehicle: true,
+          services: {
+            include: {
+              service: true
+            }
+          }
         }
-      }
-    } else {
-      // Single payment entry
-      const singleAmt = collected_amount !== undefined ? parseFloat(collected_amount) : netDue;
-      if (singleAmt > 0) {
-        const { enumVal, accountType } = parsePaymentMode(payment_method);
-        const tender = cash_tendered ? parseFloat(cash_tendered) : singleAmt;
-        const change = enumVal === 'Cash' && tender > singleAmt ? parseFloat((tender - singleAmt).toFixed(2)) : 0;
-        normalizedPayments.push({
-          enumVal,
-          accountType,
-          amount: singleAmt,
-          bank_account_id: bank_account_id || null,
-          tender_amount: tender,
-          change_amount: change,
-          notes: null,
+      });
+      if (!job) throw F.error('Job not found.', 404);
+      if (job.invoice) return job.invoice.id;
+      if (!['READY_FOR_BILLING', 'Completed'].includes(job.status)) throw F.error('Complete the workshop job before billing.');
+      if (!job.services.length) throw F.error('Add services before billing.');
+      const subtotal = job.services.reduce((s, i) => s + F.cents(i.price_charged), 0) / 100;
+      if (discount > subtotal) throw F.error('Discount exceeds the bill.');
+      const total = (F.cents(subtotal) - F.cents(discount)) / 100;
+      const selected = [...new Set(applied_deposit_ids)];
+      let applied = 0;
+      const deposits = [];
+      for (const depositId of selected) {
+        await F.lock(tx, 'deposit:' + depositId);
+        const dep = await tx.customerDeposit.findUnique({
+          where: {
+            id: depositId
+          }
         });
+        if (!dep || dep.status !== 'ACTIVE' || dep.vehicle_id !== job.vehicle_id) throw F.error('An advance does not belong to this vehicle or is unavailable.');
+        const remaining = Number(dep.remaining_amount ?? dep.amount);
+        const used = Math.min(remaining, (F.cents(total) - F.cents(applied)) / 100);
+        if (used <= 0) throw F.error('Selected advances exceed this bill.');
+        deposits.push({
+          dep,
+          used,
+          remaining
+        });
+        applied += used;
       }
-    }
-
-    // Sum total collected through payments
-    const totalPaymentsEntered = normalizedPayments.reduce((sum, p) => sum + p.amount, 0);
-
-    // Determine total cash tendered and total change returned
-    let totalCashTendered = 0;
-    let totalChangeReturned = 0;
-
-    normalizedPayments.forEach((p) => {
-      if (p.enumVal === 'Cash') {
-        const tender = p.tender_amount || p.amount;
-        totalCashTendered += tender;
-        if (tender > p.amount) {
-          p.change_amount = parseFloat((tender - p.amount).toFixed(2));
-          totalChangeReturned += p.change_amount;
+      const due = (F.cents(total) - F.cents(applied)) / 100;
+      const entries = normalizePayments(req.body, due);
+      const collected = entries.reduce((s, p) => s + F.cents(p.amount), 0) / 100;
+      const paid = (F.cents(applied) + F.cents(collected)) / 100;
+      const invoice = await tx.invoice.create({
+        data: {
+          invoice_number: await F.number('INV', tx),
+          job_card_id,
+          cashier_id: req.user.id,
+          total_amount: total,
+          discount_amount: discount,
+          paid_amount: paid,
+          balance_due: (F.cents(total) - F.cents(paid)) / 100,
+          status: paid === total ? 'PAID' : paid ? 'PARTIAL' : 'UNPAID',
+          payment_method: entries[0]?.payment_method || deposits[0]?.dep.payment_method || 'Cash',
+          cash_tendered: entries.filter(p => p.payment_method === 'Cash').reduce((s, p) => s + F.cents(p.tender_amount), 0) / 100,
+          change_returned: entries.filter(p => p.payment_method === 'Cash').reduce((s, p) => s + F.cents(p.change_amount), 0) / 100,
+          line_snapshot: job.services.map(s => ({
+            service_id: s.service_id,
+            name: s.service.name,
+            category: s.service.category,
+            price_charged: Number(s.price_charged)
+          }))
         }
-      }
-    });
-
-    if (cash_tendered && parseFloat(cash_tendered) > totalCashTendered) {
-      totalCashTendered = parseFloat(cash_tendered);
-      const totalCashApplied = normalizedPayments.filter((p) => p.enumVal === 'Cash').reduce((s, p) => s + p.amount, 0);
-      totalChangeReturned = Math.max(0, parseFloat((totalCashTendered - totalCashApplied).toFixed(2)));
-    }
-
-    // Calculate Paid vs Outstanding Balance
-    const totalCollectedSoFar = parseFloat((totalDepositsApplied + totalPaymentsEntered).toFixed(2));
-    const isFullySettled = totalCollectedSoFar >= finalAmount;
-    const balanceDue = isFullySettled ? 0 : parseFloat((finalAmount - totalCollectedSoFar).toFixed(2));
-    const invoiceStatus = isFullySettled ? 'PAID' : (totalCollectedSoFar > 0 ? 'PARTIAL' : 'UNPAID');
-
-    // Generate Sequential Invoice Number: INV-YYYYMMDD-XXXX
-    const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const invoiceNumber = `INV-${datePrefix}-${randomSuffix}`;
-
-    const primaryPaymentMethod =
-      normalizedPayments.length > 0
-        ? normalizedPayments[0].enumVal
-        : validDeposits.length > 0
-        ? validDeposits[0].payment_method
-        : 'Cash';
-
-    // Execute Atomic Prisma Transaction
-    const transactionResult = await prisma.$transaction(async (tx) => {
-      // 1. Mark Job Card as Completed
-      await tx.jobCard.update({
-        where: { id: job_card_id },
-        data: {
-          status: 'COMPLETED',
-          updated_at: new Date(),
-        },
       });
-
-      // 2. Generate Invoice with balance tracking
-      const createdInvoice = await tx.invoice.create({
-        data: {
-          invoice_number: invoiceNumber,
-          job_card_id: job_card_id,
-          total_amount: finalAmount,
-          paid_amount: totalCollectedSoFar,
-          cash_tendered: totalCashTendered > 0 ? totalCashTendered : null,
-          change_returned: totalChangeReturned > 0 ? totalChangeReturned : null,
-          balance_due: balanceDue,
-          discount_amount: discountNum,
-          payment_method: primaryPaymentMethod,
-          status: invoiceStatus,
-          cashier_id: cashier_id || null,
-        },
-      });
-
-      // 3. Mark applied Customer Deposits as APPLIED
-      for (const dep of validDeposits) {
+      for (const {
+        dep,
+        used,
+        remaining
+      } of deposits) {
+        const left = (F.cents(remaining) - F.cents(used)) / 100;
         await tx.customerDeposit.update({
-          where: { id: dep.id },
-          data: {
-            status: 'APPLIED',
-            applied_to_invoice_id: createdInvoice.id,
-            applied_at: new Date(),
+          where: {
+            id: dep.id
           },
+          data: {
+            remaining_amount: left,
+            status: left ? 'ACTIVE' : 'APPLIED',
+            applied_to_invoice_id: left ? null : invoice.id,
+            applied_at: left ? null : new Date()
+          }
         });
-
-        await tx.auditLog.create({
+        await tx.depositApplication.create({
           data: {
-            action: 'DEPOSIT_APPLIED_TO_INVOICE',
-            description: `Advance deposit of Rs. ${parseFloat(dep.amount).toLocaleString()} applied to Invoice ${invoiceNumber} (${targetJobCard.vehicle?.registration_number || 'N/A'}).`,
-            performed_by_user_id: cashier_id || req.user?.id || null,
-            performed_by_name: req.user?.name || 'Shop Cashier',
-            metadata: {
-              deposit_id: dep.id,
-              invoice_id: createdInvoice.id,
-              invoice_number: invoiceNumber,
-              amount: parseFloat(dep.amount),
-            },
-          },
+            deposit_id: dep.id,
+            invoice_id: invoice.id,
+            amount: used
+          }
         });
       }
-
-      // 4. Record Payments & Update Vault / Bank Balances
-      const createdPayments = [];
-
-      for (const p of normalizedPayments) {
-        // Create payment record
-        const paymentRecord = await tx.payment.create({
-          data: {
-            invoice_id: createdInvoice.id,
-            amount: p.amount,
-            payment_method: p.enumVal,
-            bank_account_id: p.bank_account_id || null,
-            tender_amount: p.tender_amount || null,
-            change_amount: p.change_amount || null,
-            recorded_by_id: cashier_id || req.user?.id || null,
-            notes: p.notes,
-          },
-        });
-        createdPayments.push(paymentRecord);
-
-        // Update overall Ledger vault
-        await tx.ledger.upsert({
-          where: { account_type: p.accountType },
-          create: { account_type: p.accountType, current_balance: p.amount },
-          update: { current_balance: { increment: p.amount }, last_updated: new Date() },
-        });
-
-        // If specific BankAccount was selected, increment that bank account's balance
-        if (p.bank_account_id) {
-          await tx.bankAccount.update({
-            where: { id: p.bank_account_id },
-            data: {
-              current_balance: { increment: p.amount },
-            },
-          });
+      await collect(tx, req, invoice, entries, 'checkout:' + invoice.id);
+      await tx.jobCard.update({
+        where: {
+          id: job_card_id
+        },
+        data: {
+          status: 'COMPLETED'
         }
-      }
-
-      // 5. Audit Log Entry
-      await tx.auditLog.create({
-        data: {
-          action: 'INVOICE_CHECKOUT',
-          description: `Invoice ${invoiceNumber} settled. Total: Rs. ${finalAmount.toLocaleString()}, Paid: Rs. ${totalCollectedSoFar.toLocaleString()}, Status: ${invoiceStatus}${balanceDue > 0 ? `, Outstanding Balance: Rs. ${balanceDue.toLocaleString()}` : ''}.`,
-          performed_by_user_id: cashier_id || req.user?.id || null,
-          performed_by_name: req.user?.name || 'Shop Cashier',
-          metadata: {
-            invoice_id: createdInvoice.id,
-            total_amount: finalAmount,
-            paid_amount: totalCollectedSoFar,
-            balance_due: balanceDue,
-            status: invoiceStatus,
-            cash_tendered: totalCashTendered,
-            change_returned: totalChangeReturned,
-          },
-        },
       });
-
-      // 6. Enqueue Telegram Alert
-      const alertLines = [
-        `🧾 *INVOICE SETTLED (${invoiceStatus})*`,
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-        `🔢 *Invoice:* \`${invoiceNumber}\``,
-        `🚘 *Vehicle:* *${targetJobCard.vehicle?.registration_number || 'N/A'}*`,
-        `💰 *Invoice Total:* Rs. ${finalAmount.toLocaleString()}`,
-        totalDepositsApplied > 0 ? `🎟 *Advance Applied:* Rs. ${totalDepositsApplied.toLocaleString()}` : '',
-        `💵 *Payment Collected:* Rs. ${totalPaymentsEntered.toLocaleString()}`,
-        totalCashTendered > 0 ? `💵 *Cash Tendered:* Rs. ${totalCashTendered.toLocaleString()}` : '',
-        totalChangeReturned > 0 ? `🪙 *Change Returned:* Rs. ${totalChangeReturned.toLocaleString()}` : '',
-        balanceDue > 0 ? `⚠️ *Outstanding Balance Due:* Rs. ${balanceDue.toLocaleString()}` : '',
-        `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      ].filter(Boolean).join('\n');
-
-      await tx.alertOutbox.create({
-        data: {
-          type: 'TELEGRAM',
-          payload: { text: alertLines },
-          status: 'PENDING',
-        },
+      await F.audit(tx, req, 'INVOICE_CHECKOUT', 'Invoice ' + invoice.invoice_number + ' created.', {
+        invoice_id: invoice.id,
+        total,
+        paid
       });
-
-      return {
-        invoice: createdInvoice,
-        payments: createdPayments,
-      };
-    });
-
-    // Send customer SMS if customer phone is provided
-    if (targetJobCard.vehicle?.customer_phone) {
-      const receiptSMS = [
-        `DF PRO Car Wash & Detailing:`,
-        `Invoice: ${invoiceNumber}`,
-        `Vehicle: ${targetJobCard.vehicle.registration_number}`,
-        `Total: Rs. ${finalAmount}`,
-        `Paid: Rs. ${totalCollectedSoFar}`,
-        balanceDue > 0 ? `Balance Due: Rs. ${balanceDue}` : 'Paid in Full',
-        `Thank you for your visit!`,
-      ].join('\n');
-
-      sendSMSReceipt(targetJobCard.vehicle.customer_phone, receiptSMS).catch((err) =>
-        console.warn('[Checkout] SMS notice:', err.message)
-      );
-    }
-
-    const completeInvoice = await prisma.invoice.findUnique({
-      where: { id: transactionResult.invoice.id },
-      include: {
-        payments: { include: { bank_account: true } },
-        job_card: {
-          include: {
-            vehicle: true,
-            services: { include: { service: true } },
-          },
+      await F.alert(tx, 'Invoice ' + invoice.invoice_number + ' — Rs. ' + total + '; collected now Rs. ' + collected + '; advance Rs. ' + applied, 'checkout:' + invoice.id);
+      if (job.vehicle?.customer_phone) await tx.alertOutbox.upsert({
+        where: {
+          event_key: 'receipt:' + invoice.id
         },
-        deposits: true,
-      },
+        create: {
+          event_key: 'receipt:' + invoice.id,
+          type: 'SMS',
+          payload: {
+            phone: job.vehicle.customer_phone,
+            text: 'DF PRO ' + invoice.invoice_number + ' Total Rs. ' + total + '; paid Rs. ' + paid + '; balance Rs. ' + (total - paid).toFixed(2)
+          }
+        },
+        update: {}
+      });
+      return invoice.id;
     });
-
-    return res.status(200).json({
+    const complete = await hydrate(id);
+    res.json({
       status: 'success',
-      message: `Checkout successful. Invoice ${invoiceNumber} created with status ${invoiceStatus}.`,
-      data: {
-        invoice: completeInvoice,
-        payments: completeInvoice.payments,
-        applied_deposits: completeInvoice.deposits,
-        subtotal,
-        discount_amount: discountNum,
-        final_total: finalAmount,
-        deposits_applied: totalDepositsApplied,
-        net_due: netDue,
-        payments_collected: totalPaymentsEntered,
-        cash_tendered: totalCashTendered,
-        change_returned: totalChangeReturned,
-        balance_due: balanceDue,
-        status: invoiceStatus,
-      },
+      data: response(complete)
     });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 }
-
-/**
- * POST /api/invoices/:id/reverse-payment
- * Authorised payment reversal / adjustment (Requirement 4: preserve immutable accounting)
- */
+async function collectPaymentHandler(req, res, next) {
+  try {
+    const requestKey = F.key(req, 'collect');
+    const id = req.params.id;
+    await F.transact(async tx => {
+      await F.lock(tx, 'invoice:' + id);
+      const existing = await tx.payment.findFirst({
+        where: {
+          request_key: requestKey + ':0'
+        }
+      });
+      if (existing) {
+        if (existing.invoice_id !== id) throw F.error('Request key belongs to another invoice.');
+        return;
+      }
+      const invoice = await tx.invoice.findUnique({
+        where: {
+          id
+        },
+        include: {
+          refunds: true
+        }
+      });
+      if (!invoice) throw F.error('Invoice not found.', 404);
+      const credited = invoice.refunds.reduce((s, r) => s + F.cents(r.amount), 0);
+      const entries = normalizePayments(req.body, Number(invoice.balance_due));
+      if (!entries.length) throw F.error('Enter a payment.');
+      await collect(tx, req, invoice, entries, requestKey);
+      const added = entries.reduce((s, p) => s + F.cents(p.amount), 0);
+      const paid = (F.cents(invoice.paid_amount) + added) / 100;
+      await tx.invoice.update({
+        where: {
+          id
+        },
+        data: {
+          paid_amount: paid,
+          balance_due: (F.cents(invoice.total_amount) - credited - F.cents(paid)) / 100,
+          status: F.cents(paid) === F.cents(invoice.total_amount) - credited ? 'PAID' : 'PARTIAL'
+        }
+      });
+      await F.audit(tx, req, 'PAYMENT_COLLECTED', 'Outstanding invoice payment collected.', {
+        invoice_id: id,
+        amount: added / 100
+      });
+      await F.alert(tx, 'Invoice payment received: Rs. ' + added / 100, requestKey);
+    });
+    res.json({
+      status: 'success',
+      data: response(await hydrate(id))
+    });
+  } catch (e) {
+    next(e);
+  }
+}
 async function reversePaymentHandler(req, res, next) {
   try {
-    const { id } = req.params;
-    const { payment_id, admin_pin, reason } = req.body;
-
-    if (!admin_pin || !reason) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Admin PIN and reason are strictly required for payment reversal.',
-      });
-    }
-
-    const { verifyAdminOrManagerPin } = require('../middleware/auth.middleware');
-    const pinCheck = await verifyAdminOrManagerPin(admin_pin);
-    if (!pinCheck.isValid) {
-      return res.status(403).json({
-        status: 'error',
-        message: 'Admin or Manager PIN authorization is required for payment reversal.',
-      });
-    }
-
-    const invoice = await prisma.invoice.findUnique({
-      where: { id },
-      include: {
-        payments: true,
-        job_card: { include: { vehicle: true } },
-      },
-    });
-
-    if (!invoice) {
-      return res.status(404).json({ status: 'error', message: 'Invoice not found.' });
-    }
-
-    const payment = invoice.payments.find((p) => p.id === payment_id) || invoice.payments[0];
-    if (!payment) {
-      return res.status(404).json({ status: 'error', message: 'Payment record not found.' });
-    }
-
-    const reversedAmount = parseFloat(payment.amount);
-    const accountType = payment.payment_method === 'Cash' ? 'Cash_Drawer' : 'Main_Bank';
-
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Decrement Ledger vault
-      await tx.ledger.update({
-        where: { account_type: accountType },
-        data: {
-          current_balance: { decrement: reversedAmount },
-          last_updated: new Date(),
+    const approved = await verifyAdminOrManagerPin(req.body.admin_pin);
+    if (!approved.isValid || !req.body.reason) throw F.error('Admin approval and reason required.', 403);
+    const requestKey = F.key(req, 'reverse');
+    await F.transact(async tx => {
+      await F.lock(tx, 'invoice:' + req.params.id);
+      const invoice = await tx.invoice.findUnique({
+        where: {
+          id: req.params.id
         },
+        include: {
+          refunds: true
+        }
       });
-
-      // 2. If bank account was tied, decrement its balance
-      if (payment.bank_account_id) {
-        await tx.bankAccount.update({
-          where: { id: payment.bank_account_id },
-          data: {
-            current_balance: { decrement: reversedAmount },
-          },
-        });
-      }
-
-      // 3. Update Invoice paid_amount and balance_due
-      const newPaid = Math.max(0, parseFloat((parseFloat(invoice.paid_amount) - reversedAmount).toFixed(2)));
-      const newBalanceDue = parseFloat((parseFloat(invoice.total_amount) - newPaid).toFixed(2));
-      const newStatus = newPaid === 0 ? 'UNPAID' : 'PARTIAL';
-
-      const updatedInvoice = await tx.invoice.update({
-        where: { id },
-        data: {
-          paid_amount: newPaid,
-          balance_due: newBalanceDue,
-          status: newStatus,
-        },
+      if (!invoice) throw F.error('Invoice not found.', 404);
+      if (invoice.refunds.length) throw F.error('A refunded invoice cannot have its payment reversed.');
+      const payment = await tx.payment.findUnique({
+        where: {
+          id: req.body.payment_id
+        }
       });
-
-      // 4. Record negative adjustment payment record for immutable history
+      if (!payment || payment.invoice_id !== invoice.id || Number(payment.amount) <= 0) throw F.error('Choose an original payment on this invoice.');
+      const prior = await tx.payment.findUnique({
+        where: {
+          reversed_payment_id: payment.id
+        }
+      });
+      if (prior) return;
+      const value = Number(payment.amount);
       await tx.payment.create({
         data: {
           invoice_id: invoice.id,
-          amount: -reversedAmount,
+          amount: -value,
           payment_method: payment.payment_method,
           bank_account_id: payment.bank_account_id,
-          recorded_by_id: pinCheck.user.id,
-          notes: `REVERSAL: ${reason}`,
-        },
+          reversed_payment_id: payment.id,
+          request_key: requestKey,
+          recorded_by_id: req.user.id,
+          notes: 'Reversal: ' + req.body.reason
+        }
       });
-
-      // 5. Immutable Audit Log
-      await tx.auditLog.create({
+      await F.movement(tx, {
+        method: payment.payment_method,
+        bankId: payment.bank_account_id,
+        delta: -value,
+        kind: 'REVERSAL',
+        sourceId: payment.id
+      });
+      const paid = (F.cents(invoice.paid_amount) - F.cents(value)) / 100;
+      await tx.invoice.update({
+        where: {
+          id: invoice.id
+        },
         data: {
-          action: 'PAYMENT_REVERSAL',
-          description: `Payment of Rs. ${reversedAmount.toLocaleString()} reversed on Invoice ${invoice.invoice_number} (${invoice.job_card?.vehicle?.registration_number || 'N/A'}). Reason: "${reason}". Authorized by ${pinCheck.user.name}.`,
-          performed_by_user_id: pinCheck.user.id,
-          performed_by_name: pinCheck.user.name,
-          metadata: {
-            invoice_id: id,
-            reversed_payment_id: payment.id,
-            amount: reversedAmount,
-            reason,
-            new_status: newStatus,
-          },
-        },
+          paid_amount: paid,
+          balance_due: (F.cents(invoice.total_amount) - F.cents(paid)) / 100,
+          status: paid ? 'PARTIAL' : 'UNPAID'
+        }
       });
-
-      return updatedInvoice;
+      await F.audit(tx, req, 'PAYMENT_REVERSAL', String(req.body.reason), {
+        invoice_id: invoice.id,
+        payment_id: payment.id,
+        approved_by: approved.user.id
+      });
+      await F.alert(tx, 'Invoice payment reversed: Rs. ' + value, requestKey);
     });
-
-    return res.status(200).json({
+    res.json({
       status: 'success',
-      message: `Payment of Rs. ${reversedAmount.toLocaleString()} successfully reversed.`,
-      data: result,
+      data: await hydrate(req.params.id)
     });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 }
-
-/**
- * GET /api/invoices
- * Lists historical invoices with balance and payment details
- */
 async function listInvoicesHandler(req, res, next) {
   try {
-    const { status, limit = 50 } = req.query;
     const where = {};
-    if (status) {
-      where.status = status;
+    if (req.query.status) where.status = req.query.status;
+    if (req.query.search) {
+      const q = String(req.query.search);
+      where.OR = [{
+        invoice_number: {
+          contains: q,
+          mode: 'insensitive'
+        }
+      }, {
+        job_card: {
+          vehicle: {
+            registration_number: {
+              contains: q,
+              mode: 'insensitive'
+            }
+          }
+        }
+      }];
     }
-
-    const invoices = await prisma.invoice.findMany({
+    const data = await prisma.invoice.findMany({
       where,
-      orderBy: { created_at: 'desc' },
-      take: parseInt(limit, 10),
+      take: Math.min(200, Math.max(1, Number(req.query.limit) || 50)),
+      skip: Math.max(0, Number(req.query.offset) || 0),
+      orderBy: {
+        created_at: 'desc'
+      },
       include: {
-        payments: { include: { bank_account: true } },
+        payments: {
+          include: {
+            bank_account: true
+          }
+        },
+        refunds: true,
         job_card: {
           include: {
             vehicle: true,
-            services: { include: { service: true } },
-          },
+            services: {
+              include: {
+                service: true
+              }
+            }
+          }
         },
-        deposits: true,
-      },
+        deposits: true
+      }
     });
-
-    return res.status(200).json({
+    res.json({
       status: 'success',
-      count: invoices.length,
-      data: invoices,
+      data
     });
-  } catch (error) {
-    next(error);
+  } catch (e) {
+    next(e);
   }
 }
-
 module.exports = {
   checkoutHandler,
+  collectPaymentHandler,
   reversePaymentHandler,
-  listInvoicesHandler,
+  listInvoicesHandler
 };

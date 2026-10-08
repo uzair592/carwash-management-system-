@@ -24,7 +24,12 @@
     "test:alerts": "node scripts/test-alerts.js",
     "test:camera": "node scripts/test-camera.js",
     "simulate": "node scripts/simulate-system.js",
-    "verify:readiness": "node scripts/verify-shop-readiness.js"
+    "verify:readiness": "node scripts/verify-shop-readiness.js",
+    "test:integrity": "node --test scripts/test-shop-integrity.cjs",
+    "test:ui": "node scripts/test-professional-ui.cjs",
+    "backup:shop": "node scripts/backup-shop.js",
+    "restore:shop": "node scripts/restore-shop.js",
+    "prisma:deploy": "prisma migrate deploy"
   },
   "keywords": [
     "carwash",

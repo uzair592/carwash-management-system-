@@ -1,8 +1,9 @@
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
-const { getSetting } = require('./settings.service');
-
+const {
+  getSetting
+} = require('./settings.service');
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || process.env.TELEGRAM_PARTNER_CHAT_ID;
 const SMS_GATEWAY_URL = process.env.SMS_GATEWAY_URL || process.env.ANDROID_SMS_GATEWAY_URL || 'http://192.168.1.150:8080/v1/sms/send';
@@ -11,7 +12,9 @@ const SMS_GATEWAY_URL = process.env.SMS_GATEWAY_URL || process.env.ANDROID_SMS_G
 let bot = null;
 if (TELEGRAM_BOT_TOKEN && !TELEGRAM_BOT_TOKEN.includes('123456789:ABCDef') && TELEGRAM_BOT_TOKEN !== 'YOUR_TELEGRAM_BOT_TOKEN') {
   try {
-    bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false });
+    bot = new TelegramBot(TELEGRAM_BOT_TOKEN, {
+      polling: false
+    });
   } catch (err) {
     console.warn('[NotificationEngine] Telegram Bot initialization notice:', err.message);
   }
@@ -27,25 +30,37 @@ async function sendTelegramMessage(text) {
   // Check Dynamic Feature Flag
   if (!getSetting('ENABLE_TELEGRAM_ALERTS', true)) {
     console.log('[NotificationEngine] Telegram alerts are DISABLED via feature flag.');
-    return { sent: false, reason: 'FLAG_DISABLED' };
+    return {
+      sent: false,
+      reason: 'FLAG_DISABLED'
+    };
   }
-
   if (!TELEGRAM_CHAT_ID) {
     console.log('[NotificationEngine] TELEGRAM_CHAT_ID not configured.');
-    return { sent: false, reason: 'NO_CHAT_ID' };
+    return {
+      sent: false,
+      reason: 'NO_CHAT_ID'
+    };
   }
-
   if (!bot) {
     console.log(`[NotificationEngine] [SANDBOX TELEGRAM ALERT]\n${text}`);
-    return { sent: true, reason: 'SANDBOX_MOCK' };
+    return {
+      sent: false,
+      reason: 'BOT_NOT_CONFIGURED'
+    };
   }
-
   try {
-    const res = await bot.sendMessage(TELEGRAM_CHAT_ID, text, { parse_mode: 'Markdown' });
-    return { sent: true, messageId: res.message_id };
+    const res = await bot.sendMessage(TELEGRAM_CHAT_ID, text);
+    return {
+      sent: true,
+      messageId: res.message_id
+    };
   } catch (error) {
     console.error('[NotificationEngine] Telegram API error:', error.message);
-    return { sent: false, error: error.message };
+    return {
+      sent: false,
+      error: error.message
+    };
   }
 }
 
@@ -60,58 +75,56 @@ async function sendSMSReceipt(customerPhone, receiptText) {
   // Check Dynamic Feature Flag
   if (!getSetting('ENABLE_SMS_GATEWAY', false)) {
     console.log('[NotificationEngine] SMS Gateway is DISABLED via feature flag. Skipping SMS dispatch.');
-    return { sent: false, reason: 'FLAG_DISABLED' };
+    return {
+      sent: false,
+      reason: 'FLAG_DISABLED'
+    };
   }
-
   if (!customerPhone) {
-    return { sent: false, reason: 'NO_PHONE_NUMBER' };
+    return {
+      sent: false,
+      reason: 'NO_PHONE_NUMBER'
+    };
   }
-
   try {
-    const response = await axios.post(
-      SMS_GATEWAY_URL,
-      {
-        phone: customerPhone,
-        phone_number: customerPhone,
-        message: receiptText,
-      },
-      {
-        timeout: 3000,
-        headers: { 'Content-Type': 'application/json' },
+    const response = await axios.post(SMS_GATEWAY_URL, {
+      phone: customerPhone,
+      phone_number: customerPhone,
+      message: receiptText
+    }, {
+      timeout: 3000,
+      headers: {
+        'Content-Type': 'application/json'
       }
-    );
+    });
     console.log(`[NotificationEngine] SMS successfully pushed to gateway: ${customerPhone}`);
-    return { sent: true, data: response.data };
+    return {
+      sent: true,
+      data: response.data
+    };
   } catch (error) {
     console.warn(`[NotificationEngine] Local Android SMS Gateway unavailable at ${SMS_GATEWAY_URL}: ${error.message}`);
-    return { sent: false, error: error.message };
+    return {
+      sent: false,
+      error: error.message
+    };
   }
 }
 
 /**
  * Format and trigger: Job Card Created Alert
  */
-async function notifyJobCardCreated({ registration_number, customer_phone, visits, services = [], ticket_number, intake_time }) {
-  const serviceList = services.length > 0
-    ? services.map((s) => `  • ${s.name || s}`).join('\n')
-    : '  • Standard Inspection';
-
+async function notifyJobCardCreated({
+  registration_number,
+  customer_phone,
+  visits,
+  services = [],
+  ticket_number,
+  intake_time
+}) {
+  const serviceList = services.length > 0 ? services.map(s => `  • ${s.name || s}`).join('\n') : '  • Standard Inspection';
   const timeStr = intake_time ? new Date(intake_time).toLocaleTimeString() : new Date().toLocaleTimeString();
-
-  const message = [
-    `🚗 *NEW JOB CARD CREATED (INTAKE)*`,
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `🎫 *Ticket:* \`${ticket_number || 'CW-INTAKE'}\``,
-    `🚘 *Vehicle:* *${registration_number}*`,
-    `🔢 *Total Visits:* ${visits} ${visits > 1 ? '🌟 (Returning Customer)' : '🆕 (First Visit)'}`,
-    `📱 *Customer:* ${customer_phone || 'Walk-in'}`,
-    `🛠 *Services Assigned:*`,
-    serviceList,
-    `⏰ *Intake Time:* ${timeStr}`,
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `⚡ _Strict 'No-Ticket, No-Work' Verified_`,
-  ].join('\n');
-
+  const message = [`🚗 *NEW JOB CARD CREATED (INTAKE)*`, `━━━━━━━━━━━━━━━━━━━━━━━━━━━`, `🎫 *Ticket:* \`${ticket_number || 'CW-INTAKE'}\``, `🚘 *Vehicle:* *${registration_number}*`, `🔢 *Total Visits:* ${visits} ${visits > 1 ? '🌟 (Returning Customer)' : '🆕 (First Visit)'}`, `📱 *Customer:* ${customer_phone || 'Walk-in'}`, `🛠 *Services Assigned:*`, serviceList, `⏰ *Intake Time:* ${timeStr}`, `━━━━━━━━━━━━━━━━━━━━━━━━━━━`, `⚡ _Strict 'No-Ticket, No-Work' Verified_`].join('\n');
   return await sendTelegramMessage(message);
 }
 
@@ -126,33 +139,23 @@ async function notifyPaymentReceived({
   previous_balance = 0,
   amount_received = 0,
   new_balance = 0,
-  has_after_media = false,
+  has_after_media = false
 }) {
-  const prevStr = Number(previous_balance).toLocaleString('en-US', { minimumFractionDigits: 2 });
-  const deltaStr = Number(amount_received).toLocaleString('en-US', { minimumFractionDigits: 2 });
-  const newStr = Number(new_balance).toLocaleString('en-US', { minimumFractionDigits: 2 });
+  const prevStr = Number(previous_balance).toLocaleString('en-US', {
+    minimumFractionDigits: 2
+  });
+  const deltaStr = Number(amount_received).toLocaleString('en-US', {
+    minimumFractionDigits: 2
+  });
+  const newStr = Number(new_balance).toLocaleString('en-US', {
+    minimumFractionDigits: 2
+  });
   const timeStr = new Date().toLocaleTimeString();
-
-  const messageLines = [
-    `💰 *PAYMENT RECEIVED (INFLOW)*`,
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `🧾 *Invoice ID:* \`${invoice_id}\``,
-    `🚘 *Vehicle:* *${registration_number || 'N/A'}*`,
-    `💳 *Payment Method:* *${payment_method}* (\`${account_type}\`)`,
-    `───────────────────────────`,
-    `📊 *Previous Balance:* Rs. ${prevStr}`,
-    `➕ *Amount Received:*  *+Rs. ${deltaStr}*`,
-    `📈 *New Ledger Vault:* *Rs. ${newStr}*`,
-    `───────────────────────────`,
-    `⏰ *Settled At:* ${timeStr}`,
-  ];
-
+  const messageLines = [`💰 *PAYMENT RECEIVED (INFLOW)*`, `━━━━━━━━━━━━━━━━━━━━━━━━━━━`, `🧾 *Invoice ID:* \`${invoice_id}\``, `🚘 *Vehicle:* *${registration_number || 'N/A'}*`, `💳 *Payment Method:* *${payment_method}* (\`${account_type}\`)`, `───────────────────────────`, `📊 *Previous Balance:* Rs. ${prevStr}`, `➕ *Amount Received:*  *+Rs. ${deltaStr}*`, `📈 *New Ledger Vault:* *Rs. ${newStr}*`, `───────────────────────────`, `⏰ *Settled At:* ${timeStr}`];
   if (has_after_media) {
     messageLines.push(`📸 _Media attached: Before/After photos logged securely on local server._`);
   }
-
   messageLines.push(`🔒 _Guaranteed Atomic Transaction_`);
-
   return await sendTelegramMessage(messageLines.join('\n'));
 }
 
@@ -166,28 +169,19 @@ async function notifyExpenseRecorded({
   account_type = 'Cash_Drawer',
   previous_balance = 0,
   amount_deducted = 0,
-  new_balance = 0,
+  new_balance = 0
 }) {
-  const prevStr = Number(previous_balance).toLocaleString('en-US', { minimumFractionDigits: 2 });
-  const deltaStr = Number(amount_deducted).toLocaleString('en-US', { minimumFractionDigits: 2 });
-  const newStr = Number(new_balance).toLocaleString('en-US', { minimumFractionDigits: 2 });
+  const prevStr = Number(previous_balance).toLocaleString('en-US', {
+    minimumFractionDigits: 2
+  });
+  const deltaStr = Number(amount_deducted).toLocaleString('en-US', {
+    minimumFractionDigits: 2
+  });
+  const newStr = Number(new_balance).toLocaleString('en-US', {
+    minimumFractionDigits: 2
+  });
   const timeStr = new Date().toLocaleTimeString();
-
-  const message = [
-    `🔴 *EXPENSE DEDUCTED (OUTFLOW)*`,
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `🏷 *Category:* *${category || 'General'}*`,
-    `📝 *Details:* ${description || 'No description provided'}`,
-    `💳 *Paid Via:* *${payment_method}* (\`${account_type}\`)`,
-    `───────────────────────────`,
-    `📊 *Previous Balance:* Rs. ${prevStr}`,
-    `➖ *Amount Deducted:*  *-Rs. ${deltaStr}*`,
-    `📉 *Remaining Vault:*  *Rs. ${newStr}*`,
-    `───────────────────────────`,
-    `⏰ *Recorded At:* ${timeStr}`,
-    `⚠️ _Instant Absentee Partner Notification_`,
-  ].join('\n');
-
+  const message = [`🔴 *EXPENSE DEDUCTED (OUTFLOW)*`, `━━━━━━━━━━━━━━━━━━━━━━━━━━━`, `🏷 *Category:* *${category || 'General'}*`, `📝 *Details:* ${description || 'No description provided'}`, `💳 *Paid Via:* *${payment_method}* (\`${account_type}\`)`, `───────────────────────────`, `📊 *Previous Balance:* Rs. ${prevStr}`, `➖ *Amount Deducted:*  *-Rs. ${deltaStr}*`, `📉 *Remaining Vault:*  *Rs. ${newStr}*`, `───────────────────────────`, `⏰ *Recorded At:* ${timeStr}`, `⚠️ _Instant Absentee Partner Notification_`].join('\n');
   return await sendTelegramMessage(message);
 }
 
@@ -195,25 +189,20 @@ async function notifyExpenseRecorded({
  * Format and trigger: Low Stock Consumable Alert
  * Prompt: "⚠️ LOW STOCK ALERT: [Item Name] is down to [Amount] [Unit]. Please restock."
  */
-async function notifyLowStock({ itemName, amount, unit, threshold }) {
-  const message = [
-    `⚠️ *LOW STOCK ALERT: CONSUMABLE DEPLETED*`,
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `📦 *Consumable:* *${itemName}*`,
-    `📉 *Current Stock:* *${amount} ${unit}*`,
-    `⚡ *Threshold Alert:* ${threshold} ${unit}`,
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `⚠️ LOW STOCK ALERT: ${itemName} is down to ${amount} ${unit}. Please restock.`,
-  ].join('\n');
-
+async function notifyLowStock({
+  itemName,
+  amount,
+  unit,
+  threshold
+}) {
+  const message = [`⚠️ *LOW STOCK ALERT: CONSUMABLE DEPLETED*`, `━━━━━━━━━━━━━━━━━━━━━━━━━━━`, `📦 *Consumable:* *${itemName}*`, `📉 *Current Stock:* *${amount} ${unit}*`, `⚡ *Threshold Alert:* ${threshold} ${unit}`, `━━━━━━━━━━━━━━━━━━━━━━━━━━━`, `⚠️ LOW STOCK ALERT: ${itemName} is down to ${amount} ${unit}. Please restock.`].join('\n');
   return await sendTelegramMessage(message);
 }
-
 module.exports = {
   sendTelegramMessage,
   sendSMSReceipt,
   notifyJobCardCreated,
   notifyPaymentReceived,
   notifyExpenseRecorded,
-  notifyLowStock,
+  notifyLowStock
 };

@@ -1,150 +1,122 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
-
 const AuthContext = createContext();
-
 export const ROLES = {
   ADMIN: 'ADMIN',
   MANAGER: 'MANAGER',
   CASHIER: 'CASHIER',
   WORKER: 'WORKER',
+  INVESTOR: 'INVESTOR'
 };
-
-export function AuthProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(() => {
-    const savedRole = localStorage.getItem('carwash_user_role') || ROLES.ADMIN;
-    const savedName = localStorage.getItem('carwash_user_name') || 'Shop Owner & Admin';
-    const savedId = localStorage.getItem('carwash_user_id') || '00000000-0000-0000-0000-000000000001';
-    const savedToken = localStorage.getItem('carwash_auth_token') || '';
-    return {
-      role: savedRole,
-      name: savedName,
-      id: savedId,
-      token: savedToken,
-    };
-  });
-
-  // Keep Axios headers synced with current role and bearer token
+const clear = () => {
+  for (const key of ['carwash_auth_token', 'carwash_user_role', 'carwash_user_name', 'carwash_user_id']) localStorage.removeItem(key);
+  delete axios.defaults.headers.common.Authorization;
+  delete axios.defaults.headers.common['x-user-role'];
+  delete axios.defaults.headers.common['x-user-id'];
+};
+export function AuthProvider({
+  children
+}) {
+  const [pending] = useState(() => new Map());
   useEffect(() => {
-    if (currentUser?.role) {
-      axios.defaults.headers.common['x-user-role'] = currentUser.role;
-      axios.defaults.headers.common['x-user-id'] = currentUser.id;
-      if (currentUser.token) {
-        axios.defaults.headers.common['Authorization'] = `Bearer ${currentUser.token}`;
-      } else {
-        delete axios.defaults.headers.common['Authorization'];
+    const id = axios.interceptors.request.use(config => {
+      if (['post', 'put', 'patch', 'delete'].includes(config.method) && !config.url?.includes('/auth/')) {
+        const signature = config.method + ':' + config.url + ':' + JSON.stringify(config.data || {});
+        let key = pending.get(signature);
+        if (!key) {
+          const bytes = new Uint8Array(16);
+          crypto.getRandomValues(bytes);
+          key = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+          pending.set(signature, key);
+        }
+        config.headers['Idempotency-Key'] ||= key;
+        config._mutationSignature = signature;
       }
-      localStorage.setItem('carwash_user_role', currentUser.role);
-      localStorage.setItem('carwash_user_name', currentUser.name);
-      localStorage.setItem('carwash_user_id', currentUser.id);
-      if (currentUser.token) {
-        localStorage.setItem('carwash_auth_token', currentUser.token);
-      }
+      return config;
+    });
+    const response = axios.interceptors.response.use(r => {
+      pending.delete(r.config._mutationSignature);
+      return r;
+    }, e => {
+      if (e.response?.status >= 400 && e.response?.status < 500) pending.delete(e.config?._mutationSignature);
+      return Promise.reject(e);
+    });
+    return () => {
+      axios.interceptors.request.eject(id);
+      axios.interceptors.response.eject(response);
+    };
+  }, [pending]);
+  const [currentUser, setCurrentUser] = useState(null),
+    [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const token = localStorage.getItem('carwash_auth_token');
+    if (!token) {
+      setLoading(false);
+      return;
     }
-  }, [currentUser]);
-
-  /**
-   * Server-verified login with credentials (password or PIN)
-   */
+    axios.defaults.headers.common.Authorization = `Bearer ${token}`;
+    axios.get('/api/auth/me').then(r => setCurrentUser({
+      ...r.data.user,
+      token
+    })).catch(clear).finally(() => setLoading(false));
+  }, []);
+  useEffect(() => {
+    const id = axios.interceptors.response.use(r => r, e => {
+      if (e.response?.status === 401 && !e.config?.url?.includes('/auth/login')) {
+        clear();
+        setCurrentUser(null);
+      }
+      return Promise.reject(e);
+    });
+    return () => axios.interceptors.response.eject(id);
+  }, []);
   const login = async (identifier, password, pin) => {
     try {
-      const res = await axios.post('/api/auth/login', {
+      const r = await axios.post('/api/auth/login', {
         username: identifier,
         password,
-        pin,
+        pin
       });
-
-      if (res.data?.status === 'success') {
-        const { token, user } = res.data;
-        const normalizedRole = String(user.role).toUpperCase();
-        const updated = {
-          role: normalizedRole,
-          name: user.name,
-          id: user.id,
-          token,
-        };
-        setCurrentUser(updated);
-        return { success: true, user: updated };
-      }
-      return { success: false, message: 'Login failed' };
-    } catch (err) {
+      const user = {
+        ...r.data.user,
+        role: String(r.data.user.role).toUpperCase(),
+        token: r.data.token
+      };
+      localStorage.setItem('carwash_auth_token', user.token);
+      axios.defaults.headers.common.Authorization = `Bearer ${user.token}`;
+      setCurrentUser(user);
+      return {
+        success: true
+      };
+    } catch (e) {
       return {
         success: false,
-        message: err.response?.data?.message || 'Server-verified login failed.',
+        message: e.response?.data?.message || 'Unable to sign in.'
       };
     }
   };
-
-  /**
-   * Safe role switcher: verifies credentials if switching to elevated privilege
-   */
-  const switchRole = (newRole) => {
-    const normalized = String(newRole).toUpperCase();
-    let name = 'Shop Staff';
-    let id = 'user-generic';
-
-    if (normalized === ROLES.ADMIN) {
-      name = 'Shop Owner & Admin';
-      id = '00000000-0000-0000-0000-000000000001';
-    } else if (normalized === ROLES.MANAGER) {
-      name = 'Shop Manager';
-      id = '00000000-0000-0000-0000-000000000006';
-    } else if (normalized === ROLES.CASHIER) {
-      name = 'Shift Cashier 1';
-      id = '00000000-0000-0000-0000-000000000002';
-    } else if (normalized === ROLES.WORKER) {
-      name = 'Detailing Specialist';
-      id = '00000000-0000-0000-0000-000000000003';
+  const logout = async () => {
+    try {
+      await axios.post('/api/auth/logout');
+    } finally {
+      clear();
+      setCurrentUser(null);
     }
-
-    setCurrentUser((prev) => ({
-      ...prev,
-      role: normalized,
-      name,
-      id,
-    }));
   };
-
-  const logout = () => {
-    localStorage.removeItem('carwash_user_role');
-    localStorage.removeItem('carwash_user_name');
-    localStorage.removeItem('carwash_user_id');
-    localStorage.removeItem('carwash_auth_token');
-    delete axios.defaults.headers.common['Authorization'];
-    setCurrentUser({
-      role: ROLES.CASHIER,
-      name: 'Shift Cashier',
-      id: '00000000-0000-0000-0000-000000000002',
-      token: '',
-    });
-  };
-
-  const isAdmin = currentUser.role === ROLES.ADMIN;
-  const isManager = currentUser.role === ROLES.MANAGER || isAdmin;
-  const isCashier = currentUser.role === ROLES.CASHIER || isManager;
-
-  return (
-    <AuthContext.Provider
-      value={{
-        currentUser,
-        switchRole,
-        login,
-        logout,
-        isAdmin,
-        isManager,
-        isCashier,
-        ROLES,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const isAdmin = currentUser?.role === ROLES.ADMIN,
+    isManager = isAdmin || currentUser?.role === ROLES.MANAGER,
+    isCashier = isManager || currentUser?.role === ROLES.CASHIER;
+  return <AuthContext.Provider value={{
+    currentUser,
+    loading,
+    login,
+    logout,
+    isAdmin,
+    isManager,
+    isCashier,
+    ROLES
+  }}>{children}</AuthContext.Provider>;
 }
-
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return useContext(AuthContext);
 }

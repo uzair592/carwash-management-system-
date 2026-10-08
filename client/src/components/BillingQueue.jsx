@@ -1,30 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Receipt,
-  Clock,
-  Car,
-  User,
-  CheckCircle2,
-  AlertCircle,
-  RotateCw,
-  CreditCard,
-  Banknote,
-  Search,
-  Sparkles,
-  ArrowRight,
-  ShieldCheck,
-  RotateCcw,
-  Printer,
-  X,
-} from 'lucide-react';
+import { Receipt, Clock, Car, User, CheckCircle2, AlertCircle, RotateCw, CreditCard, Banknote, Search, Sparkles, ArrowRight, ShieldCheck, RotateCcw, Printer, X } from 'lucide-react';
 import axios from 'axios';
+import InvoiceBalanceModal from './InvoiceBalanceModal';
 import PinPadModal from './PinPadModal';
 import { printThermal } from '../utils/print';
 import { InvoiceThermalReceipt } from './ThermalTemplates';
-
-const money = (val) => Number(val || 0).toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-
-export default function BillingQueue({ onOpenCheckout }) {
+const money = val => Number(val || 0).toLocaleString('en-PK', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2
+});
+export default function BillingQueue({
+  onOpenCheckout
+}) {
+  const [balanceTarget, setBalanceTarget] = useState(null);
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyOffset, setHistoryOffset] = useState(0);
   const [readyJobs, setReadyJobs] = useState([]);
   const [recentInvoices, setRecentInvoices] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,15 +26,11 @@ export default function BillingQueue({ onOpenCheckout }) {
   const [printInvoiceTarget, setPrintInvoiceTarget] = useState(null);
   const [branding, setBranding] = useState(null);
   const [printBusinessName, setPrintBusinessName] = useState(true);
-
   const loadData = async () => {
     try {
-      const [bayRes, invRes, brandRes] = await axios.all([
-        axios.get('/api/bays/live-status'),
-        axios.get('/api/invoices?limit=8'),
-        axios.get('/api/branding').catch(() => ({ data: null })),
-      ]);
-
+      const [bayRes, invRes, brandRes] = await axios.all([axios.get('/api/bays/live-status'), axios.get(`/api/invoices?limit=50&offset=${historyOffset}&search=${encodeURIComponent(historySearch)}`), axios.get('/api/branding').catch(() => ({
+        data: null
+      }))]);
       if (bayRes.data?.ready_for_billing) {
         setReadyJobs(bayRes.data.ready_for_billing);
       }
@@ -58,18 +44,19 @@ export default function BillingQueue({ onOpenCheckout }) {
         }
       }
     } catch (err) {
-      console.warn('Billing queue poll error:', err.message);
+      setStatusFeedback({
+        type: 'error',
+        text: err.response?.data?.message || 'Invoices could not be refreshed.'
+      });
     } finally {
       setIsLoading(false);
     }
   };
-
   useEffect(() => {
     loadData();
     const timer = setInterval(loadData, 6000);
     return () => clearInterval(timer);
-  }, []);
-
+  }, [historyOffset, historySearch]);
   const calculateBayDuration = (startedAt, completedAt) => {
     if (!startedAt) return 'Quick';
     const start = new Date(startedAt).getTime();
@@ -77,47 +64,40 @@ export default function BillingQueue({ onOpenCheckout }) {
     const diffMins = Math.max(1, Math.round((end - start) / 60000));
     return `${diffMins} mins in bay`;
   };
-
-  const handleRefundInitiate = (invoice) => {
+  const handleRefundInitiate = invoice => {
     setRefundTargetInvoice(invoice);
     setIsPinModalOpen(true);
   };
-
-  const handlePinSuccess = async (adminPin) => {
+  const handlePinSuccess = async adminPin => {
     if (!refundTargetInvoice) return;
-
     try {
       const res = await axios.post(`/api/invoices/${refundTargetInvoice.id}/refund`, {
         admin_pin: adminPin,
         reason: refundReason,
-        amount: refundTargetInvoice.total_amount,
+        amount: refundTargetInvoice.paid_amount
       });
-
       setStatusFeedback({
         type: 'success',
-        text: `Refund approved for invoice ${refundTargetInvoice.invoice_number}. Ledger reversed & telegram alerted.`,
+        text: `Refund approved for invoice ${refundTargetInvoice.invoice_number}. Ledger reversed & telegram alerted.`
       });
       loadData();
     } catch (err) {
       setStatusFeedback({
         type: 'error',
-        text: err.response?.data?.message || 'Refund authorization failed.',
+        text: err.response?.data?.message || 'Refund authorization failed.'
       });
     } finally {
       setRefundTargetInvoice(null);
     }
   };
-
-  const filteredReady = readyJobs.filter((job) => {
+  const filteredReady = readyJobs.filter(job => {
     const q = searchTerm.toLowerCase();
     const plate = job.vehicle?.registration_number?.toLowerCase() || '';
     const cust = (job.customer_name || job.vehicle?.customer_name || '').toLowerCase();
     const ticket = job.ticket_number?.toLowerCase() || '';
     return plate.includes(q) || cust.includes(q) || ticket.includes(q);
   });
-
-  return (
-    <div className="billing-workspace space-y-5">
+  return <div className="billing-workspace space-y-5">
       {/* Header Banner */}
       <div className="billing-toolbar">
         <div className="flex items-center gap-3.5">
@@ -140,45 +120,23 @@ export default function BillingQueue({ onOpenCheckout }) {
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Filter plate, customer..."
-              className="bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 placeholder:text-slate-600 outline-none focus:border-amber-500 w-48 sm:w-60 tabular-nums"
-            />
+            <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Filter plate, customer..." className="bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 placeholder:text-slate-600 outline-none focus:border-amber-500 w-48 sm:w-60 tabular-nums" />
           </div>
 
-          <button
-            onClick={loadData}
-            className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-200 text-slate-500 hover:text-slate-900 transition"
-          >
+          <button onClick={loadData} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-200 text-slate-500 hover:text-slate-900 transition">
             <RotateCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-700' : ''}`} />
           </button>
         </div>
       </div>
 
-      {statusFeedback && (
-        <div
-          className={`p-4 rounded-lg border text-xs sm:text-sm font-semibold flex items-center gap-3 ${
-            statusFeedback.type === 'success'
-              ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
-              : 'bg-rose-50 border-rose-500 text-rose-700'
-          }`}
-        >
-          {statusFeedback.type === 'success' ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
-          ) : (
-            <AlertCircle className="w-5 h-5 text-rose-700 shrink-0" />
-          )}
+      {statusFeedback && <div className={`p-4 rounded-lg border text-xs sm:text-sm font-semibold flex items-center gap-3 ${statusFeedback.type === 'success' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-rose-50 border-rose-500 text-rose-700'}`}>
+          {statusFeedback.type === 'success' ? <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" /> : <AlertCircle className="w-5 h-5 text-rose-700 shrink-0" />}
           <span>{statusFeedback.text}</span>
-        </div>
-      )}
+        </div>}
 
       {/* Main Ready for Billing Grid */}
       <div className="space-y-4">
-        {filteredReady.length === 0 ? (
-          <div className="bg-white border border-slate-200 rounded-xl p-12 text-center space-y-3">
+        {filteredReady.length === 0 ? <div className="bg-white border border-slate-200 rounded-xl p-12 text-center space-y-3">
             <div className="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center mx-auto text-slate-600">
               <Receipt className="w-8 h-8" />
             </div>
@@ -186,26 +144,11 @@ export default function BillingQueue({ onOpenCheckout }) {
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
               When a wash team marks a vehicle complete in Jack 1, Jack 2, or Detailing, it will instantly appear here for cashier checkout.
             </p>
-          </div>
-        ) : (
-          <div className="billing-grid">
-            {filteredReady.map((job) => {
-              const subtotal =
-                job.services?.reduce((sum, s) => sum + parseFloat(s.price_charged || 0), 0) || 0;
-              const bayTag =
-                job.assigned_location === 'JACK_1'
-                  ? 'Jack 1 (Team 1)'
-                  : job.assigned_location === 'JACK_2'
-                  ? 'Jack 2 (Team 2)'
-                  : job.assigned_location === 'DETAILING_CENTER'
-                  ? 'Detailing Studio'
-                  : 'Bay Completed';
-
-              return (
-                <div
-                  key={job.id}
-                  className="billing-job-card"
-                >
+          </div> : <div className="billing-grid">
+            {filteredReady.map(job => {
+          const subtotal = job.services?.reduce((sum, s) => sum + parseFloat(s.price_charged || 0), 0) || 0;
+          const bayTag = job.assigned_location === 'JACK_1' ? 'Jack 1 (Team 1)' : job.assigned_location === 'JACK_2' ? 'Jack 2 (Team 2)' : job.assigned_location === 'DETAILING_CENTER' ? 'Detailing Studio' : 'Bay Completed';
+          return <div key={job.id} className="billing-job-card">
                   <div>
                     {/* Header: Plate & Ticket */}
                     <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-200">
@@ -246,17 +189,12 @@ export default function BillingQueue({ onOpenCheckout }) {
                       <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
                         Completed Services:
                       </span>
-                      {job.services?.map((s) => (
-                        <div
-                          key={s.id}
-                          className="flex justify-between items-center text-xs text-slate-600"
-                        >
+                      {job.services?.map(s => <div key={s.id} className="flex justify-between items-center text-xs text-slate-600">
                           <span className="truncate pr-2">• {s.service?.name}</span>
                           <span className="tabular-nums text-emerald-700 font-bold shrink-0">
                             Rs. {parseFloat(s.price_charged).toLocaleString()}
                           </span>
-                        </div>
-                      ))}
+                        </div>)}
                     </div>
                   </div>
 
@@ -269,21 +207,15 @@ export default function BillingQueue({ onOpenCheckout }) {
                       </span>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => onOpenCheckout(job)}
-                      className="w-full py-3.5 px-4 rounded-lg bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-500 active:scale-[0.98] text-slate-950 font-semibold text-sm flex items-center justify-center gap-2 transition shadow-sm group-hover:shadow-amber-500/30"
-                    >
+                    <button type="button" onClick={() => onOpenCheckout(job)} className="w-full py-3.5 px-4 rounded-lg bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-500 active:scale-[0.98] text-slate-950 font-semibold text-sm flex items-center justify-center gap-2 transition shadow-sm group-hover:shadow-amber-500/30">
                       <Receipt className="w-4 h-4 text-slate-950" />
                       <span>Collect payment</span>
                       <ArrowRight className="w-4 h-4 ml-auto text-slate-950" />
                     </button>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                </div>;
+        })}
+          </div>}
       </div>
 
       {/* RECENT SETTLED INVOICES & IMMUTABLE LEDGER REVERSAL / REFUND */}
@@ -292,7 +224,7 @@ export default function BillingQueue({ onOpenCheckout }) {
           <div>
             <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-emerald-700" />
-              Recent invoices
+              Invoice history
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
               Review payments or request an authorised refund.
@@ -303,6 +235,10 @@ export default function BillingQueue({ onOpenCheckout }) {
           </span>
         </div>
 
+        <div className="flex gap-2 mb-3"><input className="form-input" placeholder="Search invoice or plate" aria-label="Search invoice history" value={historySearch} onChange={e => {
+          setHistorySearch(e.target.value);
+          setHistoryOffset(0);
+        }} /><button className="btn btn-secondary" disabled={!historyOffset} onClick={() => setHistoryOffset(Math.max(0, historyOffset - 50))}>Previous</button><button className="btn btn-secondary" disabled={recentInvoices.length < 50} onClick={() => setHistoryOffset(historyOffset + 50)}>Next</button></div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
@@ -317,8 +253,7 @@ export default function BillingQueue({ onOpenCheckout }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200/60">
-              {recentInvoices.map((inv) => (
-                <tr key={inv.id} className="hover:bg-slate-100 transition">
+              {recentInvoices.map(inv => <tr key={inv.id} className="hover:bg-slate-100 transition">
                   <td className="py-3 px-3 tabular-nums font-bold text-sky-700">{inv.invoice_number}</td>
                   <td className="py-3 px-3 tabular-nums font-semibold text-amber-700">
                     {inv.job_card?.vehicle?.registration_number || 'N/A'}
@@ -327,13 +262,7 @@ export default function BillingQueue({ onOpenCheckout }) {
                     {inv.job_card?.customer_name || inv.job_card?.vehicle?.customer_name || 'Walk-in'}
                   </td>
                   <td className="py-3 px-3">
-                    <span
-                      className={`tabular-nums text-xs px-2 py-0.5 rounded border ${
-                        inv.payment_method === 'CASH'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : 'bg-sky-50 text-sky-700 border-sky-200'
-                      }`}
-                    >
+                    <span className={`tabular-nums text-xs px-2 py-0.5 rounded border ${inv.payment_method === 'CASH' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-sky-50 text-sky-700 border-sky-200'}`}>
                       {inv.payment_method}
                     </span>
                   </td>
@@ -341,59 +270,37 @@ export default function BillingQueue({ onOpenCheckout }) {
                     Rs. {parseFloat(inv.total_amount).toLocaleString()}
                   </td>
                   <td className="py-3 px-3">
-                    {inv.refund ? (
-                      <span className="tabular-nums text-xs bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded font-bold">
+                    {inv.status === 'REFUNDED' ? <span className="tabular-nums text-xs bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded font-bold">
                         REFUNDED
-                      </span>
-                    ) : (
-                      <span className="tabular-nums text-xs bg-slate-50 text-slate-500 border border-slate-200 px-2 py-0.5 rounded">
-                        SETTLED
-                      </span>
-                    )}
+                      </span> : <span className="tabular-nums text-xs bg-slate-50 text-slate-500 border border-slate-200 px-2 py-0.5 rounded">
+                        {inv.status || 'PAID'}
+                      </span>}
                   </td>
                   <td className="py-3 px-3 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setPrintInvoiceTarget(inv)}
-                        className="text-xs font-semibold text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1"
-                      >
+                    <div className="flex items-center justify-end gap-1.5">{Number(inv.balance_due) > 0 && <button className="btn btn-secondary" onClick={() => setBalanceTarget(inv)}>Collect Rs. {money(inv.balance_due)}</button>}
+                      <button type="button" onClick={() => setPrintInvoiceTarget(inv)} className="text-xs font-semibold text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1">
                         <Printer className="w-3.5 h-3.5" />
                         Print Invoice
                       </button>
-                      {!inv.refund && (
-                        <button
-                          type="button"
-                          onClick={() => handleRefundInitiate(inv)}
-                          className="text-xs font-semibold text-rose-700 hover:text-rose-700 bg-rose-50 hover:bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-lg transition"
-                        >
+                      {Number(inv.paid_amount) > 0 && <button type="button" onClick={() => handleRefundInitiate(inv)} className="text-xs font-semibold text-rose-700 hover:text-rose-700 bg-rose-50 hover:bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-lg transition">
                           Refund
-                        </button>
-                      )}
+                        </button>}
                     </div>
                   </td>
-                </tr>
-              ))}
+                </tr>)}
             </tbody>
           </table>
         </div>
       </div>
 
       {/* Admin PIN Pad Modal for Refund Authorization */}
-      <PinPadModal
-        isOpen={isPinModalOpen}
-        onClose={() => {
-          setIsPinModalOpen(false);
-          setRefundTargetInvoice(null);
-        }}
-        onSuccess={handlePinSuccess}
-        title="Authorize Ledger Refund"
-        description={`Admin or Manager PIN required to reverse ledger and void Invoice ${refundTargetInvoice?.invoice_number || ''}`}
-      />
+      <PinPadModal isOpen={isPinModalOpen} onClose={() => {
+      setIsPinModalOpen(false);
+      setRefundTargetInvoice(null);
+    }} onSuccess={handlePinSuccess} title="Authorize Ledger Refund" description={`Admin or Manager PIN required to reverse ledger and void Invoice ${refundTargetInvoice?.invoice_number || ''}`} />
 
       {/* Invoice Reprint Modal with Business Logo (Requirement 9 & User Request) */}
-      {printInvoiceTarget && (
-        <div className="dialog-backdrop">
+      {printInvoiceTarget && <div className="dialog-backdrop">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="flex items-center gap-2">
@@ -402,11 +309,7 @@ export default function BillingQueue({ onOpenCheckout }) {
                   Customer Invoice Print #{printInvoiceTarget.invoice_number}
                 </h3>
               </div>
-              <button
-                type="button"
-                onClick={() => setPrintInvoiceTarget(null)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-              >
+              <button type="button" onClick={() => setPrintInvoiceTarget(null)} className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -414,12 +317,7 @@ export default function BillingQueue({ onOpenCheckout }) {
             {/* Business Name on Invoice Check Mark (User Requirement) */}
             <div className="flex items-center justify-between bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl text-xs">
               <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={printBusinessName}
-                  onChange={(e) => setPrintBusinessName(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 rounded cursor-pointer"
-                />
+                <input type="checkbox" checked={printBusinessName} onChange={e => setPrintBusinessName(e.target.checked)} className="w-4 h-4 text-blue-600 rounded cursor-pointer" />
                 <span>Print Business Name on Invoice</span>
               </label>
               <span className="text-[11px] text-slate-500 font-medium">
@@ -428,33 +326,19 @@ export default function BillingQueue({ onOpenCheckout }) {
             </div>
 
             {/* 80mm ESC/POS Formatted Receipt with Business Logo */}
-            <InvoiceThermalReceipt
-              invoice={printInvoiceTarget}
-              branding={branding}
-              showBusinessName={printBusinessName}
-              id="reprint-invoice-dialog"
-            />
+            <InvoiceThermalReceipt invoice={printInvoiceTarget} branding={branding} showBusinessName={printBusinessName} id="reprint-invoice-dialog" />
 
             <div className="flex justify-end gap-3 pt-2">
-              <button
-                type="button"
-                className="btn btn-secondary px-4 py-2 text-xs rounded-lg"
-                onClick={() => setPrintInvoiceTarget(null)}
-              >
+              <button type="button" className="btn btn-secondary px-4 py-2 text-xs rounded-lg" onClick={() => setPrintInvoiceTarget(null)}>
                 Close
               </button>
-              <button
-                type="button"
-                className="btn btn-primary px-5 py-2 text-xs rounded-lg flex items-center gap-1.5 shadow-sm bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={() => printThermal('reprint-invoice-dialog')}
-              >
+              <button type="button" className="btn btn-primary px-5 py-2 text-xs rounded-lg flex items-center gap-1.5 shadow-sm bg-blue-600 hover:bg-blue-700 text-white" onClick={() => printThermal('reprint-invoice-dialog')}>
                 <Printer className="w-4 h-4" />
                 Print Invoice (80mm)
               </button>
             </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
+        </div>}
+      {balanceTarget && <InvoiceBalanceModal invoice={balanceTarget} onClose={() => setBalanceTarget(null)} onSaved={loadData} />}
+    </div>;
 }
