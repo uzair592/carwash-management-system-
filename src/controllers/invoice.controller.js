@@ -144,7 +144,50 @@ async function checkoutHandler(req, res, next) {
 
       for (const item of targetJobCard.services) {
         const srv = item.service;
-        if (srv && srv.linked_inventory_id && srv.inventory_deduction_amount) {
+        if (!srv) continue;
+
+        // Check relational ServiceInventory mapping table first
+        const mappings = await tx.serviceInventory.findMany({
+          where: { service_id: srv.id },
+          include: { inventory: true },
+        });
+
+        if (mappings.length > 0) {
+          for (const m of mappings) {
+            const deductAmount = parseFloat(m.deduction_amount || 0);
+            if (deductAmount > 0 && m.inventory) {
+              const curStock = parseFloat(m.inventory.current_stock);
+              const newStock = Math.max(0, parseFloat((curStock - deductAmount).toFixed(2)));
+              const threshold = parseFloat(m.inventory.low_stock_threshold || 10);
+
+              const updatedInv = await tx.inventory.update({
+                where: { id: m.inventory_id },
+                data: {
+                  current_stock: newStock,
+                  updated_at: new Date(),
+                },
+              });
+
+              deductedItems.push({
+                inventory_id: updatedInv.id,
+                item_name: updatedInv.item_name,
+                deducted: deductAmount,
+                remaining: newStock,
+                unit: updatedInv.unit_type,
+              });
+
+              if (newStock <= threshold) {
+                lowStockAlerts.push({
+                  itemName: updatedInv.item_name,
+                  amount: newStock,
+                  unit: updatedInv.unit_type,
+                  threshold: threshold,
+                });
+              }
+            }
+          }
+        } else if (srv.linked_inventory_id && srv.inventory_deduction_amount) {
+          // Direct linked inventory fallback
           const deductAmount = parseFloat(srv.inventory_deduction_amount);
           if (deductAmount > 0) {
             const invItem = await tx.inventory.findUnique({

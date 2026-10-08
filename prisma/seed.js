@@ -215,6 +215,47 @@ async function main() {
   }
 
   console.log(`✔ Standard Services Seeded & Linked to Consumables: ${standardServices.map((s) => s.name).join(', ')}`);
+
+  // 5. Seed Partner Equity Split (3 Partners: 40%, 30%, 30%)
+  const partners = [
+    { partner_name: 'Malik Umair (Managing Partner)', equity_percentage: 40.00, phone: '0300-1111111' },
+    { partner_name: 'Bilal Khan (Sleeping Partner)', equity_percentage: 30.00, phone: '0300-2222222' },
+    { partner_name: 'Tariq Mehmood (Sleeping Partner)', equity_percentage: 30.00, phone: '0300-3333333' },
+  ];
+
+  for (const p of partners) {
+    const existingP = await prisma.partnerEquity.findFirst({ where: { partner_name: p.partner_name } });
+    if (!existingP) {
+      await prisma.partnerEquity.create({ data: p });
+    }
+  }
+  console.log('✔ Partner Equity Split Seeded (40% / 30% / 30%)');
+
+  // 6. Seed ServiceInventory relational mappings
+  for (const s of standardServices) {
+    if (s.linked_inventory_id && s.inventory_deduction_amount) {
+      const srv = await prisma.service.findFirst({ where: { name: s.name } });
+      if (srv) {
+        await prisma.serviceInventory.upsert({
+          where: {
+            service_id_inventory_id: {
+              service_id: srv.id,
+              inventory_id: s.linked_inventory_id,
+            },
+          },
+          update: {
+            deduction_amount: s.inventory_deduction_amount,
+          },
+          create: {
+            service_id: srv.id,
+            inventory_id: s.linked_inventory_id,
+            deduction_amount: s.inventory_deduction_amount,
+          },
+        });
+      }
+    }
+  }
+  console.log('✔ ServiceInventory relational mappings initialized');
   console.log('========================================================');
   console.log(' Production database seed completed successfully!');
   console.log(' Ready for Day 1 operations.');

@@ -42,6 +42,15 @@ const {
   generateThermalIntakeTicket,
   generateThermalCustomerReceipt,
 } = require('../services/printer.service');
+const {
+  getMonthlyPayrollHandler,
+  getPartnerEquityHandler,
+  upsertPartnerEquityHandler,
+  getMonthlyDividendsHandler,
+  dispatchDividendsHandler,
+  listYieldMappingsHandler,
+  createYieldMappingHandler,
+} = require('../controllers/financials.controller');
 
 // ---------------------------------------------------------------------------
 // 1. Health & Service Diagnostics
@@ -101,9 +110,21 @@ router.post('/printer/thermal-receipt', (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// 4d. Monthly Financial Engine (Payroll, Partner Equity & Dividends, Yield Mappings)
+// ---------------------------------------------------------------------------
+router.get('/financials/payroll', getMonthlyPayrollHandler);
+router.get('/financials/equity', getPartnerEquityHandler);
+router.post('/financials/equity', upsertPartnerEquityHandler);
+router.get('/financials/dividends', getMonthlyDividendsHandler);
+router.post('/financials/dividends/dispatch', dispatchDividendsHandler);
+router.get('/inventory/yield-mappings', listYieldMappingsHandler);
+router.post('/inventory/yield-mappings', createYieldMappingHandler);
+
+// ---------------------------------------------------------------------------
 // 5. Checkout & Invoicing
 // ---------------------------------------------------------------------------
 router.post('/invoices/checkout', checkoutHandler);
+router.post('/checkout', checkoutHandler); // convenience alias
 router.get('/invoices', listInvoicesHandler);
 
 // ---------------------------------------------------------------------------
@@ -294,5 +315,16 @@ router.patch('/services/:id/link-inventory', linkServiceInventoryHandler);
 router.post('/job-cards/:id/media', upload.single('image'), uploadJobCardMediaHandler);
 router.get('/job-cards/:id/media', getJobCardMediaHandler);
 router.delete('/job-cards/media/:mediaId', deleteJobCardMediaHandler);
+
+// ---------------------------------------------------------------------------
+// 12. Monthly Financial Engine: Payroll, Yield Mappings & Partner Equity
+// ---------------------------------------------------------------------------
+router.get('/financials/payroll', getMonthlyPayrollHandler);
+router.get('/financials/equity', getPartnerEquityHandler);
+router.post('/financials/equity', upsertPartnerEquityHandler);
+router.get('/financials/dividends', getMonthlyDividendsHandler);
+router.post('/financials/dividends/dispatch', dispatchDividendsHandler);
+router.get('/inventory/yield-mappings', listYieldMappingsHandler);
+router.post('/inventory/yield-mappings', createYieldMappingHandler);
 
 module.exports = router;

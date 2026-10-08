@@ -95,6 +95,7 @@ model User {
   role            UserRole    @default(Worker)
   pin_code        String      @db.VarChar(10)
   commission_rate Decimal     @default(0.00) @db.Decimal(5, 2)
+  flat_commission Decimal     @default(0.00) @db.Decimal(10, 2)
   base_salary     Decimal     @default(0.00) @db.Decimal(10, 2)
   is_active       Boolean     @default(true)
   created_at      DateTime    @default(now())
@@ -138,6 +139,7 @@ model Service {
   updated_at                 DateTime        @updatedAt
 
   job_card_items JobCardService[]
+  service_inventories ServiceInventory[]
 
   @@map("services")
 }
@@ -243,6 +245,7 @@ model Inventory {
   updated_at          DateTime  @updatedAt
 
   services            Service[]
+  service_inventories ServiceInventory[]
 
   @@map("inventory")
 }
@@ -285,5 +288,30 @@ model RegisterSession {
   updated_at            DateTime       @updatedAt
 
   @@map("register_sessions")
+}
+
+model ServiceInventory {
+  id               String    @id @default(uuid())
+  service_id       String
+  service          Service   @relation(fields: [service_id], references: [id], onDelete: Cascade)
+  inventory_id     String
+  inventory        Inventory @relation(fields: [inventory_id], references: [id], onDelete: Cascade)
+  deduction_amount Decimal   @db.Decimal(10, 2)
+  created_at       DateTime  @default(now())
+
+  @@unique([service_id, inventory_id])
+  @@map("service_inventory")
+}
+
+model PartnerEquity {
+  id                String   @id @default(uuid())
+  partner_name      String   @db.VarChar(100)
+  equity_percentage Decimal  @db.Decimal(5, 2)
+  phone             String?  @db.VarChar(30)
+  is_active         Boolean  @default(true)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@map("partner_equity")
 }
 

@@ -111,11 +111,12 @@ async function generatePayrollHandler(req, res, next) {
 async function updateStaffSalaryHandler(req, res, next) {
   try {
     const { id } = req.params;
-    const { base_salary, commission_rate } = req.body;
+    const { base_salary, commission_rate, flat_commission } = req.body;
 
     const data = {};
     if (base_salary !== undefined) data.base_salary = parseFloat(base_salary) || 0;
     if (commission_rate !== undefined) data.commission_rate = parseFloat(commission_rate) || 0;
+    if (flat_commission !== undefined) data.flat_commission = parseFloat(flat_commission) || 0;
 
     const updated = await prisma.user.update({
       where: { id },
