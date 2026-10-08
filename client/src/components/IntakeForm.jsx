@@ -251,10 +251,8 @@ export default function IntakeForm({ onJobCreated }) {
                 <Car size={20} />
               </span>
               <div className="flex-1">
-                <h2 className="text-base font-bold text-slate-800">Vehicle & Customer Intake</h2>
-                <p className="text-xs text-slate-500">
-                  Registration plate is required. Customer details are optional for walk-ins.
-                </p>
+                <h2 className="text-base font-bold text-slate-800">Vehicle details</h2>
+
               </div>
 
               {/* Requirement 7: Returning and Loyal Customer Badges */}
@@ -345,7 +343,7 @@ export default function IntakeForm({ onJobCreated }) {
                     onClick={() => setIsAddingMake(!isAddingMake)}
                     className="text-xs text-blue-600 hover:underline font-semibold flex items-center gap-1"
                   >
-                    <Plus size={12} /> {isAddingMake ? 'Cancel' : '+ Add Make'}
+                    <Plus size={12} /> {isAddingMake ? 'Cancel' : 'Add make'}
                   </button>
                 </div>
                 {isAddingMake ? (
@@ -406,7 +404,7 @@ export default function IntakeForm({ onJobCreated }) {
               </div>
 
               <div>
-                <label className="field-label" htmlFor="intake-notes">Job Notes / Customer Requests</label>
+                <label className="field-label" htmlFor="intake-notes">Notes</label>
                 <input
                   id="intake-notes"
                   className="field text-sm"
@@ -425,10 +423,8 @@ export default function IntakeForm({ onJobCreated }) {
                 <ClipboardList size={20} />
               </span>
               <div className="flex-1">
-                <h2 className="text-base font-bold text-slate-800">Select Services & Packages</h2>
-                <p className="text-xs text-slate-500">
-                  Select one or more services. Independent prices apply.
-                </p>
+                <h2 className="text-base font-bold text-slate-800">Services</h2>
+
               </div>
               <span className="text-xs font-semibold px-2 py-1 bg-slate-100 text-slate-600 rounded">
                 {selectedServices.length} selected
@@ -461,7 +457,7 @@ export default function IntakeForm({ onJobCreated }) {
             </div>
 
             {/* Service Blocks Grid */}
-            <div className="p-4">
+            <div className="service-grid-wrap">
               {isLoadingServices ? (
                 <div className="empty-state py-8">
                   <Loader2 size={24} className="animate-spin text-blue-600 mb-2" />
@@ -482,7 +478,7 @@ export default function IntakeForm({ onJobCreated }) {
                   <p>Try another search or filter.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
+                <div className="service-grid">
                   {visibleServices.map((service) => {
                     const isSelected = selectedServices.some((s) => s.id === service.id);
                     const CategoryIcon =
@@ -493,77 +489,10 @@ export default function IntakeForm({ onJobCreated }) {
                         : Droplets;
 
                     return (
-                      <button
-                        key={service.id}
-                        type="button"
-                        aria-pressed={isSelected}
-                        onClick={() => toggleService(service)}
-                        className={`service-option p-4 rounded-2xl border-2 text-left transition-all duration-150 flex flex-col justify-between group active:scale-[0.98] ${
-                          isSelected
-                            ? 'bg-blue-50/90 border-blue-600 ring-2 ring-blue-500/20 shadow-md'
-                            : 'bg-white border-slate-200 hover:border-blue-400 hover:shadow-sm hover:bg-slate-50/60'
-                        }`}
-                      >
-                        {/* Top row: Category tag + Selection State Pill */}
-                        <div className="flex items-center justify-between gap-2 w-full mb-2.5">
-                          <span
-                            className={`text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider flex items-center gap-1.5 ${
-                              service.category === 'Wash'
-                                ? 'bg-blue-100/80 text-blue-800'
-                                : service.category === 'Detailing'
-                                ? 'bg-purple-100/80 text-purple-800'
-                                : 'bg-emerald-100/80 text-emerald-800'
-                            }`}
-                          >
-                            <CategoryIcon size={12} className="shrink-0" />
-                            <span>{service.category}</span>
-                          </span>
-
-                          <span
-                            className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center gap-1 transition ${
-                              isSelected
-                                ? 'bg-blue-600 text-white shadow-2xs'
-                                : 'bg-slate-100 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600'
-                            }`}
-                          >
-                            {isSelected ? (
-                              <>
-                                <Check size={12} strokeWidth={3} />
-                                <span>Added</span>
-                              </>
-                            ) : (
-                              <>
-                                <Plus size={12} strokeWidth={2.5} />
-                                <span>Add</span>
-                              </>
-                            )}
-                          </span>
-                        </div>
-
-                        {/* Title and duration */}
-                        <div className="w-full my-1">
-                          <strong className="block text-sm sm:text-base font-extrabold text-slate-900 mb-1 leading-snug group-hover:text-blue-700 transition-colors">
-                            {service.name}
-                          </strong>
-                          <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1">
-                            <Clock size={12} className="shrink-0" />
-                            <span>~{service.estimated_time || 30} mins duration</span>
-                          </span>
-                        </div>
-
-                        {/* Bottom Row: Price badge */}
-                        <div className="pt-2.5 border-t border-slate-100 w-full flex items-center justify-between mt-2">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                            Service Rate
-                          </span>
-                          <span className={`text-base sm:text-lg font-black font-mono px-2.5 py-0.5 rounded-lg border transition ${
-                            isSelected
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
-                              : 'bg-slate-100 text-slate-900 border-slate-200/90 group-hover:border-blue-300'
-                          }`}>
-                            Rs. {money(service.price)}
-                          </span>
-                        </div>
+                      <button key={service.id} type="button" aria-pressed={isSelected} onClick={() => toggleService(service)} className={`service-option ${isSelected ? 'is-selected' : ''}`}>
+                        <div className="service-card-top"><span className={`service-category category-${String(service.category).toLowerCase()}`}><CategoryIcon size={14} />{service.category}</span><span className="service-check">{isSelected ? <Check size={15} /> : <Plus size={15} />}</span></div>
+                        <strong className="service-name">{service.name}</strong>
+                        <div className="service-card-bottom"><strong>Rs. {money(service.price)}</strong><span><Clock size={13} />{service.estimated_time || 30} min</span></div>
                       </button>
                     );
                   })}
@@ -577,7 +506,7 @@ export default function IntakeForm({ onJobCreated }) {
         <aside className="surface job-summary">
           <div className="summary-title">
             <ClipboardList size={18} />
-            <h2 className="text-sm font-bold text-slate-800">Work Ticket Summary</h2>
+            <h2 className="text-sm font-bold text-slate-800">Work ticket</h2>
             <span className="text-xs font-bold font-mono px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
               {selectedServices.length}
             </span>

@@ -195,16 +195,16 @@ export default function PhysicalBayDashboard({ onGoToBilling }) {
       )}
 
       {/* Heading Bar */}
-      <div className="section-heading flex items-center justify-between gap-4">
+      <div className="section-heading workshop-heading">
         <div>
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
             Work areas
             <span className="text-xs font-semibold px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
-              4 Physical Slots (2 Wash Jacks · 2 Detailing Slots)
+              2 wash bays · 2 detailing bays
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Jack 1 & Jack 2 for wash operations · Detailing Slot 1 & Detailing Slot 2 for multi-worker detailing jobs
+            Assign a vehicle, track progress and move completed work to billing.
           </p>
         </div>
         <div className="flex gap-2">
@@ -228,7 +228,7 @@ export default function PhysicalBayDashboard({ onGoToBilling }) {
       </div>
 
       {/* 4 Physical Bays Grid (2 Wash + 2 Detailing) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="bay-layout">
         {baysList.map(({ key, data, type }) => {
           const occupied = Boolean(data.is_occupied && data.current_job);
           const job = data.current_job;
@@ -269,9 +269,9 @@ export default function PhysicalBayDashboard({ onGoToBilling }) {
                 </div>
 
                 {occupied && job ? (
-                  <div className="mt-3 space-y-3">
+                  <div className="bay-details">
                     {/* Vehicle Registration & Ticket */}
-                    <div className="flex items-start justify-between gap-2">
+                    <div className="bay-identification">
                       <div>
                         <strong className="text-lg font-bold text-slate-900 font-mono tracking-wider block">
                           {job.vehicle?.registration_number}
@@ -292,7 +292,7 @@ export default function PhysicalBayDashboard({ onGoToBilling }) {
                     </div>
 
                     {/* Assigned Workers (Requirement 6: Multiple Workers per job) */}
-                    <div className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
+                    <div className="bay-workers">
                       <div className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
                         <Users size={12} className="text-blue-600" />
                         <span>Assigned Workers ({assignedWorkers.length || (job.worker ? 1 : 0)}):</span>
@@ -305,7 +305,7 @@ export default function PhysicalBayDashboard({ onGoToBilling }) {
                     </div>
 
                     {/* Timer & Duration */}
-                    <div className="p-2.5 bg-blue-50/70 border border-blue-200 rounded-lg flex items-center justify-between">
+                    <div className="bay-timer">
                       <span className="text-xs font-semibold text-blue-900 flex items-center gap-1">
                         <Timer size={13} className="text-blue-600" />
                         Elapsed Time:
@@ -329,7 +329,7 @@ export default function PhysicalBayDashboard({ onGoToBilling }) {
                   </div>
                 ) : (
                   /* Empty Slot State */
-                  <div className="py-10 text-center text-slate-400">
+                  <div className="bay-empty">
                     <Car size={32} className="mx-auto text-slate-300 mb-2" />
                     <p className="text-xs font-semibold text-slate-500">Slot is currently free</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">
@@ -341,7 +341,7 @@ export default function PhysicalBayDashboard({ onGoToBilling }) {
 
               {/* Action Buttons */}
               {occupied && job && (
-                <div className="pt-3 border-t border-slate-100 mt-4 space-y-2">
+                <div className="bay-actions">
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -382,7 +382,7 @@ export default function PhysicalBayDashboard({ onGoToBilling }) {
       </div>
 
       {/* Waiting Intake Queue Section */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden p-5">
+      <div className="surface waiting-queue">
         <h3 className="text-base font-bold text-slate-800 mb-3 flex items-center justify-between">
           <span className="flex items-center gap-2">
             <Car size={18} className="text-blue-600" />
