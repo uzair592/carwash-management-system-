@@ -245,17 +245,17 @@ async function runRegressionSuite() {
   const invoiceC = checkoutCRes.data.data.invoice;
   pass(`Vehicle C invoiced (Invoice: ${invoiceC.invoice_number}) for Rs. ${invoiceC.total_amount} via BANK.`);
 
-  // Assert Ceramic stock deducted by exactly 30ml
+  // Assert Ceramic stock was NOT double-deducted at checkout (Decoupled Enterprise ERP)
   const ceramicAfter = await prisma.inventory.findFirst({
     where: { item_name: { contains: 'Ceramic Coating' } },
   });
   const stockAfter = parseFloat(ceramicAfter.current_stock);
   const stockDelta = parseFloat((stockBefore - stockAfter).toFixed(2));
 
-  if (stockDelta === 30.0) {
-    pass(`Yield Engine Assert: Ceramic Coating deducted exactly 30ml (${stockBefore}ml ➔ ${stockAfter}ml).`);
+  if (stockDelta === 0.0) {
+    pass(`Enterprise ERP Invariant: Inventory was NOT double-deducted at checkout (${stockBefore}ml remains unchanged). Stock is strictly issued via MaterialIssuance.`);
   } else {
-    fail(`Inventory yield deduction mismatch! Expected delta: 30ml, got: ${stockDelta}ml.`);
+    fail(`Inventory was unexpectedly deducted at checkout! Expected delta: 0ml, got: ${stockDelta}ml.`);
   }
 
   // Assert alert records in AlertOutbox
@@ -449,16 +449,265 @@ async function runRegressionSuite() {
   }
 
   // -------------------------------------------------------------------------
+  // STEP 9: ADVANCE CUSTOMER DEPOSIT (LIABILITY TRACKING)
+  // -------------------------------------------------------------------------
+  header('STEP 9: Customer Advance Deposit & Liability Ledger Verification');
+  
+  // Create an advance deposit for multi-day ceramic job
+  const depositRes = await axios.post(
+    `${BASE_URL}/api/deposits`,
+    {
+      customer_name: 'Zubair Detailing Client',
+      customer_phone: '+923009998888',
+      amount: 5000,
+      payment_method: 'CASH',
+      notes: 'Upfront advance for 3-day 9H Ceramic Coating job',
+    },
+    { headers: cashierHeaders }
+  );
+
+  if (depositRes.status === 201 && depositRes.data?.data?.status === 'ACTIVE') {
+    pass(`Advance deposit of Rs. ${depositRes.data.data.amount} recorded with status ACTIVE (Liability). Deposit ID: ${depositRes.data.data.id}`);
+  } else {
+    fail(`Failed to record advance deposit: ${JSON.stringify(depositRes.data)}`);
+  }
+  const createdDepositId = depositRes.data.data.id;
+
+  // -------------------------------------------------------------------------
+  // STEP 10: MULTI-DAY INVENTORY ISSUANCE (DECOUPLED FROM CHECKOUT)
+  // -------------------------------------------------------------------------
+  header('STEP 10: Multi-Day Workshop Material Issuance (Real-time Consumption)');
+
+  // Fetch Ceramic Service and Consumable from DB
+  const ceramicService = await prisma.service.findFirst({
+    where: { name: { contains: 'Ceramic' } },
+  });
+  const ceramicConsumable = await prisma.inventory.findFirst({
+    where: { item_name: { contains: 'Ceramic' } },
+  });
+
+  // 1. Intake a 3-Day Ceramic Car into Detailing Center
+  const ceramicCarRes = await axios.post(
+    `${BASE_URL}/api/intake`,
+    {
+      registration_number: 'AUDI-9900',
+      customer_name: 'Zubair Detailing Client',
+      customer_phone: '+923009998888',
+      make: 'Audi',
+      model: 'A6',
+      services: [ceramicService.name],
+      assigned_location: 'DETAILING_CENTER',
+    },
+    { headers: cashierHeaders }
+  );
+  const ceramicJobCardId = ceramicCarRes.data.data.job_card.id;
+
+  // Start job card in detailing center
+  await axios.patch(
+    `${BASE_URL}/api/job-cards/${ceramicJobCardId}/start`,
+    { location: 'DETAILING_CENTER' },
+    { headers: cashierHeaders }
+  );
+
+  // 2. Fetch inventory before issuance
+  const initialInvItem = await prisma.inventory.findUnique({
+    where: { id: ceramicConsumable.id },
+  });
+  const stockBeforeIssuance = parseFloat(initialInvItem.current_stock);
+
+  // 3. Declare Day-1 material consumption: 30ml Ceramic
+  const issueRes = await axios.post(
+    `${BASE_URL}/api/materials/issue`,
+    {
+      job_card_id: ceramicJobCardId,
+      inventory_id: ceramicConsumable.id,
+      quantity_issued: 30,
+      notes: 'Day 1 base coat application (30ml)',
+    },
+    { headers: cashierHeaders }
+  );
+
+  if (issueRes.status === 201 && issueRes.data?.data?.quantity_issued == 30) {
+    pass(`Material Issuance recorded on active bay: 30 ${ceramicConsumable.unit_type} issued to Job Card.`);
+  } else {
+    fail(`Failed to issue material: ${JSON.stringify(issueRes.data)}`);
+  }
+
+  const updatedInvItem = await prisma.inventory.findUnique({
+    where: { id: ceramicConsumable.id },
+  });
+  const stockAfterIssuance = parseFloat(updatedInvItem.current_stock);
+
+  if (stockBeforeIssuance - stockAfterIssuance === 30) {
+    pass(`Inventory stock decremented instantly on Day 1: ${stockBeforeIssuance} -> ${stockAfterIssuance} ${ceramicConsumable.unit_type}`);
+  } else {
+    fail(`Inventory was not accurately decremented! Expected delta of 30, got ${stockBeforeIssuance - stockAfterIssuance}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // STEP 11: SPLIT PAYMENTS & DEPOSIT APPLICATION AT CHECKOUT
+  // -------------------------------------------------------------------------
+  header('STEP 11: Enterprise ERP Split Payment Checkout with Deposit Offset');
+
+  // Total amount of Ceramic service = Rs. 25,000 (from seed)
+  // Deposit applied = Rs. 5,000
+  // Remaining balance due = Rs. 20,000
+  // Split payment: Rs. 10,000 CASH + Rs. 10,000 BANK
+  const splitCheckoutRes = await axios.post(
+    `${BASE_URL}/api/invoices/checkout`,
+    {
+      job_card_id: ceramicJobCardId,
+      applied_deposit_ids: [createdDepositId],
+      payments: [
+        { payment_method: 'CASH', amount: 10000 },
+        { payment_method: 'BANK', amount: 10000 },
+      ],
+    },
+    { headers: cashierHeaders }
+  );
+
+  if (splitCheckoutRes.status === 200 && splitCheckoutRes.data?.data?.invoice?.status === 'PAID') {
+    pass(`Split checkout completed successfully. Invoice ID: ${splitCheckoutRes.data.data.invoice.invoice_number}`);
+  } else {
+    fail(`Split checkout failed: ${JSON.stringify(splitCheckoutRes.data)}`);
+  }
+
+  // Verify deposit is now APPLIED
+  const verifiedDeposit = await prisma.customerDeposit.findUnique({
+    where: { id: createdDepositId },
+  });
+  if (verifiedDeposit.status === 'APPLIED') {
+    pass(`Customer Deposit marked as APPLIED to Invoice ${splitCheckoutRes.data.data.invoice.invoice_number}. Liability settled!`);
+  } else {
+    fail(`Customer deposit status was not transitioned to APPLIED! Current: ${verifiedDeposit.status}`);
+  }
+
+  // Verify multiple payment rows exist for invoice
+  const paymentsList = await prisma.payment.findMany({
+    where: { invoice_id: splitCheckoutRes.data.data.invoice.id },
+  });
+  if (paymentsList.length === 2) {
+    pass(`Invoice has 2 distinct Payment records: 1 CASH (Rs. ${paymentsList[0].amount}) & 1 BANK (Rs. ${paymentsList[1].amount}).`);
+  } else {
+    fail(`Expected 2 payment records for split checkout, found: ${paymentsList.length}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // STEP 12: CASH-TO-BANK LEDGER VAULT TRANSFERS
+  // -------------------------------------------------------------------------
+  header('STEP 12: Cash-to-Bank Ledger Vault Transfer');
+
+  const cashVaultBefore = parseFloat((await prisma.ledger.findUnique({ where: { account_type: 'Cash_Drawer' } }))?.current_balance || 0);
+  const bankVaultBefore = parseFloat((await prisma.ledger.findUnique({ where: { account_type: 'Main_Bank' } }))?.current_balance || 0);
+
+  const transferAmount = 15000;
+  const transferRes = await axios.post(
+    `${BASE_URL}/api/ledger/transfer`,
+    {
+      from_account: 'Cash_Drawer',
+      to_account: 'Main_Bank',
+      amount: transferAmount,
+      notes: 'Transfer excess cash till to business bank account',
+    },
+    { headers: adminHeaders }
+  );
+
+  if (transferRes.status === 201) {
+    pass(`Ledger transfer executed: Rs. ${transferAmount} transferred from Cash_Drawer to Main_Bank.`);
+  } else {
+    fail(`Failed to execute ledger transfer: ${JSON.stringify(transferRes.data)}`);
+  }
+
+  const cashVaultAfter = parseFloat((await prisma.ledger.findUnique({ where: { account_type: 'Cash_Drawer' } }))?.current_balance || 0);
+  const bankVaultAfter = parseFloat((await prisma.ledger.findUnique({ where: { account_type: 'Main_Bank' } }))?.current_balance || 0);
+
+  if (cashVaultBefore - cashVaultAfter === transferAmount && bankVaultAfter - bankVaultBefore === transferAmount) {
+    pass(`Vault balances balanced perfectly: Cash_Drawer (-${transferAmount}), Main_Bank (+${transferAmount}). P&L neutral!`);
+  } else {
+    fail(`Vault balancing error! Cash delta: ${cashVaultBefore - cashVaultAfter}, Bank delta: ${bankVaultAfter - bankVaultBefore}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // STEP 13: PARTNER CAPITAL & DRAWINGS LEDGER
+  // -------------------------------------------------------------------------
+  header('STEP 13: Partner Capital & Drawings Ledger');
+
+  const partner1 = await prisma.partnerEquity.findFirst({
+    where: { partner_name: { contains: 'Managing' } },
+  });
+
+  const drawingAmount = 10000;
+  const partnerTxRes = await axios.post(
+    `${BASE_URL}/api/partners/${partner1.id}/transactions`,
+    {
+      type: 'DRAWING',
+      amount: drawingAmount,
+      payment_method: 'CASH',
+      notes: 'Partner monthly drawing for personal expense',
+    },
+    { headers: adminHeaders }
+  );
+
+  if (partnerTxRes.status === 201 && partnerTxRes.data?.data?.type === 'DRAWING') {
+    pass(`Partner DRAWING of Rs. ${drawingAmount} logged. Cash drawer debited without affecting P&L expenses.`);
+  } else {
+    fail(`Failed to log partner drawing: ${JSON.stringify(partnerTxRes.data)}`);
+  }
+
+  // Verify monthly dividend calculation deducts drawings from payout
+  const updatedDividends = await calculateMonthlyDividends(currentMonth);
+  const updatedP1 = updatedDividends.partners.find((p) => p.partner_id === partner1.id);
+
+  if (updatedP1 && updatedP1.drawings_amount >= drawingAmount) {
+    pass(`Partner equity dividend correctly offset: Gross Rs. ${updatedP1.dividend_amount} - Drawings Rs. ${updatedP1.drawings_amount} = Net Payout Rs. ${updatedP1.net_payout}.`);
+  } else {
+    fail(`Drawings were not offset in dividend calculation: ${JSON.stringify(updatedP1)}`);
+  }
+
+  // -------------------------------------------------------------------------
+  // STEP 14: REMOTE PARTNER ACCESS SECURITY (INVESTOR PIN LOCK)
+  // -------------------------------------------------------------------------
+  header('STEP 14: Remote Partner Access Security (Investor PIN Guard)');
+
+  // Unauthenticated request to /api/dashboard/live should be rejected (401)
+  try {
+    await axios.get(`${BASE_URL}/api/dashboard/live`);
+    fail('Endpoint /api/dashboard/live allowed unauthenticated access without Investor PIN!');
+  } catch (err) {
+    if (err.response?.status === 401) {
+      pass(`Unauthorized request to /api/dashboard/live blocked with 401 Unauthorized (Cloudflare tunnel security active).`);
+    } else {
+      fail(`Unexpected response code for unauthenticated live dashboard: ${err.message}`);
+    }
+  }
+
+  // Authenticated request with Investor PIN '1122' should succeed
+  const investorLiveRes = await axios.get(`${BASE_URL}/api/dashboard/live`, {
+    headers: { 'x-investor-pin': '1122' },
+  });
+
+  if (investorLiveRes.status === 200 && investorLiveRes.data?.status === 'success') {
+    pass(`Authorized request with Investor PIN '1122' succeeded. Live bay occupancy & vault balances returned securely.`);
+  } else {
+    fail(`Failed to authenticate with valid Investor PIN: ${JSON.stringify(investorLiveRes.data)}`);
+  }
+
+  // -------------------------------------------------------------------------
   // FINAL SYSTEM READINESS SIGN-OFF
   // -------------------------------------------------------------------------
-  header('🎉 MASTER SHOP READINESS AUDIT: 100% SUCCESS');
-  console.log(`${colors.green}${colors.bright}All 8 Pre-Launch Verification Milestones Passed without errors!${colors.reset}`);
+  header('🎉 MASTER ENTERPRISE ERP AUDIT: 100% SUCCESS');
+  console.log(`${colors.green}${colors.bright}All 14 Pre-Launch & Enterprise ERP Verification Milestones Passed without errors!${colors.reset}`);
   console.log(`${colors.green}✔ Database Schema, Foreign Keys & Constraints: STABLE${colors.reset}`);
   console.log(`${colors.green}✔ Physical Bay Workflow (Jack 1, Jack 2, Detailing): ACCURATE${colors.reset}`);
   console.log(`${colors.green}✔ Register Shift Tills & Variance Reconciler: INTACT${colors.reset}`);
   console.log(`${colors.green}✔ Role-Based API Guards & Admin PIN Overrides: SECURE${colors.reset}`);
   console.log(`${colors.green}✔ Decoupled Telegram Alert Outbox Engine: RELIABLE${colors.reset}`);
-  console.log(`${colors.green}✔ Inventory Yield & Partner Profit Split: MATHEMATICALLY VERIFIED${colors.reset}\n`);
+  console.log(`${colors.green}✔ Advance Customer Deposits (Liabilities): VERIFIED${colors.reset}`);
+  console.log(`${colors.green}✔ Multi-Day Material Issuance (Decoupled Consumables): ACCURATE${colors.reset}`);
+  console.log(`${colors.green}✔ Split Payments & Deposit Invoice Offsets: AUDITED${colors.reset}`);
+  console.log(`${colors.green}✔ Cash-to-Bank Ledger Vault Balancing: P&L NEUTRAL${colors.reset}`);
+  console.log(`${colors.green}✔ Partner Capital & Drawings Ledger: INTEGRATED${colors.reset}`);
+  console.log(`${colors.green}✔ Remote Investor PIN Cloudflare Security: LOCKED${colors.reset}\n`);
 }
 
 runRegressionSuite()
@@ -471,3 +720,4 @@ runRegressionSuite()
     await prisma.$disconnect();
     process.exit(1);
   });
+

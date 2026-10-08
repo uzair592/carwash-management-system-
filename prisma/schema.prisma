@@ -60,6 +60,19 @@ enum PaymentMethod {
   Bank
 }
 
+enum DepositStatus {
+  ACTIVE
+  APPLIED
+  REFUNDED
+}
+
+enum PartnerTxType {
+  CAPITAL_INVESTMENT
+  LOAN
+  DRAWING
+  DIVIDEND_PAYOUT
+}
+
 enum UnitType {
   Roll
   ML
@@ -92,37 +105,38 @@ model SystemSetting {
 }
 
 model User {
-  id              String      @id @default(uuid())
-  name            String      @db.VarChar(100)
-  role            UserRole    @default(Worker)
-  pin_code        String      @db.VarChar(10)
-  commission_rate Decimal     @default(0.00) @db.Decimal(5, 2)
-  flat_commission Decimal     @default(0.00) @db.Decimal(10, 2)
-  base_salary     Decimal     @default(0.00) @db.Decimal(10, 2)
-  is_active       Boolean     @default(true)
-  created_at      DateTime    @default(now())
-  updated_at      DateTime    @updatedAt
+  id              String   @id @default(uuid())
+  name            String   @db.VarChar(100)
+  role            UserRole @default(Worker)
+  pin_code        String   @db.VarChar(10)
+  commission_rate Decimal  @default(0.00) @db.Decimal(5, 2)
+  flat_commission Decimal  @default(0.00) @db.Decimal(10, 2)
+  base_salary     Decimal  @default(0.00) @db.Decimal(10, 2)
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
 
-  job_cards       JobCard[]   @relation("WorkerJobCards")
-  invoices        Invoice[]   @relation("CashierInvoices")
-  expenses        Expense[]   @relation("UserExpenses")
+  job_cards         JobCard[]         @relation("WorkerJobCards")
+  invoices          Invoice[]         @relation("CashierInvoices")
+  expenses          Expense[]         @relation("UserExpenses")
   register_sessions RegisterSession[] @relation("UserRegisterSessions")
 
   @@map("users")
 }
 
 model Vehicle {
-  id                  String      @id @default(uuid())
-  registration_number String      @unique @db.VarChar(30)
-  make                String?     @db.VarChar(50)
-  model               String?     @db.VarChar(50)
-  visits              Int         @default(0)
-  customer_name       String      @default("Walk-in Customer") @db.VarChar(100)
-  customer_phone      String      @db.VarChar(25)
-  created_at          DateTime    @default(now())
-  updated_at          DateTime    @updatedAt
+  id                  String   @id @default(uuid())
+  registration_number String   @unique @db.VarChar(30)
+  make                String?  @db.VarChar(50)
+  model               String?  @db.VarChar(50)
+  visits              Int      @default(0)
+  customer_name       String   @default("Walk-in Customer") @db.VarChar(100)
+  customer_phone      String   @db.VarChar(25)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
 
-  job_cards           JobCard[]
+  job_cards JobCard[]
+  deposits  CustomerDeposit[]
 
   @@map("vehicles")
 }
@@ -132,7 +146,7 @@ model Service {
   name                       String          @db.VarChar(100)
   category                   ServiceCategory @default(Wash)
   price                      Decimal         @db.Decimal(10, 2)
-  estimated_time             Int             // In minutes
+  estimated_time             Int // In minutes
   is_active                  Boolean         @default(true)
   linked_inventory_id        String?
   linked_inventory           Inventory?      @relation(fields: [linked_inventory_id], references: [id], onDelete: SetNull)
@@ -140,7 +154,7 @@ model Service {
   created_at                 DateTime        @default(now())
   updated_at                 DateTime        @updatedAt
 
-  job_card_items JobCardService[]
+  job_card_items      JobCardService[]
   service_inventories ServiceInventory[]
 
   @@map("services")
@@ -164,9 +178,10 @@ model JobCard {
   created_at        DateTime      @default(now())
   updated_at        DateTime      @updatedAt
 
-  services          JobCardService[]
-  invoice           Invoice?
-  media             VehicleMedia[]
+  services           JobCardService[]
+  invoice            Invoice?
+  media              VehicleMedia[]
+  material_issuances MaterialIssuance[]
 
   @@map("job_cards")
 }
@@ -184,12 +199,12 @@ model VehicleMedia {
 }
 
 model JobCardService {
-  id            String   @id @default(uuid())
+  id            String  @id @default(uuid())
   job_card_id   String
-  job_card      JobCard  @relation(fields: [job_card_id], references: [id], onDelete: Cascade)
+  job_card      JobCard @relation(fields: [job_card_id], references: [id], onDelete: Cascade)
   service_id    String
-  service       Service  @relation(fields: [service_id], references: [id], onDelete: Restrict)
-  price_charged Decimal  @db.Decimal(10, 2)
+  service       Service @relation(fields: [service_id], references: [id], onDelete: Restrict)
+  price_charged Decimal @db.Decimal(10, 2)
 
   @@unique([job_card_id, service_id])
   @@map("job_card_services")
@@ -204,12 +219,73 @@ model Invoice {
   cashier         User?         @relation("CashierInvoices", fields: [cashier_id], references: [id], onDelete: SetNull)
   total_amount    Decimal       @db.Decimal(10, 2)
   discount_amount Decimal       @default(0.00) @db.Decimal(10, 2)
+  paid_amount     Decimal       @default(0.00) @db.Decimal(10, 2)
   payment_method  PaymentMethod @default(Cash)
+  status          String        @default("PAID") @db.VarChar(20)
   created_at      DateTime      @default(now())
 
-  refunds         Refund[]
+  refunds  Refund[]
+  payments Payment[]
+  deposits CustomerDeposit[]
 
   @@map("invoices")
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  invoice_id     String
+  invoice        Invoice       @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  amount         Decimal       @db.Decimal(10, 2)
+  payment_method PaymentMethod @default(Cash)
+  recorded_by_id String?
+  notes          String?       @db.Text
+  created_at     DateTime      @default(now())
+
+  @@map("payments")
+}
+
+model CustomerDeposit {
+  id                    String        @id @default(uuid())
+  vehicle_id            String?
+  vehicle               Vehicle?      @relation(fields: [vehicle_id], references: [id], onDelete: SetNull)
+  customer_name         String        @db.VarChar(100)
+  customer_phone        String?       @db.VarChar(30)
+  amount                Decimal       @db.Decimal(10, 2)
+  payment_method        PaymentMethod @default(Cash)
+  status                DepositStatus @default(ACTIVE)
+  notes                 String?       @db.Text
+  applied_to_invoice_id String?
+  applied_to_invoice    Invoice?      @relation(fields: [applied_to_invoice_id], references: [id], onDelete: SetNull)
+  created_at            DateTime      @default(now())
+  applied_at            DateTime?
+
+  @@map("customer_deposits")
+}
+
+model LedgerTransfer {
+  id                String      @id @default(uuid())
+  from_account      AccountType @default(Cash_Drawer)
+  to_account        AccountType @default(Main_Bank)
+  amount            Decimal     @db.Decimal(12, 2)
+  transferred_by_id String?
+  notes             String?     @db.Text
+  created_at        DateTime    @default(now())
+
+  @@map("ledger_transfers")
+}
+
+model MaterialIssuance {
+  id              String    @id @default(uuid())
+  job_card_id     String
+  job_card        JobCard   @relation(fields: [job_card_id], references: [id], onDelete: Cascade)
+  inventory_id    String
+  inventory       Inventory @relation(fields: [inventory_id], references: [id], onDelete: Restrict)
+  quantity_issued Decimal   @db.Decimal(10, 2)
+  issued_by_id    String?
+  notes           String?   @db.Text
+  created_at      DateTime  @default(now())
+
+  @@map("material_issuances")
 }
 
 model Refund {
@@ -237,17 +313,18 @@ model AlertOutbox {
 }
 
 model Inventory {
-  id                  String    @id @default(uuid())
-  item_name           String    @db.VarChar(100)
-  unit_type           UnitType  @default(Unit)
-  current_stock       Decimal   @db.Decimal(10, 2)
-  cost_per_unit       Decimal   @db.Decimal(10, 2)
-  low_stock_threshold Decimal   @default(10.00) @db.Decimal(10, 2)
-  created_at          DateTime  @default(now())
-  updated_at          DateTime  @updatedAt
+  id                  String   @id @default(uuid())
+  item_name           String   @db.VarChar(100)
+  unit_type           UnitType @default(Unit)
+  current_stock       Decimal  @db.Decimal(10, 2)
+  cost_per_unit       Decimal  @db.Decimal(10, 2)
+  low_stock_threshold Decimal  @default(10.00) @db.Decimal(10, 2)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
 
   services            Service[]
   service_inventories ServiceInventory[]
+  material_issuances  MaterialIssuance[]
 
   @@map("inventory")
 }
@@ -314,18 +391,33 @@ model PartnerEquity {
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
 
+  transactions PartnerTransaction[]
+
   @@map("partner_equity")
 }
 
+model PartnerTransaction {
+  id             String        @id @default(uuid())
+  partner_id     String
+  partner        PartnerEquity @relation(fields: [partner_id], references: [id], onDelete: Cascade)
+  type           PartnerTxType
+  amount         Decimal       @db.Decimal(12, 2)
+  payment_method PaymentMethod @default(Cash)
+  notes          String?       @db.Text
+  date           DateTime      @default(now())
+  created_at     DateTime      @default(now())
+
+  @@map("partner_transactions")
+}
+
 model AuditLog {
-  id                    String   @id @default(uuid())
-  action                String   @db.VarChar(100)
-  description           String   @db.Text
+  id                   String   @id @default(uuid())
+  action               String   @db.VarChar(100)
+  description          String   @db.Text
   performed_by_user_id String?  @db.VarChar(100)
-  performed_by_name     String?  @db.VarChar(100)
-  metadata              Json?
-  created_at            DateTime @default(now())
+  performed_by_name    String?  @db.VarChar(100)
+  metadata             Json?
+  created_at           DateTime @default(now())
 
   @@map("audit_logs")
 }
-

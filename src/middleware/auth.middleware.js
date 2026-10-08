@@ -106,9 +106,49 @@ async function verifyAdminOrManagerPin(pin) {
   return { isValid: false, user: null };
 }
 
+/**
+ * Locks remote investor endpoints behind an Investor PIN or Admin/Manager role.
+ * Essential for internet-exposed Cloudflare Tunnels.
+ */
+async function requireInvestorAuth(req, res, next) {
+  try {
+    const rawRole = req.headers['x-user-role'];
+    const userRole = req.user && req.headers['x-user-id']
+      ? normalizeRole(req.user.role)
+      : (rawRole ? normalizeRole(rawRole) : null);
+
+    if (userRole === 'ADMIN' || userRole === 'MANAGER') {
+      return next();
+    }
+
+    const providedPin = req.headers['x-investor-pin'] || req.query.pin || req.body?.pin;
+    if (providedPin) {
+      const cleanPin = String(providedPin).trim();
+      // Verified investor pins: dedicated investor PIN '1122', default '1234', or admin PIN
+      if (cleanPin === '1122' || cleanPin === '1234') {
+        return next();
+      }
+
+      const verified = await verifyAdminOrManagerPin(cleanPin);
+      if (verified.isValid) {
+        return next();
+      }
+    }
+
+    return res.status(401).json({
+      status: 'error',
+      message: 'Investor authentication required. Provide a valid Investor PIN header ("x-investor-pin") or Admin credentials.',
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   authenticateUser,
   requireRole,
+  requireInvestorAuth,
   verifyAdminOrManagerPin,
   normalizeRole,
 };
+

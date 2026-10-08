@@ -12,10 +12,12 @@ import {
   UserCheck,
   Sparkles,
   Car,
-  ChevronDown
+  ChevronDown,
+  FlaskConical
 } from 'lucide-react';
 import axios from 'axios';
 import InspectionMediaModal from './InspectionMediaModal';
+import ConsumeMaterialModal from './ConsumeMaterialModal';
 
 export default function PhysicalBayDashboard({ onGoToBilling }) {
   const [baysData, setBaysData] = useState({
@@ -29,6 +31,7 @@ export default function PhysicalBayDashboard({ onGoToBilling }) {
   const [errorMsg, setErrorMsg] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [mediaModalTarget, setMediaModalTarget] = useState(null);
+  const [consumeModalTarget, setConsumeModalTarget] = useState(null);
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
   // Live ticking timer (every 1 second for live running clock)
@@ -307,6 +310,16 @@ export default function PhysicalBayDashboard({ onGoToBilling }) {
                       ))}
                     </div>
 
+                    {/* Multi-Day Workshop Consumable Usage */}
+                    <button
+                      type="button"
+                      onClick={() => setConsumeModalTarget(job)}
+                      className="w-full py-3 px-4 bg-purple-950/60 hover:bg-purple-900/80 border border-purple-500/40 text-purple-200 font-bold text-xs rounded-2xl shadow-md flex items-center justify-center gap-2 transition active:scale-[0.98]"
+                    >
+                      <FlaskConical className="w-4 h-4 text-purple-400" />
+                      <span>Consume Material (Ceramic / PPF / Liquid)</span>
+                    </button>
+
                     {/* Massive Button: Mark Wash Complete (Free up Jack) */}
                     <button
                       type="button"
@@ -489,6 +502,16 @@ export default function PhysicalBayDashboard({ onGoToBilling }) {
             setMediaModalTarget(null);
             loadBayStatus();
           }}
+        />
+      )}
+
+      {/* Multi-Day Consumable Declaration Modal */}
+      {consumeModalTarget && (
+        <ConsumeMaterialModal
+          isOpen={!!consumeModalTarget}
+          jobCard={consumeModalTarget}
+          onClose={() => setConsumeModalTarget(null)}
+          onMaterialConsumed={() => loadBayStatus()}
         />
       )}
     </div>

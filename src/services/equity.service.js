@@ -6,86 +6,119 @@ function fmt(num) {
 }
 
 /**
- * Calculates monthly Cost of Goods Sold (COGS) based on consumable deductions
- * from services billed in the given month.
+ * Calculates monthly Cost of Goods Sold (COGS).
+ * Enterprise ERP: Primarily queries MaterialIssuance created in this month.
+ * Falls back to invoice-service yield mappings for legacy records.
  */
 async function calculateMonthlyCOGS(startOfMonth, endOfMonth) {
-  // Query all invoices settled during this month
-  const invoices = await prisma.invoice.findMany({
+  // 1. Direct Workshop Material Issuances for the month
+  const issuances = await prisma.materialIssuance.findMany({
     where: {
       created_at: { gte: startOfMonth, lte: endOfMonth },
     },
     include: {
-      job_card: {
-        include: {
-          services: {
-            include: {
-              service: {
-                include: {
-                  service_inventories: {
-                    include: { inventory: true },
-                  },
-                  linked_inventory: true,
-                },
-              },
-            },
-          },
-        },
-      },
+      inventory: true,
     },
   });
 
   let totalCOGS = 0;
   const itemizedUsage = {};
 
-  for (const inv of invoices) {
-    const jobServices = inv.job_card?.services || [];
-    for (const item of jobServices) {
-      const srv = item.service;
-      if (!srv) continue;
+  if (issuances.length > 0) {
+    for (const iss of issuances) {
+      const inv = iss.inventory;
+      if (!inv) continue;
 
-      // 1. Relational ServiceInventory mappings
-      if (srv.service_inventories && srv.service_inventories.length > 0) {
-        for (const mapping of srv.service_inventories) {
-          const invItem = mapping.inventory;
-          if (invItem) {
-            const deduct = parseFloat(mapping.deduction_amount || 0);
-            const unitCost = parseFloat(invItem.cost_per_unit || 0);
-            const lineCost = deduct * unitCost;
-            totalCOGS += lineCost;
+      const qty = parseFloat(iss.quantity_issued || 0);
+      const unitCost = parseFloat(inv.cost_per_unit || 0);
+      const lineCost = qty * unitCost;
+      totalCOGS += lineCost;
 
-            if (!itemizedUsage[invItem.id]) {
-              itemizedUsage[invItem.id] = {
-                item_name: invItem.item_name,
-                unit: invItem.unit_type,
-                total_deducted: 0,
-                cost_per_unit: unitCost,
-                total_cost: 0,
-              };
+      if (!itemizedUsage[inv.id]) {
+        itemizedUsage[inv.id] = {
+          item_name: inv.item_name,
+          unit: inv.unit_type,
+          total_deducted: 0,
+          cost_per_unit: unitCost,
+          total_cost: 0,
+        };
+      }
+      itemizedUsage[inv.id].total_deducted += qty;
+      itemizedUsage[inv.id].total_cost += lineCost;
+    }
+  } else {
+    // 2. Legacy fallback: query invoices settled during this month
+    const invoices = await prisma.invoice.findMany({
+      where: {
+        created_at: { gte: startOfMonth, lte: endOfMonth },
+      },
+      include: {
+        job_card: {
+          include: {
+            services: {
+              include: {
+                service: {
+                  include: {
+                    service_inventories: {
+                      include: { inventory: true },
+                    },
+                    linked_inventory: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    for (const inv of invoices) {
+      const jobServices = inv.job_card?.services || [];
+      for (const item of jobServices) {
+        const srv = item.service;
+        if (!srv) continue;
+
+        if (srv.service_inventories && srv.service_inventories.length > 0) {
+          for (const mapping of srv.service_inventories) {
+            const invItem = mapping.inventory;
+            if (invItem) {
+              const deduct = parseFloat(mapping.deduction_amount || 0);
+              const unitCost = parseFloat(invItem.cost_per_unit || 0);
+              const lineCost = deduct * unitCost;
+              totalCOGS += lineCost;
+
+              if (!itemizedUsage[invItem.id]) {
+                itemizedUsage[invItem.id] = {
+                  item_name: invItem.item_name,
+                  unit: invItem.unit_type,
+                  total_deducted: 0,
+                  cost_per_unit: unitCost,
+                  total_cost: 0,
+                };
+              }
+              itemizedUsage[invItem.id].total_deducted += deduct;
+              itemizedUsage[invItem.id].total_cost += lineCost;
             }
-            itemizedUsage[invItem.id].total_deducted += deduct;
-            itemizedUsage[invItem.id].total_cost += lineCost;
           }
-        }
-      } else if (srv.linked_inventory && srv.inventory_deduction_amount) {
-        // 2. Legacy linked inventory fallback
-        const deduct = parseFloat(srv.inventory_deduction_amount || 0);
-        const unitCost = parseFloat(srv.linked_inventory.cost_per_unit || 0);
-        const lineCost = deduct * unitCost;
-        totalCOGS += lineCost;
+        } else if (srv.linked_inventory && srv.inventory_deduction_amount) {
+          const deduct = parseFloat(srv.inventory_deduction_amount || 0);
+          const unitCost = parseFloat(srv.linked_inventory.cost_per_unit || 0);
+          const lineCost = deduct * unitCost;
+          totalCOGS += lineCost;
 
-        const invId = srv.linked_inventory.id;
-        if (!itemizedUsage[invId]) {
-          itemizedUsage[invId] = {
-            item_name: srv.linked_inventory.item_name,
-            unit: srv.linked_inventory.unit_type,
-            total_deducted: 0,
-            cost_per_unit: unitCost,
-            total_cost: 0,
-          };
+          const invId = srv.linked_inventory.id;
+          if (!itemizedUsage[invId]) {
+            itemizedUsage[invId] = {
+              item_name: srv.linked_inventory.item_name,
+              unit: srv.linked_inventory.unit_type,
+              total_deducted: 0,
+              cost_per_unit: unitCost,
+              total_cost: 0,
+            };
+          }
+          itemizedUsage[invId].total_deducted += deduct;
+          itemizedUsage[invId].total_cost += lineCost;
         }
-        itemizedUsage[invId].total_deducted += deduct;
-        itemizedUsage[invId].total_cost += lineCost;
       }
     }
   }
@@ -99,11 +132,11 @@ async function calculateMonthlyCOGS(startOfMonth, endOfMonth) {
 /**
  * Calculates monthly net profit and partner equity dividend distribution:
  * 1. Gross Revenue (from Invoice table)
- * 2. Total Operational Expenses (from Expense table)
+ * 2. Total Operational Expenses (from Expense table - excludes partner drawings)
  * 3. Total Staff Payroll (Base Salary + Commissions)
- * 4. Cost of Goods Sold (Consumables depleted)
+ * 4. Cost of Goods Sold (Consumables depleted via MaterialIssuance)
  * 5. Net Distributable Profit
- * 6. Partner Equity Dividend Breakdown
+ * 6. Partner Equity Dividend Breakdown (less monthly Drawings)
  */
 async function calculateMonthlyDividends(monthParam, yearParam) {
   let year, monthIndex;
@@ -141,7 +174,7 @@ async function calculateMonthlyDividends(monthParam, yearParam) {
     .filter((inv) => inv.payment_method === 'Bank' || inv.payment_method === 'Card')
     .reduce((sum, inv) => sum + parseFloat(inv.total_amount), 0);
 
-  // 2. Operational Expenses
+  // 2. Operational Expenses (pure business expenses, partner drawings are excluded)
   const expenses = await prisma.expense.findMany({
     where: {
       created_at: { gte: startOfMonth, lte: endOfMonth },
@@ -160,7 +193,15 @@ async function calculateMonthlyDividends(monthParam, yearParam) {
   // 5. Net Distributable Profit
   const netProfit = parseFloat((grossRevenue - totalExpenses - totalPayroll - totalCOGS).toFixed(2));
 
-  // 6. Partner Equity Split
+  // 6. Query Partner Drawings for this month
+  const monthlyDrawings = await prisma.partnerTransaction.findMany({
+    where: {
+      type: 'DRAWING',
+      date: { gte: startOfMonth, lte: endOfMonth },
+    },
+  });
+
+  // 7. Partner Equity Split & Drawings Offset
   const partners = await prisma.partnerEquity.findMany({
     where: { is_active: true },
     orderBy: { equity_percentage: 'desc' },
@@ -168,10 +209,15 @@ async function calculateMonthlyDividends(monthParam, yearParam) {
 
   const partnerDividends = partners.map((partner) => {
     const percentage = parseFloat(partner.equity_percentage);
-    // If netProfit is negative, dividend is 0 or records deficit
     const dividendAmount = netProfit > 0
       ? parseFloat(((netProfit * percentage) / 100).toFixed(2))
       : 0;
+
+    const partnerDrawings = monthlyDrawings
+      .filter((d) => d.partner_id === partner.id)
+      .reduce((sum, d) => sum + parseFloat(d.amount), 0);
+
+    const netPayout = Math.max(0, parseFloat((dividendAmount - partnerDrawings).toFixed(2)));
 
     return {
       partner_id: partner.id,
@@ -179,8 +225,12 @@ async function calculateMonthlyDividends(monthParam, yearParam) {
       equity_percentage: percentage,
       phone: partner.phone,
       dividend_amount: dividendAmount,
+      drawings_amount: partnerDrawings,
+      net_payout: netPayout,
     };
   });
+
+  const totalDrawingsAllPartners = monthlyDrawings.reduce((sum, d) => sum + parseFloat(d.amount), 0);
 
   const summaryObj = {
     gross_revenue: parseFloat(grossRevenue.toFixed(2)),
@@ -198,6 +248,7 @@ async function calculateMonthlyDividends(monthParam, yearParam) {
     net_profit: netProfit,
     net_distributable_profit: netProfit,
     profit_margin_percent: grossRevenue > 0 ? parseFloat(((netProfit / grossRevenue) * 100).toFixed(2)) : 0,
+    total_drawings: totalDrawingsAllPartners,
   };
 
   return {
@@ -244,7 +295,13 @@ async function dispatchDividendsToTelegram(monthParam, yearParam) {
   ];
 
   for (const p of dividendReport.partners) {
-    lines.push(`• *${p.partner_name}* (${p.equity_percentage}%): *Rs. ${fmt(p.dividend_amount)}*`);
+    if (p.drawings_amount > 0) {
+      lines.push(
+        `• *${p.partner_name}* (${p.equity_percentage}%): Gross Rs. ${fmt(p.dividend_amount)} - Drawings Rs. ${fmt(p.drawings_amount)} = *Net Rs. ${fmt(p.net_payout)}*`
+      );
+    } else {
+      lines.push(`• *${p.partner_name}* (${p.equity_percentage}%): *Rs. ${fmt(p.dividend_amount)}*`);
+    }
   }
 
   lines.push(`━━━━━━━━━━━━━━━━━━━━━━━━━━━`);

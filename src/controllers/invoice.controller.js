@@ -20,17 +20,26 @@ function parsePaymentMode(input) {
 
 /**
  * POST /api/invoices/checkout
- * Executes atomic checkout within a Prisma interactive transaction.
+ * Enterprise ERP Checkout with Strict Double-Entry Accounting:
  * 1. Checks job card is not already invoiced
  * 2. Marks JobCard Completed
- * 3. Creates Invoice
- * 4. Mutates Ledger row atomically
- * 5. Deducts linked consumables from Inventory (Yield Engine)
- * 6. Dispatches post-commit Telegram alert, SMS receipt, & Low Stock warnings
+ * 3. Applies customer advance deposits (liabilities converted to revenue, no ledger double-crediting)
+ * 4. Records split payments (multiple payment records per invoice)
+ * 5. Mutates ledger for the net cash/bank collected
+ * 6. Materials were already issued during job (no double-deduction at checkout)
+ * 7. Enqueues atomic Telegram alert to Outbox and sends customer SMS receipt
  */
 async function checkoutHandler(req, res, next) {
   try {
-    const { job_card_id, payment_method = 'CASH', discount_amount = 0, cashier_id, admin_pin } = req.body;
+    const {
+      job_card_id,
+      payment_method = 'CASH',
+      payments = [],
+      applied_deposit_ids = [],
+      discount_amount = 0,
+      cashier_id,
+      admin_pin,
+    } = req.body;
 
     if (!job_card_id) {
       return res.status(400).json({
@@ -39,7 +48,6 @@ async function checkoutHandler(req, res, next) {
       });
     }
 
-    const { enumVal, accountType } = parsePaymentMode(payment_method);
     const discountNum = Math.max(0, parseFloat(discount_amount) || 0);
 
     // Strict Accounting: Discounts require verified Admin/Manager PIN
@@ -84,10 +92,62 @@ async function checkoutHandler(req, res, next) {
     const subtotal = targetJobCard.services.reduce((acc, curr) => acc + parseFloat(curr.price_charged), 0);
     const finalAmount = Math.max(0, parseFloat((subtotal - discountNum).toFixed(2)));
 
+    // Verify deposits to apply
+    let depositIds = Array.isArray(applied_deposit_ids) ? applied_deposit_ids : [applied_deposit_ids].filter(Boolean);
+    let validDeposits = [];
+    let totalDepositsApplied = 0;
+
+    if (depositIds.length > 0) {
+      validDeposits = await prisma.customerDeposit.findMany({
+        where: {
+          id: { in: depositIds },
+          status: 'ACTIVE',
+        },
+      });
+
+      totalDepositsApplied = validDeposits.reduce((sum, d) => sum + parseFloat(d.amount), 0);
+    }
+
+    // Balance due to be collected via payments
+    const netDue = Math.max(0, parseFloat((finalAmount - totalDepositsApplied).toFixed(2)));
+
+    // Normalize payments array
+    let normalizedPayments = [];
+    if (Array.isArray(payments) && payments.length > 0) {
+      for (const p of payments) {
+        const amt = parseFloat(p.amount);
+        if (amt > 0) {
+          const { enumVal, accountType } = parsePaymentMode(p.payment_method);
+          normalizedPayments.push({
+            enumVal,
+            accountType,
+            amount: amt,
+            notes: p.notes || null,
+          });
+        }
+      }
+    } else if (netDue > 0) {
+      // Fallback single payment mode for backward compatibility
+      const { enumVal, accountType } = parsePaymentMode(payment_method);
+      normalizedPayments.push({
+        enumVal,
+        accountType,
+        amount: netDue,
+        notes: null,
+      });
+    }
+
     // Generate Invoice Number: INV-YYYYMMDD-XXXX
     const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const invoiceNumber = `INV-${datePrefix}-${randomSuffix}`;
+
+    const primaryPaymentMethod =
+      normalizedPayments.length > 0
+        ? normalizedPayments[0].enumVal
+        : validDeposits.length > 0
+        ? validDeposits[0].payment_method
+        : 'Cash';
 
     // CRITICAL: Execute Atomic Prisma Transaction with Outbox Pattern
     const transactionResult = await prisma.$transaction(async (tx) => {
@@ -106,13 +166,91 @@ async function checkoutHandler(req, res, next) {
           invoice_number: invoiceNumber,
           job_card_id: job_card_id,
           total_amount: finalAmount,
+          paid_amount: finalAmount,
           discount_amount: discountNum,
-          payment_method: enumVal,
+          payment_method: primaryPaymentMethod,
+          status: 'PAID',
           cashier_id: cashier_id || null,
         },
       });
 
-      // 2b. Record Audit Log if Discount was Authorized
+      // 3. Mark applied Customer Deposits as APPLIED
+      for (const dep of validDeposits) {
+        await tx.customerDeposit.update({
+          where: { id: dep.id },
+          data: {
+            status: 'APPLIED',
+            applied_to_invoice_id: createdInvoice.id,
+            applied_at: new Date(),
+          },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            action: 'DEPOSIT_APPLIED_TO_INVOICE',
+            description: `Advance deposit of Rs. ${parseFloat(dep.amount).toLocaleString()} applied to Invoice ${invoiceNumber} (${targetJobCard.vehicle?.registration_number || 'N/A'}). Liability converted to revenue.`,
+            performed_by_user_id: cashier_id || req.user?.id || null,
+            performed_by_name: req.user?.name || 'Shop Cashier',
+            metadata: {
+              deposit_id: dep.id,
+              invoice_id: createdInvoice.id,
+              invoice_number: invoiceNumber,
+              amount: parseFloat(dep.amount),
+            },
+          },
+        });
+      }
+
+      // 4. Record Split Payments & Mutate Ledger
+      const createdPayments = [];
+      const ledgerMutations = [];
+
+      for (const p of normalizedPayments) {
+        const paymentRecord = await tx.payment.create({
+          data: {
+            invoice_id: createdInvoice.id,
+            amount: p.amount,
+            payment_method: p.enumVal,
+            recorded_by_id: cashier_id || req.user?.id || null,
+            notes: p.notes,
+          },
+        });
+        createdPayments.push(paymentRecord);
+
+        // Lock & update ledger account
+        let ledgerAccount = await tx.ledger.findUnique({
+          where: { account_type: p.accountType },
+        });
+
+        if (!ledgerAccount) {
+          ledgerAccount = await tx.ledger.create({
+            data: {
+              account_type: p.accountType,
+              current_balance: 0.00,
+            },
+          });
+        }
+
+        const prevBal = parseFloat(ledgerAccount.current_balance);
+        const newBal = parseFloat((prevBal + p.amount).toFixed(2));
+
+        await tx.ledger.update({
+          where: { account_type: p.accountType },
+          data: {
+            current_balance: newBal,
+            last_updated: new Date(),
+          },
+        });
+
+        ledgerMutations.push({
+          account_type: p.accountType,
+          previous_balance: prevBal,
+          amount_received: p.amount,
+          new_balance: newBal,
+        });
+      }
+
+      // 5. Record Audit Log if Discount was Authorized
       if (discountNum > 0) {
         await tx.auditLog.create({
           data: {
@@ -131,147 +269,35 @@ async function checkoutHandler(req, res, next) {
         });
       }
 
-      // 3. Lock or query current ledger balance
-      let ledgerAccount = await tx.ledger.findUnique({
-        where: { account_type: accountType },
-      });
-
-      if (!ledgerAccount) {
-        ledgerAccount = await tx.ledger.create({
-          data: {
-            account_type: accountType,
-            current_balance: 0.00,
-          },
-        });
-      }
-
-      const prevBal = parseFloat(ledgerAccount.current_balance);
-      const newBal = parseFloat((prevBal + finalAmount).toFixed(2));
-
-      // 4. Update the Ledger row atomically
-      await tx.ledger.update({
-        where: { account_type: accountType },
-        data: {
-          current_balance: newBal,
-          last_updated: new Date(),
-        },
-      });
-
-      // 5. Yield Engine: Automatic Consumable Inventory Deduction
-      const lowStockAlerts = [];
-      const deductedItems = [];
-
-      for (const item of targetJobCard.services) {
-        const srv = item.service;
-        if (!srv) continue;
-
-        // Check relational ServiceInventory mapping table first
-        const mappings = await tx.serviceInventory.findMany({
-          where: { service_id: srv.id },
-          include: { inventory: true },
-        });
-
-        if (mappings.length > 0) {
-          for (const m of mappings) {
-            const deductAmount = parseFloat(m.deduction_amount || 0);
-            if (deductAmount > 0 && m.inventory) {
-              const curStock = parseFloat(m.inventory.current_stock);
-              const newStock = Math.max(0, parseFloat((curStock - deductAmount).toFixed(2)));
-              const threshold = parseFloat(m.inventory.low_stock_threshold || 10);
-
-              const updatedInv = await tx.inventory.update({
-                where: { id: m.inventory_id },
-                data: {
-                  current_stock: newStock,
-                  updated_at: new Date(),
-                },
-              });
-
-              deductedItems.push({
-                inventory_id: updatedInv.id,
-                item_name: updatedInv.item_name,
-                deducted: deductAmount,
-                remaining: newStock,
-                unit: updatedInv.unit_type,
-              });
-
-              if (newStock <= threshold) {
-                lowStockAlerts.push({
-                  itemName: updatedInv.item_name,
-                  amount: newStock,
-                  unit: updatedInv.unit_type,
-                  threshold: threshold,
-                });
-              }
-            }
-          }
-        } else if (srv.linked_inventory_id && srv.inventory_deduction_amount) {
-          // Direct linked inventory fallback
-          const deductAmount = parseFloat(srv.inventory_deduction_amount);
-          if (deductAmount > 0) {
-            const invItem = await tx.inventory.findUnique({
-              where: { id: srv.linked_inventory_id },
-            });
-            if (invItem) {
-              const curStock = parseFloat(invItem.current_stock);
-              const newStock = Math.max(0, parseFloat((curStock - deductAmount).toFixed(2)));
-              const threshold = parseFloat(invItem.low_stock_threshold || 10);
-
-              const updatedInv = await tx.inventory.update({
-                where: { id: srv.linked_inventory_id },
-                data: {
-                  current_stock: newStock,
-                  updated_at: new Date(),
-                },
-              });
-
-              deductedItems.push({
-                inventory_id: updatedInv.id,
-                item_name: updatedInv.item_name,
-                deducted: deductAmount,
-                remaining: newStock,
-                unit: updatedInv.unit_type,
-              });
-
-              if (newStock <= threshold) {
-                lowStockAlerts.push({
-                  itemName: updatedInv.item_name,
-                  amount: newStock,
-                  unit: updatedInv.unit_type,
-                  threshold: threshold,
-                });
-              }
-            }
-          }
-        }
-      }
-
-      // 6. Write Alert to AlertOutbox within transaction (Outbox Pattern)
-      const prevStr = Number(prevBal).toLocaleString('en-US', { minimumFractionDigits: 2 });
-      const deltaStr = Number(finalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 });
-      const newStr = Number(newBal).toLocaleString('en-US', { minimumFractionDigits: 2 });
+      // 6. Write Alert to AlertOutbox within transaction
       const hasAfterPhotos = Boolean(
         targetJobCard.media && targetJobCard.media.some((m) => m.type === 'AFTER' || m.type === 'DAMAGE_PROOF')
       );
 
+      const paymentLines = normalizedPayments.map(
+        (p) => `• ${p.enumVal} (\`${p.accountType}\`): *Rs. ${p.amount.toLocaleString()}*`
+      );
+      if (totalDepositsApplied > 0) {
+        paymentLines.push(`• Applied Advance Deposit: *Rs. ${totalDepositsApplied.toLocaleString()}*`);
+      }
+
       const alertLines = [
-        `💰 *PAYMENT RECEIVED (INFLOW)*`,
+        `💰 *INVOICE SETTLED (ENTERPRISE ERP)*`,
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
         `🧾 *Invoice ID:* \`${invoiceNumber}\``,
         `🚘 *Vehicle:* *${targetJobCard.vehicle.registration_number}* (${targetJobCard.customer_name || targetJobCard.vehicle.customer_name || 'Customer'})`,
-        `💳 *Payment Method:* *${enumVal}* (\`${accountType}\`)`,
+        `💵 *Total Amount:* *Rs. ${finalAmount.toLocaleString()}*`,
         `───────────────────────────`,
-        `📊 *Previous Balance:* Rs. ${prevStr}`,
-        `➕ *Amount Received:*  *+Rs. ${deltaStr}*`,
-        `📈 *New Ledger Vault:* *Rs. ${newStr}*`,
+        `💳 *Tender Breakdown:*`,
+        ...paymentLines,
         `───────────────────────────`,
         `⏰ *Settled At:* ${new Date().toLocaleTimeString()}`,
       ];
 
       if (hasAfterPhotos) {
-        alertLines.push(`📸 _Media attached: Before/After photos logged securely on local server._`);
+        alertLines.push(`📸 _Media attached: Before/After photos logged securely._`);
       }
-      alertLines.push(`🔒 _Guaranteed Atomic Transaction (Outbox Delivered)_`);
+      alertLines.push(`🔒 _Double-entry audited • Decoupled material issuance compliant._`);
 
       await tx.alertOutbox.create({
         data: {
@@ -281,37 +307,11 @@ async function checkoutHandler(req, res, next) {
         },
       });
 
-      // Write low stock alerts to Outbox
-      for (const alert of lowStockAlerts) {
-        const lowStockText = [
-          `⚠️ *LOW STOCK ALERT: CONSUMABLE DEPLETED*`,
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-          `📦 *Consumable:* *${alert.itemName}*`,
-          `📉 *Current Stock:* *${alert.amount} ${alert.unit}*`,
-          `⚡ *Threshold Alert:* ${alert.threshold} ${alert.unit}`,
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-          `⚠️ LOW STOCK ALERT: ${alert.itemName} is down to ${alert.amount} ${alert.unit}. Please restock.`,
-        ].join('\n');
-
-        await tx.alertOutbox.create({
-          data: {
-            type: 'TELEGRAM',
-            payload: { text: lowStockText },
-            status: 'PENDING',
-          },
-        });
-      }
-
       return {
         invoice: createdInvoice,
-        ledger: {
-          account_type: accountType,
-          previous_balance: prevBal,
-          amount_received: finalAmount,
-          new_balance: newBal,
-        },
-        deductedItems,
-        lowStockAlerts,
+        payments: createdPayments,
+        appliedDeposits: validDeposits,
+        ledgerMutations,
       };
     });
 
@@ -325,7 +325,7 @@ async function checkoutHandler(req, res, next) {
         `Customer: ${targetJobCard.customer_name || targetJobCard.vehicle.customer_name || 'Valued Customer'}\n` +
         `Services: ${servicesSummary}\n` +
         `Paid: Rs. ${finalAmount.toLocaleString('en-US')}\n` +
-        `Payment: ${enumVal}\n` +
+        `Tender: ${primaryPaymentMethod}\n` +
         `Thank you for visiting!`;
 
       sendSMSReceipt(targetJobCard.vehicle.customer_phone, smsText).catch((err) => {
@@ -335,11 +335,12 @@ async function checkoutHandler(req, res, next) {
 
     return res.status(200).json({
       status: 'success',
-      message: 'Checkout completed successfully. Ledger updated atomically and Alert queued in Outbox.',
+      message: 'Checkout completed successfully. Split payments and deposits settled.',
       data: {
         invoice: transactionResult.invoice,
-        ledger: transactionResult.ledger,
-        inventory_deductions: transactionResult.deductedItems,
+        payments: transactionResult.payments,
+        applied_deposits: transactionResult.appliedDeposits,
+        ledger_mutations: transactionResult.ledgerMutations,
       },
     });
   } catch (error) {
@@ -362,6 +363,8 @@ async function listInvoicesHandler(req, res, next) {
             services: { include: { service: true } },
           },
         },
+        payments: true,
+        deposits: true,
         cashier: true,
       },
     });

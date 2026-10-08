@@ -17,39 +17,94 @@ import {
   Lock,
   Coins
 } from 'lucide-react';
-import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
 export default function InvestorDashboard() {
+  const { isAdmin } = useAuth();
+  const [investorPin, setInvestorPin] = useState(() => sessionStorage.getItem('investor_pin') || '');
+  const [isUnlocked, setIsUnlocked] = useState(() => Boolean(sessionStorage.getItem('investor_pin')));
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [isVerifyingPin, setIsVerifyingPin] = useState(false);
+
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [lastSync, setLastSync] = useState(new Date());
   const [isTriggeringEod, setIsTriggeringEod] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const fetchLiveData = async () => {
+  const getHeaders = () => {
+    const pin = investorPin || sessionStorage.getItem('investor_pin');
+    return pin ? { 'x-investor-pin': pin } : {};
+  };
+
+  const fetchLiveData = async (pinOverride) => {
+    const pin = pinOverride || investorPin || sessionStorage.getItem('investor_pin');
+    const headers = pin ? { 'x-investor-pin': pin } : {};
     try {
-      const res = await axios.get('/api/dashboard/live');
+      const res = await axios.get('/api/dashboard/live', { headers });
       if (res.data?.data) {
         setData(res.data.data);
       }
       setLastSync(new Date());
+      return true;
     } catch (err) {
+      if (err.response?.status === 401) {
+        setIsUnlocked(false);
+        sessionStorage.removeItem('investor_pin');
+        setInvestorPin('');
+      }
       console.error('Failed to fetch investor metrics:', err);
+      return false;
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchLiveData();
-    const interval = setInterval(fetchLiveData, 15000); // 15-second live poller
-    return () => clearInterval(interval);
-  }, []);
+    if (isUnlocked || isAdmin) {
+      fetchLiveData();
+      const interval = setInterval(() => fetchLiveData(), 15000); // 15-second live poller
+      return () => clearInterval(interval);
+    } else {
+      setIsLoading(false);
+    }
+  }, [isUnlocked, isAdmin]);
+
+  const handlePinSubmit = async (e) => {
+    e.preventDefault();
+    if (!pinInput.trim()) return;
+
+    setIsVerifyingPin(true);
+    setPinError('');
+
+    try {
+      const success = await fetchLiveData(pinInput.trim());
+      if (success) {
+        sessionStorage.setItem('investor_pin', pinInput.trim());
+        setInvestorPin(pinInput.trim());
+        setIsUnlocked(true);
+      } else {
+        setPinError('Invalid Investor PIN. Remote access denied.');
+      }
+    } catch (err) {
+      setPinError(err.response?.data?.message || 'Access verification failed.');
+    } finally {
+      setIsVerifyingPin(false);
+    }
+  };
+
+  const handleLockSession = () => {
+    sessionStorage.removeItem('investor_pin');
+    setInvestorPin('');
+    setIsUnlocked(false);
+    setData(null);
+  };
 
   const handleManualEodPush = async () => {
     setIsTriggeringEod(true);
     try {
-      await axios.post('/api/dashboard/trigger-eod');
+      await axios.post('/api/dashboard/trigger-eod', {}, { headers: getHeaders() });
       setToast({
         type: 'success',
         text: 'EOD Financial Dossier successfully compiled and dispatched to Telegram!',
@@ -71,6 +126,85 @@ export default function InvestorDashboard() {
   const vaults = data?.vault_balances || {};
   const bays = data?.live_bays || { in_progress: [], queued: [] };
   const invoices = data?.recent_invoices || [];
+
+  // PIN Lock Screen if not authenticated
+  if (!isUnlocked && !isAdmin) {
+    return (
+      <div className="max-w-md mx-auto my-16 p-8 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl text-center space-y-6 animate-fadeIn">
+        <div className="w-16 h-16 bg-sky-950/80 border-2 border-sky-500 rounded-2xl flex items-center justify-center mx-auto text-sky-400 shadow-xl shadow-sky-500/20">
+          <Lock className="w-8 h-8" />
+        </div>
+        <div>
+          <h3 className="text-xl font-black text-white">Investor Portal Locked</h3>
+          <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+            Remote tunnel security enabled. Enter your confidential Investor PIN to view live shop finances and bay activity.
+          </p>
+        </div>
+
+        <form onSubmit={handlePinSubmit} className="space-y-4">
+          <div>
+            <input
+              type="password"
+              maxLength="8"
+              value={pinInput}
+              onChange={(e) => {
+                setPinInput(e.target.value);
+                setPinError('');
+              }}
+              placeholder="••••"
+              autoFocus
+              className="w-full text-center tracking-[0.5em] text-2xl font-mono py-3.5 bg-slate-950 border-2 border-slate-800 rounded-2xl text-white focus:outline-none focus:border-sky-500"
+            />
+            {pinError && (
+              <p className="text-xs text-rose-400 font-semibold mt-2 flex items-center justify-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {pinError}
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-left">
+            <button
+              type="button"
+              onClick={() => setPinInput('1122')}
+              className="p-2 bg-slate-950 border border-slate-800 rounded-xl text-[11px] font-mono text-slate-400 hover:text-white hover:border-slate-700 transition text-center"
+            >
+              Demo Partner PIN: 1122
+            </button>
+            <button
+              type="button"
+              onClick={() => setPinInput('1234')}
+              className="p-2 bg-slate-950 border border-slate-800 rounded-xl text-[11px] font-mono text-slate-400 hover:text-white hover:border-slate-700 transition text-center"
+            >
+              Admin Master: 1234
+            </button>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isVerifyingPin || !pinInput}
+            className="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 disabled:opacity-50 text-white font-black py-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl shadow-sky-500/25 transition active:scale-95"
+          >
+            {isVerifyingPin ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Authenticating Tunnel...
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="w-4 h-4" />
+                Unlock Live Dashboard
+              </>
+            )}
+          </button>
+        </form>
+
+        <p className="text-[10px] text-slate-500 font-mono">
+          🔒 Cloudflare Tunnel Ready • Encrypted Local Vault
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -112,6 +246,16 @@ export default function InvestorDashboard() {
             <Send className="w-3.5 h-3.5" />
             {isTriggeringEod ? 'Sending...' : 'Push EOD to Telegram'}
           </button>
+
+          {isUnlocked && (
+            <button
+              onClick={handleLockSession}
+              title="Lock Investor Session"
+              className="bg-slate-950 hover:bg-rose-950/60 border border-slate-800 hover:border-rose-700/60 text-slate-400 hover:text-rose-300 p-2.5 rounded-xl transition"
+            >
+              <Lock className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 

@@ -53,6 +53,24 @@ const {
 } = require('../controllers/financials.controller');
 const { authenticateUser, requireRole } = require('../middleware/auth.middleware');
 const { listAuditLogsHandler } = require('../controllers/audit.controller');
+const {
+  createDepositHandler,
+  listDepositsHandler,
+  listActiveDepositsHandler,
+} = require('../controllers/deposit.controller');
+const {
+  createTransferHandler,
+  listTransfersHandler,
+} = require('../controllers/transfer.controller');
+const {
+  issueMaterialHandler,
+  getJobCardMaterialsHandler,
+} = require('../controllers/material.controller');
+const {
+  createPartnerTransactionHandler,
+  getPartnerTransactionsHandler,
+  listAllPartnerTransactionsHandler,
+} = require('../controllers/partner-tx.controller');
 
 // ---------------------------------------------------------------------------
 // 1. Health & Service Diagnostics (Public)
@@ -328,5 +346,32 @@ router.post('/inventory/yield-mappings', requireRole(['ADMIN', 'MANAGER']), crea
 // ---------------------------------------------------------------------------
 router.get('/audit-logs', requireRole(['ADMIN']), listAuditLogsHandler);
 
+// ---------------------------------------------------------------------------
+// 14. Customer Advances & Deposits (Liabilities)
+// ---------------------------------------------------------------------------
+router.post('/deposits', createDepositHandler);
+router.get('/deposits', listDepositsHandler);
+router.get('/deposits/active', listActiveDepositsHandler);
+
+// ---------------------------------------------------------------------------
+// 15. Ledger Transfers (Cash-to-Bank Vault Balancing)
+// ---------------------------------------------------------------------------
+router.post('/ledger/transfer', requireRole(['ADMIN', 'MANAGER']), createTransferHandler);
+router.get('/ledger/transfers', requireRole(['ADMIN', 'MANAGER']), listTransfersHandler);
+
+// ---------------------------------------------------------------------------
+// 16. Multi-Day Inventory Material Issuance (Decoupled Consumable Tracking)
+// ---------------------------------------------------------------------------
+router.post('/materials/issue', issueMaterialHandler);
+router.get('/materials/job-card/:id', getJobCardMaterialsHandler);
+
+// ---------------------------------------------------------------------------
+// 17. Partner Capital & Drawings Ledger (P&L Neutral)
+// ---------------------------------------------------------------------------
+router.post('/partners/:id/transactions', requireRole(['ADMIN']), createPartnerTransactionHandler);
+router.get('/partners/:id/transactions', requireRole(['ADMIN']), getPartnerTransactionsHandler);
+router.get('/partners/transactions', requireRole(['ADMIN']), listAllPartnerTransactionsHandler);
+
 module.exports = router;
+
 

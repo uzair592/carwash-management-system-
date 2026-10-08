@@ -2,13 +2,15 @@ const express = require('express');
 const router = express.Router();
 const prisma = require('../prisma');
 const { compileEodMetrics, runEodReportNow } = require('../cron/eod.cron');
+const { requireInvestorAuth } = require('../middleware/auth.middleware');
 
 /**
  * GET /api/dashboard/live
  * Dedicated read-only endpoint for absentee sleeping partners.
  * Aggregates live bay activity, daily cash flow, and vault balances.
+ * Protected by Investor PIN or Admin auth.
  */
-router.get('/live', async (req, res, next) => {
+router.get('/live', requireInvestorAuth, async (req, res, next) => {
   try {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -108,7 +110,7 @@ router.get('/live', async (req, res, next) => {
  * POST /api/dashboard/trigger-eod
  * On-demand manual trigger for sending the EOD partner report to Telegram.
  */
-router.post('/trigger-eod', async (req, res, next) => {
+router.post('/trigger-eod', requireInvestorAuth, async (req, res, next) => {
   try {
     const result = await runEodReportNow();
     return res.status(200).json({

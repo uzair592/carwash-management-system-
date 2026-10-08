@@ -91,6 +91,25 @@ export default function AdminManagement() {
     phone: '',
   });
 
+  // Partner Drawings & Capital Transaction state
+  const [partnerTxModal, setPartnerTxModal] = useState(null);
+  const [partnerTxForm, setPartnerTxForm] = useState({
+    partner_id: '',
+    type: 'DRAWING',
+    amount: '',
+    payment_method: 'CASH',
+    notes: '',
+  });
+
+  // Cash-to-Bank Ledger Transfer state
+  const [transferModal, setTransferModal] = useState(false);
+  const [transferForm, setTransferForm] = useState({
+    from_account: 'Cash_Drawer',
+    to_account: 'Main_Bank',
+    amount: '',
+    notes: '',
+  });
+
   // Audit Logs state
   const [auditLogs, setAuditLogs] = useState([]);
   const [isLoadingAudit, setIsLoadingAudit] = useState(false);
@@ -288,6 +307,34 @@ export default function AdminManagement() {
       setEditPartnerModal(null);
       setPartnerForm({ id: '', partner_name: '', equity_percentage: '', phone: '' });
       fetchDividends(currentMonth);
+    } catch (err) {
+      showToast('error', err.response?.data?.message || err.message);
+    }
+  };
+
+  // Partner Transaction Submit (Drawings / Capital)
+  const handlePartnerTxSubmit = async (e) => {
+    e.preventDefault();
+    if (!partnerTxForm.partner_id) return;
+    try {
+      const res = await axios.post(`/api/partners/${partnerTxForm.partner_id}/transactions`, partnerTxForm);
+      showToast('success', res.data.message || 'Partner transaction logged successfully!');
+      setPartnerTxModal(null);
+      setPartnerTxForm({ partner_id: '', type: 'DRAWING', amount: '', payment_method: 'CASH', notes: '' });
+      fetchDividends(currentMonth);
+    } catch (err) {
+      showToast('error', err.response?.data?.message || err.message);
+    }
+  };
+
+  // Cash-to-Bank Vault Transfer Submit
+  const handleTransferSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await axios.post('/api/ledger/transfer', transferForm);
+      showToast('success', res.data.message || 'Ledger transfer executed successfully!');
+      setTransferModal(false);
+      setTransferForm({ from_account: 'Cash_Drawer', to_account: 'Main_Bank', amount: '', notes: '' });
     } catch (err) {
       showToast('error', err.response?.data?.message || err.message);
     }
@@ -1016,15 +1063,23 @@ export default function AdminManagement() {
                 </p>
               </div>
 
-              <button
-                onClick={() => {
-                  setPartnerForm({ id: '', partner_name: '', equity_percentage: '', phone: '' });
-                  setEditPartnerModal({ isNew: true });
-                }}
-                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2"
-              >
-                <PlusCircle className="w-4 h-4" /> Add Partner
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setTransferModal(true)}
+                  className="bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 font-bold px-3.5 py-2.5 rounded-xl text-xs transition flex items-center gap-2"
+                >
+                  <Wallet className="w-4 h-4" /> Transfer Cash to Bank
+                </button>
+                <button
+                  onClick={() => {
+                    setPartnerForm({ id: '', partner_name: '', equity_percentage: '', phone: '' });
+                    setEditPartnerModal({ isNew: true });
+                  }}
+                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2"
+                >
+                  <PlusCircle className="w-4 h-4" /> Add Partner
+                </button>
+              </div>
             </div>
 
             {/* Partner Cards Grid */}
@@ -1036,6 +1091,11 @@ export default function AdminManagement() {
                   partner.dividend_amount !== undefined
                     ? partner.dividend_amount
                     : Math.round(((netProfit * equityPct) / 100) * 100) / 100;
+                const drawingsDeducted = parseFloat(partner.drawings_amount || 0);
+                const finalNetPayout =
+                  partner.net_payout !== undefined
+                    ? partner.net_payout
+                    : Math.max(0, calculatedDividend - drawingsDeducted);
 
                 return (
                   <div
@@ -1065,20 +1125,48 @@ export default function AdminManagement() {
                         />
                       </div>
 
-                      <div className="mt-6 pt-4 border-t border-slate-800/80">
-                        <span className="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
-                          Calculated Monthly Dividend
-                        </span>
-                        <p className="text-2xl font-black text-emerald-400 mt-1 font-mono">
-                          Rs. {calculatedDividend.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </p>
-                        <p className="text-[10px] text-slate-500 mt-1">
-                          {equityPct}% of Rs. {(netProfit > 0 ? netProfit : 0).toLocaleString()} net profit
-                        </p>
+                      <div className="mt-5 pt-4 border-t border-slate-800/80 space-y-2">
+                        <div className="flex justify-between items-center text-[11px] text-slate-400">
+                          <span>Gross Dividend Share:</span>
+                          <span className="font-mono text-slate-200">
+                            Rs. {calculatedDividend.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        {drawingsDeducted > 0 && (
+                          <div className="flex justify-between items-center text-[11px] text-amber-400">
+                            <span>Drawings Taken from Till:</span>
+                            <span className="font-mono font-bold">
+                              -Rs. {drawingsDeducted.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        )}
+                        <div className="pt-2 border-t border-slate-800 flex justify-between items-baseline">
+                          <span className="text-[11px] text-emerald-400 uppercase tracking-wider font-bold">
+                            Net Equity Payout:
+                          </span>
+                          <p className="text-xl font-black text-emerald-400 font-mono">
+                            Rs. {finalNetPayout.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="mt-5 pt-3 flex items-center justify-end">
+                    <div className="mt-5 pt-3 flex items-center justify-between gap-2 border-t border-slate-900">
+                      <button
+                        onClick={() => {
+                          setPartnerTxForm({
+                            partner_id: partner.partner_id || partner.id,
+                            type: 'DRAWING',
+                            amount: '',
+                            payment_method: 'CASH',
+                            notes: '',
+                          });
+                          setPartnerTxModal(partner);
+                        }}
+                        className="text-xs bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 px-2.5 py-1.5 rounded-xl transition border border-amber-800/60 font-semibold"
+                      >
+                        Record Drawing
+                      </button>
                       <button
                         onClick={() => {
                           setEditPartnerModal(partner);
@@ -1762,6 +1850,183 @@ export default function AdminManagement() {
                   className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
                 >
                   Save Partner Share
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* RECORD PARTNER TRANSACTION (DRAWINGS / CAPITAL) MODAL */}
+      {/* ============================================================== */}
+      {partnerTxModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-amber-400" /> Record Partner Transaction
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              Partner: <strong className="text-white">{partnerTxModal.partner_name}</strong> • Strict Double-Entry Ledger
+            </p>
+
+            <form onSubmit={handlePartnerTxSubmit} className="mt-5 space-y-4">
+              <div>
+                <label className="text-xs text-slate-400">Transaction Classification</label>
+                <select
+                  value={partnerTxForm.type}
+                  onChange={(e) => setPartnerTxForm({ ...partnerTxForm, type: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none focus:border-amber-500"
+                >
+                  <option value="DRAWING">DRAWING (Personal withdrawal from till - Deducted from Equity Payout)</option>
+                  <option value="CAPITAL_INVESTMENT">CAPITAL_INVESTMENT (Owner equity injection into till)</option>
+                  <option value="LOAN">LOAN (Partner temporary financing)</option>
+                  <option value="DIVIDEND_PAYOUT">DIVIDEND_PAYOUT (Manual dividend distribution)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400">Amount (Rs.) *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="1"
+                  required
+                  placeholder="e.g. 10000"
+                  value={partnerTxForm.amount}
+                  onChange={(e) => setPartnerTxForm({ ...partnerTxForm, amount: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white font-mono text-base mt-1 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400">Source Vault Tender</label>
+                <select
+                  value={partnerTxForm.payment_method}
+                  onChange={(e) => setPartnerTxForm({ ...partnerTxForm, payment_method: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none focus:border-amber-500"
+                >
+                  <option value="CASH">Cash Drawer (Shop Physical Cash Till)</option>
+                  <option value="BANK">Main Bank (Business Bank Account)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400">Notes / Audit Memo</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Personal emergency withdrawal from cashier drawer"
+                  value={partnerTxForm.notes}
+                  onChange={(e) => setPartnerTxForm({ ...partnerTxForm, notes: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white text-xs mt-1 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="p-3 bg-amber-950/30 border border-amber-800/40 rounded-xl text-[11px] text-amber-200">
+                ⚖️ <strong>P&L Protected:</strong> Drawings reduce cash vault &amp; equity payouts, but are <em>not</em> business expenses on the Income Statement.
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPartnerTxModal(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
+                >
+                  Record Transaction
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* CASH-TO-BANK LEDGER VAULT TRANSFER MODAL */}
+      {/* ============================================================== */}
+      {transferModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-sky-400" /> Cash-to-Bank Vault Transfer
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              Deposit physical cash from register till into the business bank account.
+            </p>
+
+            <form onSubmit={handleTransferSubmit} className="mt-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400">From Account</label>
+                  <select
+                    value={transferForm.from_account}
+                    onChange={(e) => setTransferForm({ ...transferForm, from_account: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs mt-1"
+                  >
+                    <option value="Cash_Drawer">Cash Drawer</option>
+                    <option value="Main_Bank">Main Bank</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400">To Account</label>
+                  <select
+                    value={transferForm.to_account}
+                    onChange={(e) => setTransferForm({ ...transferForm, to_account: e.target.value })}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs mt-1"
+                  >
+                    <option value="Main_Bank">Main Bank</option>
+                    <option value="Cash_Drawer">Cash Drawer</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400">Transfer Amount (Rs.) *</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="1"
+                  required
+                  placeholder="e.g. 50000"
+                  value={transferForm.amount}
+                  onChange={(e) => setTransferForm({ ...transferForm, amount: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white font-mono text-base mt-1 focus:outline-none focus:border-sky-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-400">Transfer Notes / Reason</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Night deposit to business bank branch"
+                  value={transferForm.notes}
+                  onChange={(e) => setTransferForm({ ...transferForm, notes: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white text-xs mt-1 focus:outline-none focus:border-sky-500"
+                />
+              </div>
+
+              <div className="p-3 bg-sky-950/30 border border-sky-800/40 rounded-xl text-[11px] text-sky-200">
+                🔒 <strong>Zero P&L Impact:</strong> Balances both vaults without altering revenue or expense ledgers.
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setTransferModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
+                >
+                  Execute Vault Transfer
                 </button>
               </div>
             </form>
