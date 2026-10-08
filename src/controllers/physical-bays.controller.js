@@ -5,8 +5,35 @@ const { notifyJobCardCreated } = require('../services/notification.service');
 const LOCATION_TEAMS = {
   JACK_1: 'Wash Team 1',
   JACK_2: 'Wash Team 2',
-  DETAILING_CENTER: 'Detailing Team',
+  DETAILING_BAY_1: 'Detailing Bay 1',
+  DETAILING_BAY_2: 'Detailing Bay 2',
+  DETAILING_CENTER: 'Detailing Bay 1',
 };
+
+/**
+ * Normalizes plate number for matching: strips spaces, dashes, symbols, uppercase
+ * e.g., "KPK - 7890" -> "KPK7890", "lea 1234" -> "LEA1234"
+ */
+function normalizePlate(plate) {
+  if (!plate) return '';
+  return String(plate).toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+/**
+ * Format elapsed time for humans: e.g. "45m", "3h 15m", "2d 4h"
+ */
+function formatElapsed(startedAt) {
+  if (!startedAt) return '0m';
+  const diffMs = Date.now() - new Date(startedAt).getTime();
+  const diffMins = Math.max(0, Math.floor(diffMs / 60000));
+  if (diffMins < 60) return `${diffMins}m`;
+  const diffHours = Math.floor(diffMins / 60);
+  const remainingMins = diffMins % 60;
+  if (diffHours < 24) return `${diffHours}h ${remainingMins}m`;
+  const diffDays = Math.floor(diffHours / 24);
+  const remainingHours = diffHours % 24;
+  return `${diffDays}d ${remainingHours}h`;
+}
 
 /**
  * Normalizes location string to WorkLocation enum
@@ -15,15 +42,105 @@ function parseWorkLocation(input) {
   const norm = String(input || '').trim().toUpperCase();
   if (norm === 'JACK_1' || norm === 'JACK1' || norm === '1') return 'JACK_1';
   if (norm === 'JACK_2' || norm === 'JACK2' || norm === '2') return 'JACK_2';
-  if (norm === 'DETAILING_CENTER' || norm === 'DETAILING' || norm === '3') return 'DETAILING_CENTER';
-  throw new Error(`Invalid work location: "${input}". Allowed: JACK_1, JACK_2, DETAILING_CENTER`);
+  if (norm === 'DETAILING_BAY_1' || norm === 'BAY_1' || norm === 'DETAILING1' || norm === '3') return 'DETAILING_BAY_1';
+  if (norm === 'DETAILING_BAY_2' || norm === 'BAY_2' || norm === 'DETAILING2' || norm === '4') return 'DETAILING_BAY_2';
+  if (norm === 'DETAILING_CENTER' || norm === 'DETAILING') return 'DETAILING_BAY_1';
+  throw new Error(`Invalid work location: "${input}". Allowed: JACK_1, JACK_2, DETAILING_BAY_1, DETAILING_BAY_2`);
+}
+
+/**
+ * GET /api/bays/check-plate/:plate
+ * Returning & loyal customer recognition via normalized registration number.
+ */
+async function checkPlateHandler(req, res, next) {
+  try {
+    const { plate } = req.params;
+    if (!plate || !plate.trim()) {
+      return res.status(400).json({ status: 'error', message: 'Plate number is required.' });
+    }
+
+    const rawPlate = String(plate).trim();
+    const normalized = normalizePlate(rawPlate);
+
+    // Look for matching vehicle by normalized_plate or registration_number
+    const vehicle = await prisma.vehicle.findFirst({
+      where: {
+        OR: [
+          { normalized_plate: normalized },
+          { registration_number: { equals: rawPlate, mode: 'insensitive' } },
+          { registration_number: { equals: normalized, mode: 'insensitive' } },
+        ],
+      },
+      include: {
+        job_cards: {
+          orderBy: { created_at: 'desc' },
+          take: 10,
+          include: {
+            services: { include: { service: true } },
+            invoice: true,
+          },
+        },
+      },
+    });
+
+    // Get loyalty threshold from branding settings
+    const branding = await prisma.businessBranding.findFirst();
+    const loyaltyThreshold = branding?.loyalty_threshold || 5;
+
+    if (!vehicle) {
+      return res.status(200).json({
+        status: 'success',
+        data: {
+          exists: false,
+          normalized_plate: normalized,
+          registration_number: rawPlate,
+          is_returning: false,
+          is_loyal: false,
+          completed_visits: 0,
+          vehicle: null,
+        },
+      });
+    }
+
+    // Count strictly completed visits (excluding cancelled or pending jobs)
+    const completedVisits = vehicle.job_cards.filter(
+      (j) => j.status === 'COMPLETED' || j.status === 'Completed' || Boolean(j.invoice)
+    ).length;
+
+    const lastVisit = vehicle.job_cards.find(
+      (j) => j.status === 'COMPLETED' || j.status === 'Completed' || Boolean(j.invoice)
+    );
+
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        exists: true,
+        vehicle_id: vehicle.id,
+        registration_number: vehicle.registration_number,
+        normalized_plate: vehicle.normalized_plate || normalized,
+        customer_name: vehicle.customer_name || '',
+        customer_phone: vehicle.customer_phone || '',
+        make: vehicle.make,
+        model: vehicle.model,
+        completed_visits: completedVisits,
+        is_returning: completedVisits > 0,
+        is_loyal: completedVisits >= loyaltyThreshold,
+        loyalty_threshold: loyaltyThreshold,
+        last_visit_date: lastVisit?.created_at || null,
+        last_visit_services: lastVisit?.services?.map((s) => s.service?.name) || [],
+        history: vehicle.job_cards.slice(0, 5),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
 /**
  * POST /api/intake
  * Rapid "No-Ticket, No-Work" Vehicle Intake.
- * Accepts Plate Number, Customer Name, Customer Phone, and Service Package.
- * Generates sequential ticket and sets JobCard status to QUEUED.
+ * Requirement 2: Customer Name & Customer Phone are OPTIONAL.
+ * Plate Number and at least one service are REQUIRED.
  */
 async function rapidIntakeHandler(req, res, next) {
   try {
@@ -38,20 +155,34 @@ async function rapidIntakeHandler(req, res, next) {
       intake_notes,
     } = req.body;
 
-    if (!registration_number || !customer_name || !customer_phone) {
+    if (!registration_number || !String(registration_number).trim()) {
       return res.status(400).json({
         status: 'error',
-        message: 'Plate Number, Customer Name, and Customer Phone are strictly required.',
+        message: 'Vehicle Registration Number is strictly required.',
       });
     }
 
-    const normalizedPlate = String(registration_number).trim().toUpperCase();
-    const cleanCustomerName = String(customer_name).trim();
-    const cleanPhone = String(customer_phone).trim();
+    const rawServices = Array.isArray(services) && services.length > 0 ? services : service_ids;
+    if (!Array.isArray(rawServices) || rawServices.length === 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'At least one service must be selected.',
+      });
+    }
 
-    // 1. Upsert Vehicle with Customer Name
-    const existingVehicle = await prisma.vehicle.findUnique({
-      where: { registration_number: normalizedPlate },
+    const rawPlate = String(registration_number).trim().toUpperCase();
+    const normalized = normalizePlate(rawPlate);
+    const cleanCustomerName = customer_name && String(customer_name).trim() ? String(customer_name).trim() : 'Walk-in Customer';
+    const cleanPhone = customer_phone && String(customer_phone).trim() ? String(customer_phone).trim() : null;
+
+    // 1. Upsert Vehicle with Normalized Plate
+    const existingVehicle = await prisma.vehicle.findFirst({
+      where: {
+        OR: [
+          { normalized_plate: normalized },
+          { registration_number: { equals: rawPlate, mode: 'insensitive' } },
+        ],
+      },
     });
 
     let vehicle;
@@ -60,8 +191,9 @@ async function rapidIntakeHandler(req, res, next) {
         where: { id: existingVehicle.id },
         data: {
           visits: { increment: 1 },
-          customer_name: cleanCustomerName,
-          customer_phone: cleanPhone,
+          normalized_plate: normalized,
+          customer_name: cleanCustomerName !== 'Walk-in Customer' ? cleanCustomerName : existingVehicle.customer_name,
+          customer_phone: cleanPhone || existingVehicle.customer_phone,
           make: make || existingVehicle.make,
           model: model || existingVehicle.model,
           updated_at: new Date(),
@@ -70,7 +202,8 @@ async function rapidIntakeHandler(req, res, next) {
     } else {
       vehicle = await prisma.vehicle.create({
         data: {
-          registration_number: normalizedPlate,
+          registration_number: rawPlate,
+          normalized_plate: normalized,
           customer_name: cleanCustomerName,
           customer_phone: cleanPhone,
           make: make || null,
@@ -97,45 +230,41 @@ async function rapidIntakeHandler(req, res, next) {
     });
 
     // 4. Attach Service Packages
-    const rawServices = Array.isArray(services) && services.length > 0 ? services : service_ids;
     const attachedServices = [];
+    for (const item of rawServices) {
+      const idOrName = typeof item === 'string' ? item : (item.service_id || item.id || item.name);
+      const srv = await prisma.service.findFirst({
+        where: {
+          OR: [
+            { id: idOrName },
+            { name: { equals: idOrName, mode: 'insensitive' } },
+          ],
+        },
+      });
 
-    if (Array.isArray(rawServices) && rawServices.length > 0) {
-      for (const item of rawServices) {
-        const idOrName = typeof item === 'string' ? item : (item.service_id || item.id || item.name);
-        const srv = await prisma.service.findFirst({
-          where: {
-            OR: [
-              { id: idOrName },
-              { name: { equals: idOrName, mode: 'insensitive' } },
-            ],
+      if (srv) {
+        const priceCharged = item.price ? parseFloat(item.price) : parseFloat(srv.price);
+        const link = await prisma.jobCardService.create({
+          data: {
+            job_card_id: jobCard.id,
+            service_id: srv.id,
+            price_charged: priceCharged,
           },
+          include: { service: true },
         });
-
-        if (srv) {
-          const priceCharged = item.price ? parseFloat(item.price) : parseFloat(srv.price);
-          const link = await prisma.jobCardService.create({
-            data: {
-              job_card_id: jobCard.id,
-              service_id: srv.id,
-              price_charged: priceCharged,
-            },
-            include: { service: true },
-          });
-          attachedServices.push(link);
-        }
+        attachedServices.push(link);
       }
     }
 
-    // 5. Fire non-blocking Telegram intake alert
+    // 5. Fire non-blocking alert (skip SMS automatically if cleanPhone is null)
     notifyJobCardCreated({
       registration_number: vehicle.registration_number,
-      customer_phone: vehicle.customer_phone,
+      customer_phone: cleanPhone,
       visits: vehicle.visits,
       services: attachedServices.map((s) => s.service.name),
       ticket_number: jobCard.ticket_number,
       intake_time: jobCard.created_at,
-    }).catch((err) => console.warn('[RapidIntake] Telegram alert notice:', err.message));
+    }).catch((err) => console.warn('[RapidIntake] Alert notice:', err.message));
 
     const completeCard = await prisma.jobCard.findUnique({
       where: { id: jobCard.id },
@@ -147,7 +276,7 @@ async function rapidIntakeHandler(req, res, next) {
 
     return res.status(201).json({
       status: 'success',
-      message: `Job Card ${ticketNumber} queued successfully for ${normalizedPlate}.`,
+      message: `Job Card ${ticketNumber} queued successfully for ${rawPlate}.`,
       data: {
         job_card: completeCard,
         vehicle,
@@ -160,26 +289,26 @@ async function rapidIntakeHandler(req, res, next) {
 
 /**
  * PATCH /api/job-cards/:id/start
- * Assigns vehicle to Washing Jack 1, Washing Jack 2, or Detailing Center.
- * Sets started_at = now() and status = IN_PROGRESS.
+ * Assigns vehicle to Washing Jack 1, Washing Jack 2, Detailing Bay 1, or Detailing Bay 2.
+ * Supports assigning multiple workers to detailing jobs.
  */
 async function startJobCardHandler(req, res, next) {
   try {
     const { id } = req.params;
-    const { assigned_location, location, assigned_team, worker_id, force = false } = req.body;
+    const { assigned_location, location, assigned_team, worker_id, worker_ids = [], force = false } = req.body;
     const targetLocation = assigned_location || location;
 
     if (!targetLocation) {
       return res.status(400).json({
         status: 'error',
-        message: 'Field "assigned_location" (JACK_1, JACK_2, or DETAILING_CENTER) is required.',
+        message: 'Field "assigned_location" (JACK_1, JACK_2, DETAILING_BAY_1, or DETAILING_BAY_2) is required.',
       });
     }
 
     const locationEnum = parseWorkLocation(targetLocation);
-    const teamName = assigned_team || LOCATION_TEAMS[locationEnum];
+    const teamName = assigned_team || LOCATION_TEAMS[locationEnum] || 'Detailing Team';
 
-    // Check if another car is currently occupying this bay
+    // Prevent conflicting assignments and overlapping confirmed bookings for the same slot
     if (!force) {
       const activeOccupant = await prisma.jobCard.findFirst({
         where: {
@@ -193,33 +322,65 @@ async function startJobCardHandler(req, res, next) {
       if (activeOccupant) {
         return res.status(409).json({
           status: 'conflict',
-          message: `${locationEnum.replace('_', ' ')} is already occupied by vehicle ${activeOccupant.vehicle.registration_number} (Ticket ${activeOccupant.ticket_number}). Please mark it complete first or choose another jack.`,
+          message: `${locationEnum.replace(/_/g, ' ')} is already occupied by vehicle ${activeOccupant.vehicle.registration_number} (Ticket ${activeOccupant.ticket_number}). Please mark it complete first or select another slot.`,
           current_occupant: activeOccupant,
         });
       }
     }
 
-    const updated = await prisma.jobCard.update({
-      where: { id },
-      data: {
-        status: 'IN_PROGRESS',
-        assigned_location: locationEnum,
-        assigned_team: teamName,
-        worker_id: worker_id || undefined,
-        started_at: new Date(),
-        updated_at: new Date(),
-      },
-      include: {
-        vehicle: true,
-        services: { include: { service: true } },
-        worker: true,
-        media: true,
-      },
+    // Determine all worker IDs (support multiple workers for detailing)
+    const allWorkerIds = Array.isArray(worker_ids) && worker_ids.length > 0
+      ? worker_ids
+      : (worker_id ? [worker_id] : []);
+
+    const primaryWorkerId = allWorkerIds.length > 0 ? allWorkerIds[0] : null;
+
+    // Update job card and assign workers atomically
+    const updated = await prisma.$transaction(async (tx) => {
+      const job = await tx.jobCard.update({
+        where: { id },
+        data: {
+          status: 'IN_PROGRESS',
+          assigned_location: locationEnum,
+          assigned_team: teamName,
+          worker_id: primaryWorkerId,
+          started_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+
+      // Clear previous worker assignments if any
+      await tx.jobCardWorker.deleteMany({
+        where: { job_card_id: id },
+      });
+
+      // Insert multiple worker assignments
+      for (const wId of allWorkerIds) {
+        if (wId) {
+          await tx.jobCardWorker.create({
+            data: {
+              job_card_id: id,
+              user_id: wId,
+            },
+          });
+        }
+      }
+
+      return await tx.jobCard.findUnique({
+        where: { id },
+        include: {
+          vehicle: true,
+          services: { include: { service: true } },
+          worker: true,
+          assigned_workers: { include: { user: true } },
+          media: true,
+        },
+      });
     });
 
     return res.status(200).json({
       status: 'success',
-      message: `Vehicle ${updated.vehicle.registration_number} started work in ${locationEnum.replace('_', ' ')} under ${teamName}.`,
+      message: `Vehicle ${updated.vehicle.registration_number} started work in ${locationEnum.replace(/_/g, ' ')} under ${teamName}.`,
       data: updated,
     });
   } catch (error) {
@@ -230,7 +391,7 @@ async function startJobCardHandler(req, res, next) {
 /**
  * PATCH /api/job-cards/:id/complete
  * Marks car as READY_FOR_BILLING, records completed_at = now(),
- * and visually frees up the physical Jack / Detailing Center for the next car.
+ * and releases ONLY its own assigned slot.
  */
 async function completeJobCardHandler(req, res, next) {
   try {
@@ -256,13 +417,14 @@ async function completeJobCardHandler(req, res, next) {
         vehicle: true,
         services: { include: { service: true } },
         worker: true,
+        assigned_workers: { include: { user: true } },
         media: true,
       },
     });
 
     return res.status(200).json({
       status: 'success',
-      message: `Vehicle ${updated.vehicle.registration_number} completed. ${updated.assigned_location || 'Bay'} is now FREE for the next car. Vehicle moved to Ready For Billing.`,
+      message: `Vehicle ${updated.vehicle.registration_number} completed. ${updated.assigned_location || 'Slot'} is now released and FREE for the next car. Vehicle moved to Ready For Billing.`,
       data: updated,
     });
   } catch (error) {
@@ -272,11 +434,11 @@ async function completeJobCardHandler(req, res, next) {
 
 /**
  * GET /api/bays/live-status
- * Real-time physical shop overview matching the 3 physical zones:
+ * Real-time physical shop overview with 4 distinct slots:
  * - Washing Jack 1 (Wash Team 1)
  * - Washing Jack 2 (Wash Team 2)
- * - Detailing Center (Detailing Team)
- * Plus Queue and Ready for Billing list.
+ * - Detailing Bay 1 (Detailing Team)
+ * - Detailing Bay 2 (Detailing Team)
  */
 async function getLiveBayStatusHandler(req, res, next) {
   try {
@@ -288,6 +450,7 @@ async function getLiveBayStatusHandler(req, res, next) {
         vehicle: true,
         services: { include: { service: true } },
         worker: true,
+        assigned_workers: { include: { user: true } },
         media: true,
         invoice: true,
       },
@@ -299,7 +462,27 @@ async function getLiveBayStatusHandler(req, res, next) {
 
     const jack1 = inProgressList.find((j) => j.assigned_location === 'JACK_1') || null;
     const jack2 = inProgressList.find((j) => j.assigned_location === 'JACK_2') || null;
-    const detailing = inProgressList.find((j) => j.assigned_location === 'DETAILING_CENTER') || null;
+    const detailing1 = inProgressList.find((j) => j.assigned_location === 'DETAILING_BAY_1' || j.assigned_location === 'DETAILING_CENTER') || null;
+    const detailing2 = inProgressList.find((j) => j.assigned_location === 'DETAILING_BAY_2') || null;
+
+    // Helper to format slot job with elapsed time & workers
+    function formatSlotJob(job) {
+      if (!job) return null;
+      const totalEstimatedMinutes = (job.services || []).reduce(
+        (sum, s) => sum + (s.service?.estimated_time || 30),
+        0
+      );
+      const workersList = job.assigned_workers && job.assigned_workers.length > 0
+        ? job.assigned_workers.map((aw) => aw.user?.name).filter(Boolean)
+        : (job.worker ? [job.worker.name] : []);
+
+      return {
+        ...job,
+        elapsed_display: formatElapsed(job.started_at),
+        estimated_minutes: totalEstimatedMinutes,
+        assigned_worker_names: workersList,
+      };
+    }
 
     // Queued waiting vehicles
     const queuedCars = allActiveCards.filter((j) => (j.status === 'QUEUED' || j.status === 'Intake') && !j.invoice);
@@ -315,21 +498,36 @@ async function getLiveBayStatusHandler(req, res, next) {
           name: 'Washing Jack 1',
           team: 'Wash Team 1',
           is_occupied: Boolean(jack1),
-          current_job: jack1,
+          current_job: formatSlotJob(jack1),
         },
         jack_2: {
           location: 'JACK_2',
           name: 'Washing Jack 2',
           team: 'Wash Team 2',
           is_occupied: Boolean(jack2),
-          current_job: jack2,
+          current_job: formatSlotJob(jack2),
         },
+        detailing_bay_1: {
+          location: 'DETAILING_BAY_1',
+          name: 'Detailing Slot 1',
+          team: 'Detailing Team',
+          is_occupied: Boolean(detailing1),
+          current_job: formatSlotJob(detailing1),
+        },
+        detailing_bay_2: {
+          location: 'DETAILING_BAY_2',
+          name: 'Detailing Slot 2',
+          team: 'Detailing Team',
+          is_occupied: Boolean(detailing2),
+          current_job: formatSlotJob(detailing2),
+        },
+        // Alias for backwards compatibility
         detailing_center: {
           location: 'DETAILING_CENTER',
-          name: 'Detailing Center',
+          name: 'Detailing Slot 1',
           team: 'Detailing Team',
-          is_occupied: Boolean(detailing),
-          current_job: detailing,
+          is_occupied: Boolean(detailing1),
+          current_job: formatSlotJob(detailing1),
         },
       },
       queue: queuedCars,
@@ -343,7 +541,7 @@ async function getLiveBayStatusHandler(req, res, next) {
 
 /**
  * POST /api/admin/verify-pin
- * Verifies Shop Admin PIN (Default: 1234)
+ * Verifies Shop Admin PIN (Default: 1234 or hashed)
  */
 async function verifyAdminPinHandler(req, res, next) {
   try {
@@ -377,9 +575,7 @@ async function issueRefundHandler(req, res, next) {
       });
     }
 
-    // Verify Admin or Manager PIN
     const { verifyAdminOrManagerPin } = require('../middleware/auth.middleware');
-    const { logAuditEvent } = require('../services/audit.service');
     const pinCheck = await verifyAdminOrManagerPin(admin_pin);
     if (!pinCheck.isValid) {
       return res.status(403).json({
@@ -408,9 +604,7 @@ async function issueRefundHandler(req, res, next) {
     const accountType = invoice.payment_method === 'Cash' ? 'Cash_Drawer' : 'Main_Bank';
     const vehiclePlate = invoice.job_card?.vehicle?.registration_number || 'N/A';
 
-    // Execute atomic refund transaction
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Create Refund record
       const createdRefund = await tx.refund.create({
         data: {
           invoice_id: invoice.id,
@@ -420,7 +614,6 @@ async function issueRefundHandler(req, res, next) {
         },
       });
 
-      // 2. Adjust Ledger Vault (Outflow deduction)
       let ledger = await tx.ledger.findUnique({ where: { account_type: accountType } });
       const prevBal = parseFloat(ledger.current_balance);
       const newBal = parseFloat((prevBal - refundAmount).toFixed(2));
@@ -433,13 +626,10 @@ async function issueRefundHandler(req, res, next) {
         },
       });
 
-      // 3. Restore Deducted Consumable Inventory (Yield Engine Reversal)
       const restoredItems = [];
       if (invoice.job_card?.services) {
         for (const jobService of invoice.job_card.services) {
           const srvId = jobService.service_id;
-
-          // Check ServiceInventory mappings
           const yieldMaps = await tx.serviceInventory.findMany({
             where: { service_id: srvId },
           });
@@ -455,23 +645,9 @@ async function issueRefundHandler(req, res, next) {
             });
             restoredItems.push(`${addBack} ${inv.unit_type} of ${inv.item_name}`);
           }
-
-          // Legacy single consumable link
-          if (jobService.service?.linked_inventory_id && jobService.service?.inventory_deduction_amount) {
-            const addBackLegacy = parseFloat(jobService.service.inventory_deduction_amount);
-            const invLegacy = await tx.inventory.update({
-              where: { id: jobService.service.linked_inventory_id },
-              data: {
-                current_stock: { increment: addBackLegacy },
-                updated_at: new Date(),
-              },
-            });
-            restoredItems.push(`${addBackLegacy} ${invLegacy.unit_type} of ${invLegacy.item_name}`);
-          }
         }
       }
 
-      // 4. Record Immutable Audit Log
       await tx.auditLog.create({
         data: {
           action: 'INVOICE_REFUND',
@@ -488,7 +664,6 @@ async function issueRefundHandler(req, res, next) {
         },
       });
 
-      // 5. Queue Outbox Alert
       const alertText = [
         `🔴 *REFUND / CREDIT NOTE ISSUED*`,
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
@@ -528,6 +703,8 @@ async function issueRefundHandler(req, res, next) {
 }
 
 module.exports = {
+  normalizePlate,
+  checkPlateHandler,
   rapidIntakeHandler,
   startJobCardHandler,
   completeJobCardHandler,

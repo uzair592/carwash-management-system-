@@ -41,6 +41,8 @@ enum WorkLocation {
   JACK_1
   JACK_2
   DETAILING_CENTER
+  DETAILING_BAY_1
+  DETAILING_BAY_2
 }
 
 enum OutboxStatus {
@@ -108,7 +110,8 @@ model User {
   id              String   @id @default(uuid())
   name            String   @db.VarChar(100)
   role            UserRole @default(Worker)
-  pin_code        String   @db.VarChar(10)
+  pin_code        String   @db.VarChar(255)
+  password_hash   String?  @db.VarChar(255)
   commission_rate Decimal  @default(0.00) @db.Decimal(5, 2)
   flat_commission Decimal  @default(0.00) @db.Decimal(10, 2)
   base_salary     Decimal  @default(0.00) @db.Decimal(10, 2)
@@ -116,10 +119,11 @@ model User {
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 
-  job_cards         JobCard[]         @relation("WorkerJobCards")
-  invoices          Invoice[]         @relation("CashierInvoices")
-  expenses          Expense[]         @relation("UserExpenses")
-  register_sessions RegisterSession[] @relation("UserRegisterSessions")
+  job_cards          JobCard[]         @relation("WorkerJobCards")
+  invoices           Invoice[]         @relation("CashierInvoices")
+  expenses           Expense[]         @relation("UserExpenses")
+  register_sessions  RegisterSession[] @relation("UserRegisterSessions")
+  worker_assignments JobCardWorker[]   @relation("WorkerAssignments")
 
   @@map("users")
 }
@@ -127,17 +131,19 @@ model User {
 model Vehicle {
   id                  String   @id @default(uuid())
   registration_number String   @unique @db.VarChar(30)
+  normalized_plate    String?  @db.VarChar(30)
   make                String?  @db.VarChar(50)
   model               String?  @db.VarChar(50)
   visits              Int      @default(0)
-  customer_name       String   @default("Walk-in Customer") @db.VarChar(100)
-  customer_phone      String   @db.VarChar(25)
+  customer_name       String?  @default("Walk-in Customer") @db.VarChar(100)
+  customer_phone      String?  @db.VarChar(25)
   created_at          DateTime @default(now())
   updated_at          DateTime @updatedAt
 
   job_cards JobCard[]
   deposits  CustomerDeposit[]
 
+  @@index([normalized_plate])
   @@map("vehicles")
 }
 
@@ -179,11 +185,24 @@ model JobCard {
   updated_at        DateTime      @updatedAt
 
   services           JobCardService[]
+  assigned_workers   JobCardWorker[]
   invoice            Invoice?
   media              VehicleMedia[]
   material_issuances MaterialIssuance[]
 
   @@map("job_cards")
+}
+
+model JobCardWorker {
+  id          String   @id @default(uuid())
+  job_card_id String
+  job_card    JobCard  @relation(fields: [job_card_id], references: [id], onDelete: Cascade)
+  user_id     String
+  user        User     @relation("WorkerAssignments", fields: [user_id], references: [id], onDelete: Cascade)
+  assigned_at DateTime @default(now())
+
+  @@unique([job_card_id, user_id])
+  @@map("job_card_workers")
 }
 
 model VehicleMedia {
@@ -220,6 +239,9 @@ model Invoice {
   total_amount    Decimal       @db.Decimal(10, 2)
   discount_amount Decimal       @default(0.00) @db.Decimal(10, 2)
   paid_amount     Decimal       @default(0.00) @db.Decimal(10, 2)
+  cash_tendered   Decimal?      @db.Decimal(10, 2)
+  change_returned Decimal?      @db.Decimal(10, 2)
+  balance_due     Decimal?      @default(0.00) @db.Decimal(10, 2)
   payment_method  PaymentMethod @default(Cash)
   status          String        @default("PAID") @db.VarChar(20)
   created_at      DateTime      @default(now())
@@ -231,15 +253,36 @@ model Invoice {
   @@map("invoices")
 }
 
+model BankAccount {
+  id              String   @id @default(uuid())
+  bank_name       String   @db.VarChar(100)
+  account_title   String   @db.VarChar(100)
+  account_number  String   @db.VarChar(50)
+  current_balance Decimal  @default(0.00) @db.Decimal(12, 2)
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  payments       Payment[]
+  transfers_from LedgerTransfer[] @relation("FromBankAccount")
+  transfers_to   LedgerTransfer[] @relation("ToBankAccount")
+
+  @@map("bank_accounts")
+}
+
 model Payment {
-  id             String        @id @default(uuid())
-  invoice_id     String
-  invoice        Invoice       @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
-  amount         Decimal       @db.Decimal(10, 2)
-  payment_method PaymentMethod @default(Cash)
-  recorded_by_id String?
-  notes          String?       @db.Text
-  created_at     DateTime      @default(now())
+  id              String        @id @default(uuid())
+  invoice_id      String
+  invoice         Invoice       @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  amount          Decimal       @db.Decimal(10, 2)
+  payment_method  PaymentMethod @default(Cash)
+  bank_account_id String?
+  bank_account    BankAccount?  @relation(fields: [bank_account_id], references: [id], onDelete: SetNull)
+  tender_amount   Decimal?      @db.Decimal(10, 2)
+  change_amount   Decimal?      @db.Decimal(10, 2)
+  recorded_by_id  String?
+  notes           String?       @db.Text
+  created_at      DateTime      @default(now())
 
   @@map("payments")
 }
@@ -263,13 +306,18 @@ model CustomerDeposit {
 }
 
 model LedgerTransfer {
-  id                String      @id @default(uuid())
-  from_account      AccountType @default(Cash_Drawer)
-  to_account        AccountType @default(Main_Bank)
-  amount            Decimal     @db.Decimal(12, 2)
-  transferred_by_id String?
-  notes             String?     @db.Text
-  created_at        DateTime    @default(now())
+  id                   String       @id @default(uuid())
+  transfer_type        String       @default("CASH_TO_BANK") @db.VarChar(30)
+  from_account         AccountType  @default(Cash_Drawer)
+  to_account           AccountType  @default(Main_Bank)
+  from_bank_account_id String?
+  from_bank_account    BankAccount? @relation("FromBankAccount", fields: [from_bank_account_id], references: [id], onDelete: SetNull)
+  to_bank_account_id   String?
+  to_bank_account      BankAccount? @relation("ToBankAccount", fields: [to_bank_account_id], references: [id], onDelete: SetNull)
+  amount               Decimal      @db.Decimal(12, 2)
+  transferred_by_id    String?
+  notes                String?      @db.Text
+  created_at           DateTime     @default(now())
 
   @@map("ledger_transfers")
 }
@@ -420,4 +468,21 @@ model AuditLog {
   created_at           DateTime @default(now())
 
   @@map("audit_logs")
+}
+
+model BusinessBranding {
+  id                String   @id @default(uuid())
+  business_name     String   @default("DF PRO Car Wash & Detailing Center") @db.VarChar(150)
+  tagline           String?  @db.VarChar(150)
+  address           String?  @db.Text
+  phone             String?  @db.VarChar(50)
+  email             String?  @db.VarChar(100)
+  ntn_number        String?  @db.VarChar(50)
+  logo_url          String?  @db.Text
+  logo_size         Int      @default(120)
+  loyalty_threshold Int      @default(5)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@map("business_branding")
 }

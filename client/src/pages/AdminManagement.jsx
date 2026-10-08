@@ -33,13 +33,18 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import AdminServicesTab from '../components/admin/AdminServicesTab';
+import AdminStaffTab from '../components/admin/AdminStaffTab';
+import AdminBanksTab from '../components/admin/AdminBanksTab';
+import AdminBrandingTab from '../components/admin/AdminBrandingTab';
+import { Tag, Building2, Landmark } from 'lucide-react';
 
 export default function AdminManagement() {
   const { isAdmin } = useAuth();
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(true); // Pre-unlocked for smooth DX
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
-  const [activeAdminTab, setActiveAdminTab] = useState('inventory'); // 'inventory' | 'payroll' | 'dividends'
+  const [activeAdminTab, setActiveAdminTab] = useState('inventory'); // 'inventory' | 'services' | 'staff' | 'banks' | 'branding' | 'payroll' | 'dividends' | 'audit'
 
   // Common month selection (YYYY-MM)
   const [currentMonth, setCurrentMonth] = useState(() => new Date().toISOString().slice(0, 7));
@@ -443,6 +448,54 @@ export default function AdminManagement() {
         {/* Tab Toggle Buttons */}
         <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
           <button
+            onClick={() => setActiveAdminTab('services')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+              activeAdminTab === 'services'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Tag className="w-4 h-4" />
+            Services Catalog
+          </button>
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => setActiveAdminTab('staff')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+                  activeAdminTab === 'staff'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                Staff & Roles
+              </button>
+              <button
+                onClick={() => setActiveAdminTab('banks')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+                  activeAdminTab === 'banks'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Landmark className="w-4 h-4" />
+                Bank Accounts
+              </button>
+              <button
+                onClick={() => setActiveAdminTab('branding')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+                  activeAdminTab === 'branding'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Building2 className="w-4 h-4" />
+                Logo & Branding
+              </button>
+            </>
+          )}
+          <button
             onClick={() => setActiveAdminTab('inventory')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
               activeAdminTab === 'inventory'
@@ -505,6 +558,22 @@ export default function AdminManagement() {
           )}
         </div>
       </div>
+
+      {/* ============================================================== */}
+      {/* NEW TABS: SERVICES, STAFF, BANKS, BRANDING */}
+      {/* ============================================================== */}
+      {activeAdminTab === 'services' && (
+        <AdminServicesTab onRefreshNeeded={fetchYieldMappings} />
+      )}
+      {activeAdminTab === 'staff' && (
+        <AdminStaffTab />
+      )}
+      {activeAdminTab === 'banks' && (
+        <AdminBanksTab />
+      )}
+      {activeAdminTab === 'branding' && (
+        <AdminBrandingTab />
+      )}
 
       {/* ============================================================== */}
       {/* TAB 1: INVENTORY YIELD & CONSUMABLE MANAGEMENT */}
