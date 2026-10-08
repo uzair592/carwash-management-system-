@@ -42,15 +42,15 @@ async function checkoutHandler(req, res, next) {
     const { enumVal, accountType } = parsePaymentMode(payment_method);
     const discountNum = Math.max(0, parseFloat(discount_amount) || 0);
 
-    // Strict Accounting: Discounts require verified Admin PIN
+    // Strict Accounting: Discounts require verified Admin/Manager PIN
+    let pinCheck = null;
     if (discountNum > 0) {
-      const adminUser = await prisma.user.findFirst({
-        where: { role: 'Admin', pin_code: String(admin_pin) },
-      });
-      if (!adminUser && admin_pin !== '1234') {
+      const { verifyAdminOrManagerPin } = require('../middleware/auth.middleware');
+      pinCheck = await verifyAdminOrManagerPin(admin_pin);
+      if (!pinCheck.isValid) {
         return res.status(403).json({
           status: 'error',
-          message: 'Admin PIN authorization is required to apply discounts.',
+          message: 'Admin or Manager PIN authorization is required to apply discounts.',
         });
       }
     }
@@ -111,6 +111,25 @@ async function checkoutHandler(req, res, next) {
           cashier_id: cashier_id || null,
         },
       });
+
+      // 2b. Record Audit Log if Discount was Authorized
+      if (discountNum > 0) {
+        await tx.auditLog.create({
+          data: {
+            action: 'INVOICE_DISCOUNT',
+            description: `Discount of Rs. ${discountNum.toLocaleString()} applied to Invoice ${invoiceNumber} (${targetJobCard.vehicle?.registration_number || 'N/A'}). Subtotal: Rs. ${subtotal}, Final Billed: Rs. ${finalAmount}. Authorized by Admin PIN.`,
+            performed_by_user_id: pinCheck?.user?.id || cashier_id || null,
+            performed_by_name: pinCheck?.user ? `${pinCheck.user.name} (${pinCheck.role})` : 'Shop Admin',
+            metadata: {
+              invoice_id: createdInvoice.id,
+              invoice_number: invoiceNumber,
+              subtotal,
+              discount_amount: discountNum,
+              final_amount: finalAmount,
+            },
+          },
+        });
+      }
 
       // 3. Lock or query current ledger balance
       let ledgerAccount = await tx.ledger.findUnique({

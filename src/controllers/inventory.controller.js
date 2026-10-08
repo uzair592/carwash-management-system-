@@ -88,10 +88,32 @@ async function updateInventoryHandler(req, res, next) {
     if (cost_per_unit !== undefined) data.cost_per_unit = parseFloat(cost_per_unit);
     if (low_stock_threshold !== undefined) data.low_stock_threshold = parseFloat(low_stock_threshold);
 
+    const oldItem = await prisma.inventory.findUnique({ where: { id } });
+    if (!oldItem) {
+      return res.status(404).json({ status: 'error', message: 'Inventory item not found.' });
+    }
+
     const updated = await prisma.inventory.update({
       where: { id },
       data,
     });
+
+    // Record Audit Log if stock was manually adjusted
+    if (current_stock !== undefined && parseFloat(current_stock) !== parseFloat(oldItem.current_stock)) {
+      const { logAuditEvent } = require('../services/audit.service');
+      await logAuditEvent({
+        action: 'INVENTORY_ADJUSTMENT',
+        description: `Manual inventory count adjusted for "${updated.item_name}": ${oldItem.current_stock} ➔ ${updated.current_stock} ${updated.unit_type}.`,
+        performed_by_user_id: req.user?.id || null,
+        performed_by_name: req.user?.name || 'Shop Admin',
+        metadata: {
+          inventory_id: updated.id,
+          item_name: updated.item_name,
+          previous_stock: parseFloat(oldItem.current_stock),
+          new_stock: parseFloat(updated.current_stock),
+        },
+      });
+    }
 
     return res.status(200).json({
       status: 'success',
@@ -133,6 +155,22 @@ async function restockInventoryHandler(req, res, next) {
       data: {
         current_stock: newStock,
         updated_at: new Date(),
+      },
+    });
+
+    // Record Audit Log for shipment arrival restock
+    const { logAuditEvent } = require('../services/audit.service');
+    await logAuditEvent({
+      action: 'INVENTORY_RESTOCK',
+      description: `Shipment restock: +${qty} ${updated.unit_type} added to "${updated.item_name}". Stock increased from ${currentStock} to ${newStock} ${updated.unit_type}.`,
+      performed_by_user_id: req.user?.id || null,
+      performed_by_name: req.user?.name || 'Shop Manager',
+      metadata: {
+        inventory_id: updated.id,
+        item_name: updated.item_name,
+        quantity_added: qty,
+        previous_stock: currentStock,
+        new_stock: newStock,
       },
     });
 

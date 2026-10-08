@@ -77,6 +77,22 @@ async function main() {
     },
   });
 
+  const managerUser = await prisma.user.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000006' },
+    update: {
+      role: 'Manager',
+      base_salary: 60000.00,
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000006',
+      name: 'Shift Manager',
+      role: 'Manager',
+      pin_code: '4321',
+      commission_rate: 0.00,
+      base_salary: 60000.00,
+    },
+  });
+
   // Ensure Admin and Cashier base salaries are set
   await prisma.user.update({
     where: { id: '00000000-0000-0000-0000-000000000001' },

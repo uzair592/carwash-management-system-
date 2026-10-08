@@ -27,10 +27,15 @@ import {
   HelpCircle,
   Award,
   Wallet,
+  ShieldAlert,
+  Filter,
+  FileText,
 } from 'lucide-react';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
 export default function AdminManagement() {
+  const { isAdmin } = useAuth();
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(true); // Pre-unlocked for smooth DX
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
@@ -85,6 +90,11 @@ export default function AdminManagement() {
     equity_percentage: '',
     phone: '',
   });
+
+  // Audit Logs state
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [isLoadingAudit, setIsLoadingAudit] = useState(false);
+  const [auditFilter, setAuditFilter] = useState('ALL');
 
   // Notifications
   const [toast, setToast] = useState(null);
@@ -158,12 +168,33 @@ export default function AdminManagement() {
     }
   };
 
+  // Fetch Immutable Audit Logs
+  const fetchAuditLogs = async (filterVal = auditFilter) => {
+    setIsLoadingAudit(true);
+    try {
+      const url =
+        filterVal && filterVal !== 'ALL'
+          ? `/api/audit-logs?limit=100&action=${filterVal}`
+          : '/api/audit-logs?limit=100';
+      const res = await axios.get(url);
+      if (res.data?.data) {
+        setAuditLogs(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load audit logs:', err);
+      showToast('error', `Failed to load audit log: ${err.message}`);
+    } finally {
+      setIsLoadingAudit(false);
+    }
+  };
+
   useEffect(() => {
     if (isAdminUnlocked) {
       fetchInventory();
       fetchYieldData();
       fetchPayroll(currentMonth);
       fetchDividends(currentMonth);
+      fetchAuditLogs(auditFilter);
     }
   }, [isAdminUnlocked, currentMonth]);
 
@@ -380,28 +411,51 @@ export default function AdminManagement() {
               </span>
             )}
           </button>
-          <button
-            onClick={() => setActiveAdminTab('payroll')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-              activeAdminTab === 'payroll'
-                ? 'bg-sky-500 text-slate-950 shadow-lg'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            Monthly Payroll
-          </button>
-          <button
-            onClick={() => setActiveAdminTab('dividends')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-              activeAdminTab === 'dividends'
-                ? 'bg-emerald-500 text-slate-950 shadow-lg'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <PieChart className="w-4 h-4" />
-            Partner Profit Split
-          </button>
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => setActiveAdminTab('payroll')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+                  activeAdminTab === 'payroll'
+                    ? 'bg-sky-500 text-slate-950 shadow-lg'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                Monthly Payroll
+              </button>
+              <button
+                onClick={() => setActiveAdminTab('dividends')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+                  activeAdminTab === 'dividends'
+                    ? 'bg-emerald-500 text-slate-950 shadow-lg'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <PieChart className="w-4 h-4" />
+                Partner Profit Split
+              </button>
+              <button
+                onClick={() => {
+                  setActiveAdminTab('audit');
+                  fetchAuditLogs(auditFilter);
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+                  activeAdminTab === 'audit'
+                    ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20'
+                    : 'text-rose-400/80 hover:text-rose-300 hover:bg-rose-950/40'
+                }`}
+              >
+                <ShieldAlert className="w-4 h-4" />
+                Audit Log
+                {auditLogs.length > 0 && (
+                  <span className="bg-rose-950 text-rose-300 font-mono text-[10px] px-1.5 py-0.2 rounded-full border border-rose-800">
+                    {auditLogs.length}
+                  </span>
+                )}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -1094,6 +1148,229 @@ export default function AdminManagement() {
                     <tr>
                       <td colSpan={5} className="text-center py-6 text-slate-500">
                         No consumable yield deductions recorded for this month.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* TAB 4: IMMUTABLE AUDIT LOG */}
+      {/* ============================================================== */}
+      {activeAdminTab === 'audit' && (
+        <div className="space-y-6">
+          {/* Header & Control Bar */}
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 shadow-xl">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-400">
+                    <ShieldAlert className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-white flex items-center gap-2">
+                      Immutable System Audit Trail
+                      <span className="text-[10px] bg-rose-950 text-rose-400 font-mono px-2 py-0.5 rounded border border-rose-800 font-bold uppercase">
+                        Tamper-Evident
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Chronological ledger tracking cash variances, discounts, refunds, and manual inventory shifts.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Filter & Refresh */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5">
+                  <Filter className="w-4 h-4 text-slate-400" />
+                  <select
+                    value={auditFilter}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setAuditFilter(val);
+                      fetchAuditLogs(val);
+                    }}
+                    className="bg-transparent text-xs text-slate-200 font-semibold focus:outline-none cursor-pointer"
+                  >
+                    <option value="ALL" className="bg-slate-900">All Audit Events</option>
+                    <option value="REGISTER_VARIANCE" className="bg-slate-900">Register Cash Variances</option>
+                    <option value="INVOICE_REFUND" className="bg-slate-900">Credit Notes / Refunds</option>
+                    <option value="INVOICE_DISCOUNT" className="bg-slate-900">Invoice Discounts</option>
+                    <option value="INVENTORY_ADJUSTMENT" className="bg-slate-900">Manual Stock Adjustments</option>
+                    <option value="INVENTORY_RESTOCK" className="bg-slate-900">Shipment Restocks</option>
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => fetchAuditLogs(auditFilter)}
+                  className="bg-slate-800 hover:bg-slate-700 text-white p-2.5 rounded-xl transition flex items-center gap-2 text-xs font-bold"
+                  title="Reload Audit Logs"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoadingAudit ? 'animate-spin text-rose-400' : ''}`} />
+                  <span className="hidden sm:inline">Refresh</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Metrics Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-800/80">
+              <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">Total Logged Events</span>
+                <span className="text-xl font-mono font-black text-white mt-1 block">
+                  {auditLogs.length}
+                </span>
+              </div>
+              <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                <span className="text-[10px] text-rose-400 uppercase font-bold block">Cash Variances</span>
+                <span className="text-xl font-mono font-black text-rose-400 mt-1 block">
+                  {auditLogs.filter((l) => l.action === 'REGISTER_VARIANCE').length}
+                </span>
+              </div>
+              <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                <span className="text-[10px] text-amber-400 uppercase font-bold block">Credit Refunds</span>
+                <span className="text-xl font-mono font-black text-amber-400 mt-1 block">
+                  {auditLogs.filter((l) => l.action === 'INVOICE_REFUND').length}
+                </span>
+              </div>
+              <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
+                <span className="text-[10px] text-purple-400 uppercase font-bold block">Authorized Discounts</span>
+                <span className="text-xl font-mono font-black text-purple-400 mt-1 block">
+                  {auditLogs.filter((l) => l.action === 'INVOICE_DISCOUNT').length}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Audit Log Table */}
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-950/80 text-slate-400 border-b border-slate-800 uppercase font-mono text-[11px] tracking-wider">
+                    <th className="py-3.5 px-4">Timestamp</th>
+                    <th className="py-3.5 px-4">Action Type</th>
+                    <th className="py-3.5 px-4">Audit Narrative</th>
+                    <th className="py-3.5 px-4">Authorized By</th>
+                    <th className="py-3.5 px-4 text-right">Details</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/80 text-slate-300">
+                  {auditLogs.map((log) => {
+                    const actionBadge = (() => {
+                      switch (log.action) {
+                        case 'REGISTER_VARIANCE':
+                          return (
+                            <span className="bg-rose-950/80 text-rose-400 border border-rose-800 font-mono text-[10px] font-bold px-2 py-0.5 rounded">
+                              REGISTER VARIANCE
+                            </span>
+                          );
+                        case 'INVOICE_REFUND':
+                          return (
+                            <span className="bg-amber-950/80 text-amber-400 border border-amber-800 font-mono text-[10px] font-bold px-2 py-0.5 rounded">
+                              CREDIT REFUND
+                            </span>
+                          );
+                        case 'INVOICE_DISCOUNT':
+                          return (
+                            <span className="bg-purple-950/80 text-purple-300 border border-purple-800 font-mono text-[10px] font-bold px-2 py-0.5 rounded">
+                              DISCOUNT OVERRIDE
+                            </span>
+                          );
+                        case 'INVENTORY_RESTOCK':
+                          return (
+                            <span className="bg-emerald-950/80 text-emerald-400 border border-emerald-800 font-mono text-[10px] font-bold px-2 py-0.5 rounded">
+                              STOCK RESTOCK
+                            </span>
+                          );
+                        case 'INVENTORY_ADJUSTMENT':
+                          return (
+                            <span className="bg-sky-950/80 text-sky-400 border border-sky-800 font-mono text-[10px] font-bold px-2 py-0.5 rounded">
+                              MANUAL STOCK
+                            </span>
+                          );
+                        default:
+                          return (
+                            <span className="bg-slate-800 text-slate-300 font-mono text-[10px] font-bold px-2 py-0.5 rounded">
+                              {log.action}
+                            </span>
+                          );
+                      }
+                    })();
+
+                    const dateStr = log.created_at
+                      ? new Date(log.created_at).toLocaleString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                        })
+                      : 'N/A';
+
+                    return (
+                      <tr key={log.id} className="hover:bg-slate-800/30 transition">
+                        <td className="py-3.5 px-4 font-mono text-slate-400 whitespace-nowrap">
+                          {dateStr}
+                        </td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          {actionBadge}
+                        </td>
+                        <td className="py-3.5 px-4 font-medium text-slate-200">
+                          {log.description}
+                        </td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className="font-semibold text-white">
+                            {log.performed_by_name || 'System / Staff'}
+                          </span>
+                          {log.performed_by_user_id && (
+                            <span className="block font-mono text-[10px] text-slate-500 truncate max-w-[120px]">
+                              {log.performed_by_user_id}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono text-[11px] text-slate-400">
+                          {log.metadata ? (
+                            <span
+                              title={JSON.stringify(log.metadata, null, 2)}
+                              className="bg-slate-950 px-2 py-1 rounded border border-slate-800 inline-block max-w-[180px] truncate"
+                            >
+                              {Object.entries(log.metadata)
+                                .slice(0, 2)
+                                .map(([k, v]) => `${k}: ${v}`)
+                                .join(' • ')}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {auditLogs.length === 0 && !isLoadingAudit && (
+                    <tr>
+                      <td colSpan={5} className="py-12 text-center text-slate-500">
+                        <ShieldAlert className="w-10 h-10 text-slate-700 mx-auto mb-2 opacity-50" />
+                        <p className="font-medium">No audit events match the selected criteria.</p>
+                        <p className="text-[11px] text-slate-600 mt-1">
+                          Sensitive actions such as variances, discounts, and refunds will appear here in real time.
+                        </p>
+                      </td>
+                    </tr>
+                  )}
+                  {isLoadingAudit && (
+                    <tr>
+                      <td colSpan={5} className="py-12 text-center text-slate-400">
+                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-rose-400" />
+                        <p>Loading tamper-evident audit logs...</p>
                       </td>
                     </tr>
                   )}

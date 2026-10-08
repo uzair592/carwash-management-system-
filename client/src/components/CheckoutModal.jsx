@@ -14,7 +14,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import axios from 'axios';
-import AdminPinModal from './AdminPinModal';
+import PinPadModal from './PinPadModal';
 
 export default function CheckoutModal({ jobCard, onClose, onCheckoutSuccess }) {
   const [paymentMethod, setPaymentMethod] = useState('CASH'); // CASH or BANK
@@ -357,12 +357,12 @@ export default function CheckoutModal({ jobCard, onClose, onCheckoutSuccess }) {
       </div>
 
       {/* Admin PIN Approval Modal for Discounts */}
-      <AdminPinModal
+      <PinPadModal
         isOpen={isPinModalOpen}
         onClose={() => setIsPinModalOpen(false)}
         onSuccess={handlePinApproved}
         title="Admin Discount Authorization"
-        subtitle={`Enter Admin PIN (1234) to authorize Rs. ${discountNum.toLocaleString()} discount on Ticket #${jobCard.ticket_number}`}
+        description={`Enter Admin or Manager PIN to authorize Rs. ${discountNum.toLocaleString()} discount on Ticket #${jobCard.ticket_number}`}
       />
     </div>
   );

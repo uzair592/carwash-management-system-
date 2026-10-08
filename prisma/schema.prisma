@@ -16,6 +16,7 @@ datasource db {
 
 enum UserRole {
   Admin
+  Manager
   Cashier
   Worker
 }
@@ -313,5 +314,17 @@ model PartnerEquity {
   updated_at        DateTime @updatedAt
 
   @@map("partner_equity")
+}
+
+model AuditLog {
+  id                    String   @id @default(uuid())
+  action                String   @db.VarChar(100)
+  description           String   @db.Text
+  performed_by_user_id String?  @db.VarChar(100)
+  performed_by_name     String?  @db.VarChar(100)
+  metadata              Json?
+  created_at            DateTime @default(now())
+
+  @@map("audit_logs")
 }
 

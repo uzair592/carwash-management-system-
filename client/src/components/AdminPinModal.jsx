@@ -37,8 +37,8 @@ export default function AdminPinModal({ isOpen, onClose, onSuccess, title = 'Adm
 
     try {
       const res = await axios.post('/api/admin/verify-pin', { pin });
-      if (res.data?.status === 'success') {
-        onSuccess(pin);
+      if (res.data?.valid) {
+        onSuccess(pin, res.data.user);
         onClose();
         setPin('');
       } else {

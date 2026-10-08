@@ -14,9 +14,11 @@ import {
   Sparkles,
   Lock,
   Unlock,
-  Coins
+  Coins,
+  UserCheck
 } from 'lucide-react';
 import axios from 'axios';
+import { useAuth } from './context/AuthContext';
 
 import IntakeForm from './components/IntakeForm';
 import PhysicalBayDashboard from './components/PhysicalBayDashboard';
@@ -29,6 +31,7 @@ import RegisterModal from './components/RegisterModal';
 import CloseShiftModal from './components/CloseShiftModal';
 
 export default function App() {
+  const { currentUser, switchRole, isAdmin, isManager, isCashier, ROLES } = useAuth();
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== 'undefined' && window.location.pathname === '/admin') {
       return 'admin';
@@ -115,6 +118,17 @@ export default function App() {
     syncLedgerAndRegister();
   };
 
+  // Enforce Role Guards: redirect to available tab if user cannot access activeTab
+  useEffect(() => {
+    if (activeTab === 'investor' && !isAdmin) {
+      setActiveTab('bays');
+    } else if (activeTab === 'admin' && !isAdmin && !isManager) {
+      setActiveTab('bays');
+    } else if ((activeTab === 'intake' || activeTab === 'billing') && currentUser.role === ROLES.WORKER) {
+      setActiveTab('bays');
+    }
+  }, [currentUser.role, activeTab, isAdmin, isManager, ROLES]);
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]">
       {/* Top Header & Financial Transparency Bar */}
@@ -138,6 +152,24 @@ export default function App() {
 
         {/* Live Vault Balance Badges & Shift Control */}
         <div className="flex items-center gap-3 flex-wrap justify-end">
+          {/* Active Operator Role Switcher */}
+          <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 shadow-inner">
+            <UserCheck className="w-4 h-4 text-sky-400" />
+            <div className="text-left">
+              <span className="text-[9px] text-slate-500 font-bold uppercase block leading-none">Role Access</span>
+              <select
+                value={currentUser.role}
+                onChange={(e) => switchRole(e.target.value)}
+                className="bg-transparent text-xs font-black text-white focus:outline-none cursor-pointer"
+              >
+                <option value={ROLES.ADMIN} className="bg-slate-900 text-rose-300 font-bold">Admin (All Access)</option>
+                <option value={ROLES.MANAGER} className="bg-slate-900 text-amber-300 font-bold">Manager (Ops & Stock)</option>
+                <option value={ROLES.CASHIER} className="bg-slate-900 text-sky-300 font-bold">Cashier (POS & Till)</option>
+                <option value={ROLES.WORKER} className="bg-slate-900 text-slate-300 font-bold">Worker (Floor)</option>
+              </select>
+            </div>
+          </div>
+
           {/* Register Shift Status Pill */}
           {registerData.is_open ? (
             <div className="flex items-center gap-2 bg-emerald-950/60 border border-emerald-500/40 rounded-xl px-3 py-1.5 text-xs">
@@ -209,17 +241,19 @@ export default function App() {
       <nav className="bg-slate-900/60 border-b border-slate-800/80 px-4 sm:px-8 py-2 sticky top-[69px] z-30 backdrop-blur-md">
         <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
           {/* Screen 1: Rapid Intake */}
-          <button
-            onClick={() => setActiveTab('intake')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap ${
-              activeTab === 'intake'
-                ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-            }`}
-          >
-            <Car className="w-4 h-4" />
-            1. Rapid Intake
-          </button>
+          {currentUser.role !== ROLES.WORKER && (
+            <button
+              onClick={() => setActiveTab('intake')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap ${
+                activeTab === 'intake'
+                  ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <Car className="w-4 h-4" />
+              1. Rapid Intake
+            </button>
+          )}
 
           {/* Screen 2: Physical Bays */}
           <button
@@ -240,22 +274,24 @@ export default function App() {
           </button>
 
           {/* Screen 3: Ready for Billing */}
-          <button
-            onClick={() => setActiveTab('billing')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap relative ${
-              activeTab === 'billing'
-                ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 font-black'
-                : 'text-amber-400 hover:text-amber-300 hover:bg-amber-950/40'
-            }`}
-          >
-            <Receipt className="w-4 h-4" />
-            <span>3. Ready for Billing</span>
-            {readyCount > 0 && (
-              <span className="font-mono text-[10px] bg-emerald-500 text-white font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse">
-                {readyCount}
-              </span>
-            )}
-          </button>
+          {currentUser.role !== ROLES.WORKER && (
+            <button
+              onClick={() => setActiveTab('billing')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap relative ${
+                activeTab === 'billing'
+                  ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 font-black'
+                  : 'text-amber-400 hover:text-amber-300 hover:bg-amber-950/40'
+              }`}
+            >
+              <Receipt className="w-4 h-4" />
+              <span>3. Ready for Billing</span>
+              {readyCount > 0 && (
+                <span className="font-mono text-[10px] bg-emerald-500 text-white font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse">
+                  {readyCount}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* Tab 4: Staff Leaderboard */}
           <button
@@ -270,46 +306,52 @@ export default function App() {
             4. Staff Leaderboard
           </button>
 
-          {/* Tab 5: Investor Portal */}
-          <button
-            onClick={() => setActiveTab('investor')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap ${
-              activeTab === 'investor'
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20'
-                : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/40'
-            }`}
-          >
-            <Eye className="w-4 h-4" />
-            5. Investor Portal
-          </button>
+          {/* Tab 5: Investor Portal (Admin Only) */}
+          {isAdmin && (
+            <button
+              onClick={() => setActiveTab('investor')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap ${
+                activeTab === 'investor'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20'
+                  : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/40'
+              }`}
+            >
+              <Eye className="w-4 h-4" />
+              5. Investor Portal
+            </button>
+          )}
 
-          {/* Tab 6: Admin Portal */}
-          <button
-            onClick={() => setActiveTab('admin')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap ${
-              activeTab === 'admin'
-                ? 'bg-gradient-to-r from-indigo-500 to-sky-600 text-white shadow-lg shadow-indigo-500/20'
-                : 'text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/40'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4" />
-            6. Admin Portal
-          </button>
+          {/* Tab 6: Admin Portal (Admin & Manager) */}
+          {(isAdmin || isManager) && (
+            <button
+              onClick={() => setActiveTab('admin')}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap ${
+                activeTab === 'admin'
+                  ? 'bg-gradient-to-r from-indigo-500 to-sky-600 text-white shadow-lg shadow-indigo-500/20'
+                  : 'text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/40'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4" />
+              6. Admin Portal
+            </button>
+          )}
         </div>
       </nav>
 
       {/* Main Screen Layout */}
       <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto">
-        {activeTab === 'intake' && <IntakeForm onJobCreated={handleJobCreated} />}
+        {activeTab === 'intake' && currentUser.role !== ROLES.WORKER && (
+          <IntakeForm onJobCreated={handleJobCreated} />
+        )}
         {activeTab === 'bays' && (
           <PhysicalBayDashboard onGoToBilling={() => setActiveTab('billing')} />
         )}
-        {activeTab === 'billing' && (
+        {activeTab === 'billing' && currentUser.role !== ROLES.WORKER && (
           <BillingQueue onOpenCheckout={(card) => setCheckoutTarget(card)} />
         )}
         {activeTab === 'leaderboard' && <Leaderboard />}
-        {activeTab === 'investor' && <InvestorDashboard />}
-        {activeTab === 'admin' && <AdminManagement />}
+        {activeTab === 'investor' && isAdmin && <InvestorDashboard />}
+        {activeTab === 'admin' && (isAdmin || isManager) && <AdminManagement />}
       </main>
 
       {/* Cashier Checkout Modal */}

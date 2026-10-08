@@ -16,7 +16,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import axios from 'axios';
-import AdminPinModal from './AdminPinModal';
+import PinPadModal from './PinPadModal';
 
 export default function BillingQueue({ onOpenCheckout }) {
   const [readyJobs, setReadyJobs] = useState([]);
@@ -74,6 +74,7 @@ export default function BillingQueue({ onOpenCheckout }) {
       const res = await axios.post(`/api/invoices/${refundTargetInvoice.id}/refund`, {
         admin_pin: adminPin,
         reason: refundReason,
+        amount: refundTargetInvoice.total_amount,
       });
 
       setStatusFeedback({
@@ -353,7 +354,7 @@ export default function BillingQueue({ onOpenCheckout }) {
       </div>
 
       {/* Admin PIN Pad Modal for Refund Authorization */}
-      <AdminPinModal
+      <PinPadModal
         isOpen={isPinModalOpen}
         onClose={() => {
           setIsPinModalOpen(false);
@@ -361,7 +362,7 @@ export default function BillingQueue({ onOpenCheckout }) {
         }}
         onSuccess={handlePinSuccess}
         title="Authorize Ledger Refund"
-        subtitle={`Admin PIN required to reverse ledger and void Invoice ${refundTargetInvoice?.invoice_number || ''}`}
+        description={`Admin or Manager PIN required to reverse ledger and void Invoice ${refundTargetInvoice?.invoice_number || ''}`}
       />
     </div>
   );

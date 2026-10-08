@@ -51,9 +51,11 @@ const {
   listYieldMappingsHandler,
   createYieldMappingHandler,
 } = require('../controllers/financials.controller');
+const { authenticateUser, requireRole } = require('../middleware/auth.middleware');
+const { listAuditLogsHandler } = require('../controllers/audit.controller');
 
 // ---------------------------------------------------------------------------
-// 1. Health & Service Diagnostics
+// 1. Health & Service Diagnostics (Public)
 // ---------------------------------------------------------------------------
 router.get('/health', (req, res) => {
   res.status(200).json({
@@ -62,6 +64,10 @@ router.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// Authenticate user across all subsequent API routes
+router.use(authenticateUser);
+router.post('/auth/verify-pin', verifyAdminPinHandler);
 
 // ---------------------------------------------------------------------------
 // 2. Dynamic Feature Flags & Investor Dashboard
@@ -109,16 +115,6 @@ router.post('/printer/thermal-receipt', (req, res) => {
   res.status(200).json({ status: 'success', data: result });
 });
 
-// ---------------------------------------------------------------------------
-// 4d. Monthly Financial Engine (Payroll, Partner Equity & Dividends, Yield Mappings)
-// ---------------------------------------------------------------------------
-router.get('/financials/payroll', getMonthlyPayrollHandler);
-router.get('/financials/equity', getPartnerEquityHandler);
-router.post('/financials/equity', upsertPartnerEquityHandler);
-router.get('/financials/dividends', getMonthlyDividendsHandler);
-router.post('/financials/dividends/dispatch', dispatchDividendsHandler);
-router.get('/inventory/yield-mappings', listYieldMappingsHandler);
-router.post('/inventory/yield-mappings', createYieldMappingHandler);
 
 // ---------------------------------------------------------------------------
 // 5. Checkout & Invoicing
@@ -296,18 +292,18 @@ router.post('/expense', async (req, res, next) => {
 });
 
 // ---------------------------------------------------------------------------
-// 9. Monthly Staff Payroll Engine
+// 9. Monthly Staff Payroll Engine (Admin Only)
 // ---------------------------------------------------------------------------
-router.use('/payroll', payrollRoutes);
+router.use('/payroll', requireRole(['ADMIN']), payrollRoutes);
 
 // ---------------------------------------------------------------------------
-// 10. Consumables & Inventory Yield Management
+// 10. Consumables & Inventory Yield Management (Manager & Admin)
 // ---------------------------------------------------------------------------
 router.get('/inventory', listInventoryHandler);
-router.post('/inventory', createInventoryHandler);
-router.patch('/inventory/:id', updateInventoryHandler);
-router.post('/inventory/:id/restock', restockInventoryHandler);
-router.patch('/services/:id/link-inventory', linkServiceInventoryHandler);
+router.post('/inventory', requireRole(['ADMIN', 'MANAGER']), createInventoryHandler);
+router.patch('/inventory/:id', requireRole(['ADMIN', 'MANAGER']), updateInventoryHandler);
+router.post('/inventory/:id/restock', requireRole(['ADMIN', 'MANAGER']), restockInventoryHandler);
+router.patch('/services/:id/link-inventory', requireRole(['ADMIN', 'MANAGER']), linkServiceInventoryHandler);
 
 // ---------------------------------------------------------------------------
 // 11. Digital Vehicle Inspection & Liability Media Uploads
@@ -317,14 +313,20 @@ router.get('/job-cards/:id/media', getJobCardMediaHandler);
 router.delete('/job-cards/media/:mediaId', deleteJobCardMediaHandler);
 
 // ---------------------------------------------------------------------------
-// 12. Monthly Financial Engine: Payroll, Yield Mappings & Partner Equity
+// 12. Monthly Financial Engine: Payroll, Yield Mappings & Partner Equity (Admin Only)
 // ---------------------------------------------------------------------------
-router.get('/financials/payroll', getMonthlyPayrollHandler);
-router.get('/financials/equity', getPartnerEquityHandler);
-router.post('/financials/equity', upsertPartnerEquityHandler);
-router.get('/financials/dividends', getMonthlyDividendsHandler);
-router.post('/financials/dividends/dispatch', dispatchDividendsHandler);
+router.get('/financials/payroll', requireRole(['ADMIN']), getMonthlyPayrollHandler);
+router.get('/financials/equity', requireRole(['ADMIN']), getPartnerEquityHandler);
+router.post('/financials/equity', requireRole(['ADMIN']), upsertPartnerEquityHandler);
+router.get('/financials/dividends', requireRole(['ADMIN']), getMonthlyDividendsHandler);
+router.post('/financials/dividends/dispatch', requireRole(['ADMIN']), dispatchDividendsHandler);
 router.get('/inventory/yield-mappings', listYieldMappingsHandler);
-router.post('/inventory/yield-mappings', createYieldMappingHandler);
+router.post('/inventory/yield-mappings', requireRole(['ADMIN', 'MANAGER']), createYieldMappingHandler);
+
+// ---------------------------------------------------------------------------
+// 13. Immutable Shop Audit Log (Admin Only)
+// ---------------------------------------------------------------------------
+router.get('/audit-logs', requireRole(['ADMIN']), listAuditLogsHandler);
 
 module.exports = router;
+

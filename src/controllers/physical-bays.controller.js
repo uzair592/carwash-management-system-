@@ -348,14 +348,12 @@ async function getLiveBayStatusHandler(req, res, next) {
 async function verifyAdminPinHandler(req, res, next) {
   try {
     const { pin } = req.body;
-    const adminUser = await prisma.user.findFirst({
-      where: { role: 'Admin', pin_code: String(pin) },
-    });
-
-    const isValid = Boolean(adminUser || pin === '1234');
+    const { verifyAdminOrManagerPin } = require('../middleware/auth.middleware');
+    const result = await verifyAdminOrManagerPin(pin);
     return res.status(200).json({
       status: 'success',
-      valid: isValid,
+      valid: result.isValid,
+      user: result.user ? { id: result.user.id, name: result.user.name, role: result.role } : null,
     });
   } catch (error) {
     next(error);
@@ -379,20 +377,27 @@ async function issueRefundHandler(req, res, next) {
       });
     }
 
-    // Verify Admin PIN
-    const adminUser = await prisma.user.findFirst({
-      where: { role: 'Admin', pin_code: String(admin_pin) },
-    });
-    if (!adminUser && admin_pin !== '1234') {
+    // Verify Admin or Manager PIN
+    const { verifyAdminOrManagerPin } = require('../middleware/auth.middleware');
+    const { logAuditEvent } = require('../services/audit.service');
+    const pinCheck = await verifyAdminOrManagerPin(admin_pin);
+    if (!pinCheck.isValid) {
       return res.status(403).json({
         status: 'error',
-        message: 'Unauthorized: Invalid Admin PIN.',
+        message: 'Unauthorized: Invalid Admin / Manager PIN.',
       });
     }
 
     const invoice = await prisma.invoice.findUnique({
       where: { id },
-      include: { job_card: { include: { vehicle: true } } },
+      include: {
+        job_card: {
+          include: {
+            vehicle: true,
+            services: { include: { service: true } },
+          },
+        },
+      },
     });
 
     if (!invoice) {
@@ -401,6 +406,7 @@ async function issueRefundHandler(req, res, next) {
 
     const refundAmount = Math.max(0, parseFloat(amount));
     const accountType = invoice.payment_method === 'Cash' ? 'Cash_Drawer' : 'Main_Bank';
+    const vehiclePlate = invoice.job_card?.vehicle?.registration_number || 'N/A';
 
     // Execute atomic refund transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -427,18 +433,74 @@ async function issueRefundHandler(req, res, next) {
         },
       });
 
-      // 3. Queue Outbox Alert
+      // 3. Restore Deducted Consumable Inventory (Yield Engine Reversal)
+      const restoredItems = [];
+      if (invoice.job_card?.services) {
+        for (const jobService of invoice.job_card.services) {
+          const srvId = jobService.service_id;
+
+          // Check ServiceInventory mappings
+          const yieldMaps = await tx.serviceInventory.findMany({
+            where: { service_id: srvId },
+          });
+
+          for (const ym of yieldMaps) {
+            const addBack = parseFloat(ym.deduction_amount);
+            const inv = await tx.inventory.update({
+              where: { id: ym.inventory_id },
+              data: {
+                current_stock: { increment: addBack },
+                updated_at: new Date(),
+              },
+            });
+            restoredItems.push(`${addBack} ${inv.unit_type} of ${inv.item_name}`);
+          }
+
+          // Legacy single consumable link
+          if (jobService.service?.linked_inventory_id && jobService.service?.inventory_deduction_amount) {
+            const addBackLegacy = parseFloat(jobService.service.inventory_deduction_amount);
+            const invLegacy = await tx.inventory.update({
+              where: { id: jobService.service.linked_inventory_id },
+              data: {
+                current_stock: { increment: addBackLegacy },
+                updated_at: new Date(),
+              },
+            });
+            restoredItems.push(`${addBackLegacy} ${invLegacy.unit_type} of ${invLegacy.item_name}`);
+          }
+        }
+      }
+
+      // 4. Record Immutable Audit Log
+      await tx.auditLog.create({
+        data: {
+          action: 'INVOICE_REFUND',
+          description: `Credit Note / Refund of Rs. ${refundAmount.toLocaleString()} issued for Invoice ${invoice.invoice_number} (${vehiclePlate}). Reason: "${reason}". Restored: [${restoredItems.join(', ') || 'No inventory tied'}].`,
+          performed_by_user_id: pinCheck.user?.id || null,
+          performed_by_name: pinCheck.user ? `${pinCheck.user.name} (${pinCheck.role})` : 'Shop Admin',
+          metadata: {
+            invoice_id: invoice.id,
+            invoice_number: invoice.invoice_number,
+            refund_amount: refundAmount,
+            reason: reason,
+            restored_inventory: restoredItems,
+          },
+        },
+      });
+
+      // 5. Queue Outbox Alert
       const alertText = [
         `🔴 *REFUND / CREDIT NOTE ISSUED*`,
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
         `🧾 *Invoice:* \`${invoice.invoice_number}\``,
-        `🚘 *Vehicle:* *${invoice.job_card?.vehicle?.registration_number || 'N/A'}*`,
+        `🚘 *Vehicle:* *${vehiclePlate}*`,
         `💸 *Refund Amount:* *Rs. ${refundAmount.toLocaleString()}*`,
         `📝 *Reason:* ${reason}`,
-        `🔑 *Authorized By:* Admin PIN Verified`,
+        `🔑 *Authorized By:* ${pinCheck.user?.name || 'Admin'} (${pinCheck.role})`,
         `📉 *New Vault Balance:* Rs. ${newBal.toLocaleString()}`,
+        restoredItems.length > 0 ? `📦 *Restored Consumables:* ${restoredItems.join(', ')}` : '',
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      ].join('\n');
+      ].filter(Boolean).join('\n');
 
       await tx.alertOutbox.create({
         data: {
@@ -451,6 +513,7 @@ async function issueRefundHandler(req, res, next) {
       return {
         refund: createdRefund,
         new_balance: newBal,
+        restored_inventory: restoredItems,
       };
     });
 

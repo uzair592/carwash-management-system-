@@ -292,6 +292,24 @@ async function closeSessionHandler(req, res, next) {
         },
       });
 
+      // Record Audit Log if Variance Detected (Missing Money or Surplus)
+      if (Math.abs(variance) >= 0.01) {
+        await tx.auditLog.create({
+          data: {
+            action: 'REGISTER_VARIANCE',
+            description: `Cash register closed with variance of ${variance < 0 ? '-' : '+'}Rs. ${Math.abs(variance).toLocaleString()} (${variance < 0 ? 'MISSING CASH / SHORTAGE' : 'CASH OVERAGE'}). Counted: Rs. ${countedCash.toLocaleString()}, Expected: Rs. ${expectedClosingCash.toLocaleString()}.`,
+            performed_by_user_id: closedSession.opened_by_user_id || null,
+            performed_by_name: cashierName,
+            metadata: {
+              session_id: closedSession.id,
+              expected_closing_cash: expectedClosingCash,
+              actual_counted_cash: countedCash,
+              variance: variance,
+            },
+          },
+        });
+      }
+
       return closedSession;
     });
 
