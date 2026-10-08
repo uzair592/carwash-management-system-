@@ -40,9 +40,11 @@ Direct printing renders the saved invoice/ticket server-side, feeds the configur
 
 - `npm run test:integrity`: 29 regression scenarios using real controllers and rollback-capable isolated database fixtures. Covers authentication, revoked sessions, stored PINs, unauthorized password reset, repeat expenses, transaction rollback, advance ownership/excess, checkout replay/overpayment, split accounts, stock shortage/replay, alert retry, serialization retry, Karachi dates, shared commissions, backup corruption, balance collection, payment reversal, refund tender allocation and drawer reconciliation.
 - `npm run test:ui`: 14 Playwright scenarios with API fixtures, including intake, dispatch/completion, split checkout, receipt themes, reporting/loyalty, desktop/tablet/mobile layouts, Worker navigation and visible server failures. No browser runtime exceptions.
+- `npm run test:migrations`: all three migration SQL files applied to fresh and legacy-fixture disposable PostgreSQL WASM engines; verified preserved invoice totals, remaining advances, completion timestamps, PIN-secret removal, permission JSON, new roles, unique print keys and active bay alias constraints. This is not a Prisma deployment to the shop server or a multi-process concurrency test.
+- `node --test scripts/test-printer-self-test.cjs`: test CLI requires explicit paper confirmation and sends one labelled test job with exactly one cut command to a local TCP sink.
 - Prisma schema validation and client generation; production frontend build; changed backend/script syntax and whitespace checks.
 
-These tests do not prove PostgreSQL concurrency, applied migrations, successful real `pg_dump`/restore, NVR accuracy, Telegram/SMS delivery, physical printer output or Windows startup. Those must be tested on a disposable copy of the shop deployment before using real money. No live shop records were altered during this work.
+These tests do not prove PostgreSQL concurrency, migrations applied through Prisma on the shop server, successful real `pg_dump`/restore, NVR accuracy, Telegram/SMS delivery, physical printer output or Windows startup. Those must be tested on a disposable copy of the shop deployment before using real money. No live shop records were altered during this work.
 
 ## Existing shop update
 
@@ -81,3 +83,22 @@ The command verifies checksums before replacing database content and copying sho
 - Notifications provide at-least-once delivery: a crash after a provider accepts a message can cause a retry/duplicate. Explicit request keys prevent repeat financial mutations while retries reuse the same key; starting a new action with a new key intentionally represents a new operation.
 - Reports distinguish cash flow from profit. Review accounting treatment of wages, costs, refunds and opening balances with the shop's accountant before distributing profit. The 23:59 report is a snapshot; activity after that snapshot belongs in the next reconciliation.
 - Remote access must use HTTPS and appropriate access controls. An approval PIN confirms knowledge of a secret; it cannot prove an Admin is physically present.
+
+
+## Shop-side printer acceptance
+
+The physical printer is outside the remote development environment. No physical print or cutter result was observed here. After updating dependencies, choose one command on the shop PC:
+
+```sh
+# Local network ESC/POS printer: replace the address with the real printer IP.
+npm run printer:self-test -- --mode NETWORK --host 192.168.1.50 --width 80 --cut --send --confirm-paper
+
+# Windows-installed ESC/POS printer: replace the name with the exact installed name.
+npm run printer:self-test -- --mode WINDOWS --printer "Your Thermal Printer" --width 80 --cut --send --confirm-paper
+```
+
+Use `--width 58` for 58mm paper. Omit `--cut` for printers without a cutter. Without `--send`, the command only generates a `.bin` sample and does not send paper. A success response means the transport/spooler accepted the job, not that the paper physically printed.
+
+Confirm bold readable text, aligned amounts, no excessive top gap, and exactly one cut. If a send fails or the outcome is unclear, inspect the device before running it again. Then print one saved bill and one work ticket from the app, checking each configured template and the logo on the actual paper. Browser mode cutter behaviour belongs to the driver and must be tested separately.
+
+`npm run test:migrations` requires the development dependencies. It uses disposable in-memory PostgreSQL and does not open or modify DATABASE_URL. The real installation still needs the backup and `npm run prisma:deploy` procedure above.
