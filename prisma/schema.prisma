@@ -64,6 +64,7 @@ enum UnitType {
   Roll
   ML
   Unit
+  PIECE
 }
 
 enum AccountType {

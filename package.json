@@ -23,7 +23,8 @@
     "prisma:studio": "prisma studio",
     "test:alerts": "node scripts/test-alerts.js",
     "test:camera": "node scripts/test-camera.js",
-    "simulate": "node scripts/simulate-system.js"
+    "simulate": "node scripts/simulate-system.js",
+    "verify:readiness": "node scripts/verify-shop-readiness.js"
   },
   "keywords": [
     "carwash",

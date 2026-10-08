@@ -69,9 +69,10 @@ async function generateMonthlyPayroll(monthParam, yearParam) {
     // Match directly by worker_id, or by team assignment name
     const userJobs = completedJobs.filter((job) => {
       if (job.worker_id === user.id) return true;
-      if (user.name.toLowerCase().includes('bay 1') && job.assigned_location === 'JACK_1') return true;
-      if (user.name.toLowerCase().includes('bay 2') && job.assigned_location === 'JACK_2') return true;
-      if (user.name.toLowerCase().includes('detailer') && job.assigned_location === 'DETAILING_CENTER') return true;
+      if (job.assigned_team && user.name.toLowerCase().includes(job.assigned_team.toLowerCase())) return true;
+      if ((user.name.toLowerCase().includes('bay 1') || user.name.toLowerCase().includes('team 1')) && job.assigned_location === 'JACK_1') return true;
+      if ((user.name.toLowerCase().includes('bay 2') || user.name.toLowerCase().includes('team 2')) && job.assigned_location === 'JACK_2') return true;
+      if ((user.name.toLowerCase().includes('detail') || user.name.toLowerCase().includes('detailing')) && job.assigned_location === 'DETAILING_CENTER') return true;
       return false;
     });
 
