@@ -1,3 +1,4 @@
+import { RECEIPT_CSS } from '../components/ThermalTemplates';
 // Print a committed ticket/receipt in its own document, without the app layout.
 // This is a browser print preview; printer hardware remains managed by the server.
 export function printThermal(elementId) {
@@ -13,9 +14,9 @@ export function printThermal(elementId) {
     body {
       width: 72mm;
       margin: 0 auto;
-      padding: 4mm 0;
+      padding: 2mm 0;
       color: #000 !important;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+      font-family: Arial, Helvetica, sans-serif !important;
       font-size: 13px;
       line-height: 1.4;
       font-weight: 700;
@@ -35,6 +36,7 @@ export function printThermal(elementId) {
     h1, h2, h3, h4, strong, b { font-weight: 800 !important; color: #000 !important; }
     p, span, div { color: #000 !important; }
   `;
+  style.textContent += RECEIPT_CSS;
   popup.document.head.append(style);
   popup.document.body.append(source.cloneNode(true));
   popup.focus();

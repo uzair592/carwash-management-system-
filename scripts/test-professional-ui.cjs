@@ -31,7 +31,7 @@ let failServices = false, failServer = false;
 async function fixtures(route) {
   const request = route.request(), url = new URL(request.url()), endpoint = url.pathname;
   const body = request.postDataJSON();
-  requests.push({ endpoint, method: request.method(), body });
+  requests.push({ query: Object.fromEntries(url.searchParams), endpoint, method: request.method(), body });
   let data = [], result, status = 200;
   if ((failServices && endpoint === '/api/services') || failServer) { status = 503; result = { status: 'error', message: 'Test server unavailable' }; }
   else if (endpoint === '/api/services') data = services;
@@ -46,6 +46,9 @@ async function fixtures(route) {
   else if (endpoint === '/api/leaderboard') data = [{ id: 'worker-1', name: 'Test Technician', commission_rate: 5, cars_completed: 6, estimated_commission: 450 }];
   else if (endpoint === '/api/dashboard/live') data = { today_summary: { gross_revenue: 12500, net_profit: 8300, total_expenses: 4200, cash_revenue: 8000, bank_revenue: 4500, cars_washed_today: 9, active_in_bay: 2, queued_in_intake: 2 }, vault_balances: { cash_drawer: 14500, main_bank: 32000 }, recent_invoices: recent, bays_breakdown: { jack_1: 4, jack_2: 3, detailing_center: 2 }, live_bays: { in_progress: [active, detail].map(j => ({job_card_id:j.id, plate:j.vehicle.registration_number, make_model:'Honda Civic', worker:'Test Technician', services:j.services.map(s=>s.service.name).join(', ')})), queued: [] } };
   else if (endpoint === '/api/inventory') data = [{ id: 'stock-1', item_name: 'Ceramic Coating', current_stock: 850, cost_per_unit: 20, unit_type: 'ML', low_stock_threshold: 100, is_low_stock: false }];
+  else if (endpoint === '/api/branding') data = {business_name:'DF PRO Test Shop',invoice_template:'BOLD_TABLE',show_business_name:true};
+  else if (endpoint === '/api/customers') data = {customers:[{id:'c1',registration_number:'LOY-555',customer_name:'Fixture Driver',customer_phone:'03001234567',visits:8,is_loyal:true,total_spent:12000,make:'Honda',model:'Civic',recent_services:[]}],summary:{total_customers:1,loyal_customers:1,repeat_rate_percent:100,total_lifetime_revenue:12000}};
+  else if (endpoint === '/api/reports/summary') data = {summary:{gross_revenue:12000,total_invoices:4,cash_revenue:8000,bank_revenue:4000,average_ticket:3000,net_operating_profit:9000,total_expenses:3000},top_services:[],top_makes:[],timeline:[]};
   else if (endpoint === '/api/settings') data = { ENABLE_TELEGRAM_ALERTS: true, ENABLE_SMS_GATEWAY: false, ENABLE_CAMERA_ANPR: false };
   else if (endpoint === '/api/financials/payroll') data = { summary: {}, staff: [] };
   else if (endpoint === '/api/financials/dividends') data = { partners: [], financial_summary: {}, cogs_breakdown: [] };
@@ -138,6 +141,47 @@ async function noOverflow(page) { assert.equal(await page.evaluate(() => documen
       await page.getByRole('switch', { name: 'Customer SMS receipts' }).click();
       assert(requests.some((r) => r.endpoint === '/api/settings' && r.method === 'PATCH' && r.body.key === 'ENABLE_SMS_GATEWAY'));
     });
+    await check('Receipt themes persist and print bold table structure', async () => {
+      for (const title of ['Bold Table','Bold Boxed','Bold Compact']) {
+        await page.getByRole('radio', {name:new RegExp(title)}).check();
+        const receipt=page.locator('#preview-invoice-inner');
+        assert.equal(await receipt.locator('table').count(),1);
+        assert(await receipt.locator('.receipt-grand-total').isVisible());
+        assert.equal(await receipt.evaluate(e => getComputedStyle(e).fontFamily), 'Arial, Helvetica, sans-serif');
+        await receipt.screenshot({path:path.join(screenshots,title.toLowerCase().replaceAll(' ','-')+'.png')});
+      }
+      await page.getByRole('button', {name:'Save Template Preferences'}).click();
+      assert(requests.some(r=>r.endpoint==='/api/branding' && r.method==='PATCH' && r.body.invoice_template==='BOLD_COMPACT'));
+      const popupPromise=page.waitForEvent('popup');
+      await page.getByRole('button',{name:'Test Print',exact:true}).first().click();
+      const popup=await popupPromise; await popup.waitForLoadState();
+      assert.equal(await popup.locator('.receipt-items').count(),1);
+      assert.equal(await popup.locator('.receipt-sheet').evaluate(e => getComputedStyle(e).fontWeight),'700');
+      await popup.close();
+      // Receipt CSS is self-contained and independent of the application stylesheet.
+
+    });
+    await check('Reports and loyalty directory work and reuse customer details', async () => {
+      await page.getByRole('button',{name:'Reports',exact:true}).click();
+      await page.getByRole('heading',{name:'Sales reports'}).waitFor();
+      await page.getByRole('button',{name:'Today',exact:true}).click();
+      await page.waitForTimeout(150);
+      assert(requests.some(r=>r.endpoint==='/api/reports/summary' && r.query.range==='today'));
+      await page.screenshot({path:path.join(screenshots,'reports-desktop.png')});
+      await page.getByRole('button',{name:'Loyal Customers',exact:true}).click();
+      await page.getByText('LOY-555',{exact:true}).waitFor();
+      await page.screenshot({path:path.join(screenshots,'loyal-customers-desktop.png')});
+      await page.getByRole('button',{name:'New Ticket'}).click();
+      assert.equal(await page.getByLabel('Vehicle plate').inputValue(),'LOY-555');
+      assert.equal(await page.getByLabel('Customer name').inputValue(),'Fixture Driver');
+      assert.equal(await page.locator('.sidebar-bottom').count(),0);
+      assert.equal(await page.locator('.app-topbar').count(),0);
+      await page.setViewportSize({width:1920,height:1080});
+      await noOverflow(page);
+      await page.screenshot({path:path.join(screenshots,'new-vehicle-24inch.png')});
+      await page.getByRole('button',{name:'Workshop',exact:true}).click();
+      assert.equal(await page.locator('#executive-kpi-bar').count(),0);
+    });
     await check('Tablet and phone layouts, accessible navigation', async () => {
       await page.setViewportSize({ width: 1024, height: 768 });
       await page.goto(base + '/#intake');
@@ -158,12 +202,14 @@ async function noOverflow(page) { assert.equal(await page.evaluate(() => documen
     await check('Worker navigation and role-scoped financial requests', async () => {
       await page.setViewportSize({ width: 1366, height: 768 });
       const from = requests.length;
-      await page.getByLabel('Workspace role').selectOption('WORKER');
+      await page.evaluate(() => {localStorage.setItem('carwash_user_role','WORKER');localStorage.setItem('carwash_user_id','worker-1');});
+      await page.reload();
       await page.waitForTimeout(350);
       assert.equal(await page.getByRole('button', { name: 'Business overview' }).count(), 0);
       assert.equal(await page.getByRole('button', { name: 'Billing & invoices' }).count(), 0);
       assert.equal(requests.slice(from).filter((r) => ['/api/ledger', '/api/register/current'].includes(r.endpoint)).length, 0);
-      await page.getByLabel('Workspace role').selectOption('ADMIN');
+      await page.evaluate(() => {localStorage.setItem('carwash_user_role','ADMIN');localStorage.setItem('carwash_user_id','00000000-0000-0000-0000-000000000001');});
+      await page.reload();
     });
     await check('Service/server failures are visible and never invent catalogue items', async () => {
       failServices = true; await page.goto(base + '/#intake');
@@ -172,7 +218,7 @@ async function noOverflow(page) { assert.equal(await page.evaluate(() => documen
       assert(await page.getByRole('button', { name: 'Create work ticket' }).isDisabled());
       failServices = false; await page.getByRole('button', { name: 'Try again', exact: true }).click();
       await page.getByRole('button', { name: 'Express Foam Wash' }).waitFor();
-      await page.getByText('Shop server connected').waitFor();
+      await page.locator('.workspace-summary').getByText('Rs. 14,500.00',{exact:true}).waitFor();
       failServer = true; await page.getByRole('button', { name: 'Refresh shop data' }).click();
       await page.getByText('Unable to reach the shop server.', { exact: false }).waitFor();
       assert.match(await page.locator('.workspace-summary').innerText(), /14,500/);

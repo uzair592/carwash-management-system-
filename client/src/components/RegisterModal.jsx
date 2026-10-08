@@ -33,7 +33,7 @@ export default function RegisterModal({ isOpen, onSessionOpened }) {
         onSessionOpened(res.data.data);
       }
     } catch (err) {
-      setErrorMessage(err.response?.data?.message || err.message || 'Failed to open register shift.');
+      setErrorMessage(err.response?.data?.message || err.message || 'Failed to record opening cash.');
     } finally {
       setIsSubmitting(false);
     }
@@ -51,7 +51,7 @@ export default function RegisterModal({ isOpen, onSessionOpened }) {
             Register Till Closed
           </h2>
           <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
-            Strict Accounting Policy: You must open a cashier shift with a starting float to unlock the POS terminal.
+            Record the shop cash drawer opening balance. This is one business cash drawer, not a staff shift.
           </p>
         </div>
 
@@ -108,13 +108,13 @@ export default function RegisterModal({ isOpen, onSessionOpened }) {
           {/* Notes */}
           <div className="space-y-1">
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Shift Notes / Cashier Name (Optional)
+              Notes (optional)
             </label>
             <input
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Morning Shift - Cashier Usman"
+              placeholder="e.g. Opening cash count"
               className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-xs outline-none focus:border-slate-200"
             />
           </div>
@@ -123,10 +123,10 @@ export default function RegisterModal({ isOpen, onSessionOpened }) {
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500 space-y-1">
             <div className="flex items-center gap-1.5 text-slate-600 font-bold">
               <Coins className="w-3.5 h-3.5 text-amber-700" />
-              <span>Shift Audit Trail</span>
+              <span>Cash audit trail</span>
             </div>
             <p>
-              Opening this shift alerts partner Telegram group with the starting float and locks subsequent cash collections to your session.
+              The opening cash balance is recorded for reconciliation and partner reporting.
             </p>
           </div>
 
@@ -143,7 +143,7 @@ export default function RegisterModal({ isOpen, onSessionOpened }) {
             ) : (
               <>
                 <Unlock className="w-4 h-4" />
-                Open Cashier Shift & Unlock POS
+                Save opening cash
               </>
             )}
           </button>

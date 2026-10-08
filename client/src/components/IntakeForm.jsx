@@ -28,7 +28,7 @@ import { TokenThermalTicket } from './ThermalTemplates';
 const DEFAULT_MAKES = ['Toyota', 'Honda', 'Suzuki', 'KIA', 'Hyundai', 'MG', 'Changan', 'Haval', 'Chery', 'Audi', 'Mercedes', 'BMW', 'Other'];
 const money = (value) => Number(value || 0).toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
-export default function IntakeForm({ onJobCreated }) {
+export default function IntakeForm({ onJobCreated, customerPreset }) {
   const [plate, setPlate] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -54,6 +54,15 @@ export default function IntakeForm({ onJobCreated }) {
 
   // Branding state for ticket logo (Requirement 9)
   const [branding, setBranding] = useState(null);
+
+  useEffect(() => {
+    if (!customerPreset) return;
+    setPlate(customerPreset.registration_number || '');
+    setCustomerName(customerPreset.customer_name || '');
+    setCustomerPhone(customerPreset.customer_phone || '');
+    if (customerPreset.make) setMake(customerPreset.make);
+    setModel(customerPreset.model || '');
+  }, [customerPreset]);
 
   const ticketDialog = useRef(null);
   const submitButton = useRef(null);

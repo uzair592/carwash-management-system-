@@ -24,12 +24,14 @@ const money = (val) => Number(val || 0).toLocaleString('en-PK', { minimumFractio
 export default function LoyalCustomerSection({ onSelectCustomerForIntake }) {
   const [customers, setCustomers] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('ALL'); // ALL, LOYAL, REGULAR, NEW
 
   const fetchCustomers = async () => {
     setIsLoading(true);
+    setLoadError('');
     try {
       const res = await axios.get('/api/customers', {
         params: {
@@ -42,6 +44,7 @@ export default function LoyalCustomerSection({ onSelectCustomerForIntake }) {
         setSummary(res.data.data.summary || null);
       }
     } catch (err) {
+      setLoadError('Unable to load data. Check the shop server and try again.');
       console.error('Failed to load customers:', err);
     } finally {
       setIsLoading(false);
@@ -56,7 +59,8 @@ export default function LoyalCustomerSection({ onSelectCustomerForIntake }) {
   }, [search, filter]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="business-directory space-y-4">
+      {loadError && <div className="form-error" role="alert">{loadError}<button className="btn btn-secondary" onClick={fetchCustomers}>Try again</button></div>}
       {/* Header bar */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -66,10 +70,10 @@ export default function LoyalCustomerSection({ onSelectCustomerForIntake }) {
             </div>
             <div>
               <h2 className="text-xl font-black text-slate-900 tracking-tight">
-                Loyal Customers & VIP Fleet Directory
+                Customer directory
               </h2>
               <p className="text-xs text-slate-500 font-medium">
-                Track repeat visit frequency, lifetime spend, customer contact profiles, and loyalty rewards.
+                Find returning vehicles and start a new job.
               </p>
             </div>
           </div>
@@ -88,7 +92,7 @@ export default function LoyalCustomerSection({ onSelectCustomerForIntake }) {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Registered */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4.5 shadow-xs">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
             Total Customers
           </p>
@@ -102,7 +106,7 @@ export default function LoyalCustomerSection({ onSelectCustomerForIntake }) {
         </div>
 
         {/* Card 2: VIP Loyal Customers */}
-        <div className="bg-white border border-amber-200/80 bg-amber-50/20 rounded-xl p-4.5 shadow-xs">
+        <div className="bg-white border border-amber-200/80 bg-amber-50/20 rounded-xl p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
               VIP Loyal Members
@@ -121,7 +125,7 @@ export default function LoyalCustomerSection({ onSelectCustomerForIntake }) {
         </div>
 
         {/* Card 3: Repeat Rate */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4.5 shadow-xs">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Repeat Visit Rate
@@ -137,7 +141,7 @@ export default function LoyalCustomerSection({ onSelectCustomerForIntake }) {
         </div>
 
         {/* Card 4: Total Lifetime Revenue */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4.5 shadow-xs">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
             Total Customer Revenue
           </p>
@@ -167,9 +171,9 @@ export default function LoyalCustomerSection({ onSelectCustomerForIntake }) {
         <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
           {[
             { id: 'ALL', label: 'All Customers' },
-            { id: 'LOYAL', label: '⭐ VIP Loyal', icon: Crown },
-            { id: 'REGULAR', label: '🔄 Regular (2-4 visits)' },
-            { id: 'NEW', label: '🆕 First-Time' },
+            { id: 'LOYAL', label: 'Loyal', icon: Crown },
+            { id: 'REGULAR', label: 'Returning' },
+            { id: 'NEW', label: 'First-time' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -224,7 +228,7 @@ export default function LoyalCustomerSection({ onSelectCustomerForIntake }) {
                       {/* Vehicle Plate & Make */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-2.5">
-                          <div className="px-2.5 py-1 rounded-md bg-slate-900 text-white font-mono font-black text-xs tracking-wider border border-slate-800 shadow-2xs">
+                          <div className="px-2.5 py-1 rounded-md bg-slate-900 text-white tabular-nums font-black text-xs tracking-wider border border-slate-800 shadow-2xs">
                             {c.registration_number}
                           </div>
                           <div>
@@ -242,7 +246,7 @@ export default function LoyalCustomerSection({ onSelectCustomerForIntake }) {
                             {c.customer_name}
                           </strong>
                           {c.customer_phone ? (
-                            <span className="text-[11px] text-slate-500 font-mono flex items-center gap-1 mt-0.5">
+                            <span className="text-[11px] text-slate-500 tabular-nums flex items-center gap-1 mt-0.5">
                               <Phone className="w-3 h-3 text-slate-400" />
                               {c.customer_phone}
                             </span>
@@ -284,7 +288,7 @@ export default function LoyalCustomerSection({ onSelectCustomerForIntake }) {
 
                       {/* Lifetime Spend */}
                       <td className="py-3.5 px-4 text-right">
-                        <span className="font-black text-slate-900 text-xs font-mono">
+                        <span className="font-black text-slate-900 text-xs tabular-nums">
                           Rs. {money(c.total_spent)}
                         </span>
                       </td>

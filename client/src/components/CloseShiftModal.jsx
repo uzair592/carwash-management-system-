@@ -46,7 +46,7 @@ export default function CloseShiftModal({ isOpen, onClose, onSessionClosed, sess
         onSessionClosed(res.data.data);
       }
     } catch (err) {
-      setErrorMsg(err.response?.data?.message || err.message || 'Failed to close register shift.');
+      setErrorMsg(err.response?.data?.message || err.message || 'Failed to reconcile the cash drawer.');
     } finally {
       setIsSubmitting(false);
     }
@@ -62,8 +62,8 @@ export default function CloseShiftModal({ isOpen, onClose, onSessionClosed, sess
               <Lock className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-slate-900">Close Cashier Shift & Reconcile</h3>
-              <p className="text-xs text-slate-500 tabular-nums">End-of-Day Till Settlement</p>
+              <h3 className="text-lg font-semibold text-slate-900">Reconcile shop cash drawer</h3>
+              <p className="text-xs text-slate-500 tabular-nums">Count cash and record any difference</p>
             </div>
           </div>
           <button
@@ -81,7 +81,7 @@ export default function CloseShiftModal({ isOpen, onClose, onSessionClosed, sess
               <CheckCircle2 className="w-9 h-9" />
             </div>
             <div>
-              <h4 className="text-xl font-semibold text-slate-900">Shift Closed & Reconciled!</h4>
+              <h4 className="text-xl font-semibold text-slate-900">Cash drawer reconciled</h4>
               <p className="text-xs text-slate-500 mt-1">
                 Variance audit saved and dispatched to Telegram partners.
               </p>
@@ -219,7 +219,7 @@ export default function CloseShiftModal({ isOpen, onClose, onSessionClosed, sess
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g. End of night shift, counted by cashier"
+                placeholder="e.g. Cash count at the end of the day"
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-xs outline-none focus:border-slate-200"
               />
             </div>
@@ -237,7 +237,7 @@ export default function CloseShiftModal({ isOpen, onClose, onSessionClosed, sess
               ) : (
                 <>
                   <Lock className="w-4 h-4" />
-                  Reconcile & Close Register Shift
+                  Confirm cash reconciliation
                 </>
               )}
             </button>
