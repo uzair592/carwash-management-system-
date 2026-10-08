@@ -225,7 +225,7 @@ export default function CheckoutModal({ jobCard, onClose, onCheckoutSuccess }) {
                 className="thermal-receipt bg-slate-50 border border-slate-200 rounded-lg p-5 text-left text-xs tabular-nums space-y-2.5 text-slate-600 shadow-none"
               >
                 <div className="text-center font-bold text-sm text-slate-900 pb-2.5 border-b border-slate-200">
-                  <span className="thermal-title block text-base font-semibold">PUREPACK CAR WASH &amp; DETAILING</span>
+                  <span className="thermal-title block text-base font-semibold">DF PRO CAR WASH &amp; DETAILING CENTER</span>
                   <span className="block text-xs text-slate-500 font-normal mt-0.5">Customer invoice</span>
                 </div>
 
@@ -296,7 +296,7 @@ export default function CheckoutModal({ jobCard, onClose, onCheckoutSuccess }) {
                   <div className="font-bold text-slate-700">Thank you for visiting!</div>
                   <div>Please visit us again soon.</div>
                   <div className="text-xs text-slate-500 pt-1">
-                    PUREPACK Car Wash & Detailing
+                    DF PRO Car Wash & Detailing Center
                   </div>
                 </div>
               </div>

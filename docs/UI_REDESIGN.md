@@ -1,4 +1,4 @@
-# PUREPACK UI refresh
+# DF PRO UI refresh
 
 Clean light workspace with persistent sidebar, short navigation labels, an intake form with searchable services and a running job summary, physical bay cards, compact billing, and consistent finance/settings screens. Uses local system fonts and preserves existing REST endpoints.
 

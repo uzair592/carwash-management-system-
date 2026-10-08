@@ -90,7 +90,7 @@ export default function App() {
       <a href="#workspace-content" className="skip-link">Skip to content</a>
       {mobileNav && <button className="nav-scrim" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
       <aside className={`app-sidebar ${mobileNav ? 'is-open' : ''}`} aria-label="Shop navigation">
-        <div className="brand"><span className="brand-icon"><Car size={23} /></span><div><strong>PUREPACK</strong><span>Car Wash & Detailing</span></div><button className="icon-button mobile-only" aria-label="Close navigation" onClick={() => setMobileNav(false)}><X size={18} /></button></div>
+        <div className="brand"><span className="brand-icon"><Car size={23} /></span><div><strong>DF PRO</strong><span>Car Wash & Detailing Center</span></div><button className="icon-button mobile-only" aria-label="Close navigation" onClick={() => setMobileNav(false)}><X size={18} /></button></div>
         <div className="shop-location"><span className="location-dot" /><div><strong>Main workshop</strong><span>Jack 1 · Jack 2 · Detailing</span></div></div>
         <nav className="side-navigation">{['WORKSHOP', 'MANAGEMENT'].map((group) => <div key={group} className="nav-group"><p>{group}</p>{Object.entries(PAGES).filter(([id, item]) => item.group === group && allowed(id)).map(([id, item]) => <button key={id} className={`nav-item ${activeTab === id ? 'active' : ''}`} aria-current={activeTab === id ? 'page' : undefined} onClick={() => navigate(id)}><item.icon size={18} /><span>{item.title}</span>{id === 'billing' && snapshot?.ready > 0 && <b className="nav-count">{snapshot.ready}</b>}</button>)}</div>)}</nav>
         <div className="sidebar-bottom"><div className="sidebar-note"><ShieldCheck size={17} /><span>Every vehicle starts<br />with a work ticket.</span></div><label className="operator-label" htmlFor="workspace-role">Workspace role</label><select id="workspace-role" value={currentUser.role} onChange={(e) => switchRole(e.target.value)}>{Object.values(ROLES).map((role) => <option key={role} value={role}>{role[0] + role.slice(1).toLowerCase()}</option>)}</select><div className="operator-card"><span className="avatar">{currentUser.name?.charAt(0)}</span><div><strong>{currentUser.name}</strong><span>{currentUser.role.toLowerCase()} workspace</span></div></div></div>
@@ -110,7 +110,7 @@ export default function App() {
             {activeTab === 'admin' && isManager && <AdminManagement />}
             {activeTab === 'settings' && isManager && <SettingsToggle />}
           </div>
-          <footer className="workspace-footer"><span>PUREPACK · Car Wash & Detailing</span><span><CircleHelp size={13} />Create a ticket before starting any work</span></footer>
+          <footer className="workspace-footer"><span>DF PRO · Car Wash & Detailing Center</span><span><CircleHelp size={13} />Create a ticket before starting any work</span></footer>
         </main>
       </div>
       {checkoutTarget && <CheckoutModal jobCard={checkoutTarget} onClose={() => setCheckoutTarget(null)} onCheckoutSuccess={sync} />}
