@@ -212,7 +212,6 @@ export default function App() {
             {activeTab === 'admin' && isManager && <AdminManagement />}
             {activeTab === 'settings' && isManager && <SettingsToggle />}
           </div>
-          <footer className="workspace-footer"><span>DF PRO · Car Wash & Detailing Center</span><span><CircleHelp size={13} />Create a ticket before starting any work</span></footer>
         </main>
       </div>
       {checkoutTarget && <CheckoutModal jobCard={checkoutTarget} onClose={() => setCheckoutTarget(null)} onCheckoutSuccess={sync} />}

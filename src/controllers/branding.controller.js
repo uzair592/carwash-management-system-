@@ -56,6 +56,9 @@ async function updateBrandingHandler(req, res, next) {
       logo_url,
       logo_size,
       loyalty_threshold,
+      invoice_template,
+      token_template,
+      vehicle_makes,
     } = req.body;
 
     const updated = await prisma.businessBranding.update({
@@ -70,6 +73,9 @@ async function updateBrandingHandler(req, res, next) {
         logo_url: logo_url !== undefined ? logo_url : undefined,
         logo_size: logo_size !== undefined ? Math.max(40, Math.min(300, parseInt(logo_size, 10) || 120)) : undefined,
         loyalty_threshold: loyalty_threshold !== undefined ? Math.max(1, parseInt(loyalty_threshold, 10) || 5) : undefined,
+        invoice_template: invoice_template !== undefined ? String(invoice_template).trim() : undefined,
+        token_template: token_template !== undefined ? String(token_template).trim() : undefined,
+        vehicle_makes: vehicle_makes !== undefined ? String(vehicle_makes).trim() : undefined,
       },
     });
 

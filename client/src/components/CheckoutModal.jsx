@@ -22,6 +22,7 @@ import {
 import axios from 'axios';
 import PinPadModal from './PinPadModal';
 import { printThermal } from '../utils/print';
+import { InvoiceThermalReceipt } from './ThermalTemplates';
 
 const money = (val) => Number(val || 0).toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
@@ -284,98 +285,26 @@ export default function CheckoutModal({ jobCard, onClose, onCheckoutSuccess }) {
                 </p>
               </div>
 
-              {/* 80mm Printable Receipt (Requirement 9: with Logo) */}
-              <div
+              <InvoiceThermalReceipt
+                invoice={{
+                  invoice_number: invoiceResult.invoice?.invoice_number || 'INV-001',
+                  created_at: new Date().toISOString(),
+                  job_card: jobCard,
+                  vehicle_plate: jobCard.vehicle?.registration_number,
+                  customer_name: jobCard.customer_name || 'Walk-in',
+                  payment_method: paymentMode,
+                  services: services,
+                  subtotal: invoiceResult.subtotal,
+                  total_amount: invoiceResult.subtotal,
+                  paid_amount: invoiceResult.payments_collected + invoiceResult.deposits_applied,
+                  cash_tendered: invoiceResult.cash_tendered,
+                  change_returned: invoiceResult.change_returned,
+                  discount_amount: invoiceResult.discount_amount,
+                  balance_due: invoiceResult.balance_due,
+                }}
+                branding={branding}
                 id="printable-receipt"
-                className="bg-slate-50 border border-slate-200 rounded-xl p-5 text-left text-xs font-mono max-w-md mx-auto space-y-2 text-black"
-                style={{ fontFamily: "'Courier New', Courier, monospace" }}
-              >
-                {branding?.logo_url && (
-                  <div className="text-center mb-2">
-                    <img
-                      src={branding.logo_url}
-                      alt="Logo"
-                      style={{
-                        maxWidth: `${branding.logo_size || 120}px`,
-                        maxHeight: '80px',
-                        objectFit: 'contain',
-                        margin: '0 auto',
-                        display: 'block',
-                      }}
-                    />
-                  </div>
-                )}
-                <div className="text-center font-bold text-sm">
-                  {branding?.business_name || 'DF PRO CAR WASH & DETAILING'}
-                </div>
-                <div className="text-center text-[11px] text-gray-500">
-                  {branding?.tagline || 'Official Customer Receipt'}
-                </div>
-                <div className="border-t border-b border-dashed border-gray-400 py-1.5 my-2 text-[11px] flex justify-between">
-                  <span>Inv: {invoiceResult.invoice?.invoice_number}</span>
-                  <span>{new Date().toLocaleDateString('en-GB')}</span>
-                </div>
-                <div className="text-[11px]">
-                  <div><strong>Vehicle:</strong> {jobCard.vehicle?.registration_number}</div>
-                  <div><strong>Customer:</strong> {jobCard.customer_name || 'Walk-in'}</div>
-                </div>
-
-                <div className="py-2 border-t border-b border-gray-300 space-y-1">
-                  {services.map((s) => (
-                    <div key={s.id} className="flex justify-between">
-                      <span>{s.service?.name || s.name}</span>
-                      <strong>Rs. {money(s.price_charged)}</strong>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="space-y-1 pt-1 font-semibold">
-                  <div className="flex justify-between">
-                    <span>Subtotal:</span>
-                    <span>Rs. {money(invoiceResult.subtotal)}</span>
-                  </div>
-                  {invoiceResult.discount_amount > 0 && (
-                    <div className="flex justify-between text-red-600">
-                      <span>Discount:</span>
-                      <span>-Rs. {money(invoiceResult.discount_amount)}</span>
-                    </div>
-                  )}
-                  {invoiceResult.deposits_applied > 0 && (
-                    <div className="flex justify-between text-blue-600">
-                      <span>Advance Applied:</span>
-                      <span>-Rs. {money(invoiceResult.deposits_applied)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-sm font-bold border-t border-black pt-1">
-                    <span>Total Paid:</span>
-                    <span>Rs. {money(invoiceResult.payments_collected + invoiceResult.deposits_applied)}</span>
-                  </div>
-                  {invoiceResult.cash_tendered > 0 && (
-                    <div className="flex justify-between text-[11px]">
-                      <span>Cash Tendered:</span>
-                      <span>Rs. {money(invoiceResult.cash_tendered)}</span>
-                    </div>
-                  )}
-                  {invoiceResult.change_returned > 0 && (
-                    <div className="flex justify-between text-[11px] text-emerald-700">
-                      <span>Change Returned:</span>
-                      <span>Rs. {money(invoiceResult.change_returned)}</span>
-                    </div>
-                  )}
-                  {invoiceResult.balance_due > 0 && (
-                    <div className="flex justify-between font-bold text-red-600 border-t border-dashed border-red-300 pt-1">
-                      <span>Remaining Balance Due:</span>
-                      <span>Rs. {money(invoiceResult.balance_due)}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="text-center text-[10px] text-gray-500 pt-3 border-t border-dashed border-gray-400">
-                  <p>Thank you for choosing DF PRO!</p>
-                  {branding?.address && <p>{branding.address}</p>}
-                  {branding?.phone && <p>Tel: {branding.phone}</p>}
-                </div>
-              </div>
+              />
 
               <div className="flex justify-center gap-3 pt-3">
                 <button

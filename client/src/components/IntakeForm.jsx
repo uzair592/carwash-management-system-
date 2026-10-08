@@ -21,8 +21,9 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { printThermal } from '../utils/print';
+import { TokenThermalTicket } from './ThermalTemplates';
 
-const MAKES = ['Toyota', 'Honda', 'Suzuki', 'KIA', 'Hyundai', 'MG', 'Audi', 'Mercedes', 'BMW', 'Other'];
+const DEFAULT_MAKES = ['Toyota', 'Honda', 'Suzuki', 'KIA', 'Hyundai', 'MG', 'Changan', 'Haval', 'Chery', 'Audi', 'Mercedes', 'BMW', 'Other'];
 const money = (value) => Number(value || 0).toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
 export default function IntakeForm({ onJobCreated }) {
@@ -30,6 +31,8 @@ export default function IntakeForm({ onJobCreated }) {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [make, setMake] = useState('Toyota');
+  const [isAddingMake, setIsAddingMake] = useState(false);
+  const [newMakeText, setNewMakeText] = useState('');
   const [model, setModel] = useState('');
   const [intakeNotes, setIntakeNotes] = useState('');
   const [selectedServices, setSelectedServices] = useState([]);
@@ -148,11 +151,18 @@ export default function IntakeForm({ onJobCreated }) {
     setSelectedServices((previous) =>
       previous.some((s) => s.id === service.id)
         ? previous.filter((s) => s.id !== service.id)
-        : [...previous, service]
+        : [...previous, { ...service, price_charged: service.price }]
     );
   };
 
-  const subtotal = selectedServices.reduce((sum, service) => sum + Number(service.price || 0), 0);
+  const handleUpdateServicePrice = (serviceId, newPrice) => {
+    const val = Math.max(0, parseFloat(newPrice) || 0);
+    setSelectedServices((previous) =>
+      previous.map((s) => (s.id === serviceId ? { ...s, price: val, price_charged: val } : s))
+    );
+  };
+
+  const subtotal = selectedServices.reduce((sum, service) => sum + Number(service.price_charged ?? service.price ?? 0), 0);
   const categories = ['All services', ...new Set(availableServices.map((s) => s.category || 'Other'))];
   const visibleServices = availableServices.filter(
     (s) =>
@@ -201,7 +211,7 @@ export default function IntakeForm({ onJobCreated }) {
         intake_notes: intakeNotes.trim() || undefined,
         services: selectedServices.map((s) => ({
           service_id: s.id,
-          price: s.price,
+          price: Number(s.price_charged ?? s.price),
           name: s.name,
         })),
       });
@@ -326,17 +336,60 @@ export default function IntakeForm({ onJobCreated }) {
               </div>
 
               <div>
-                <label className="field-label" htmlFor="vehicle-make">Vehicle Make</label>
-                <select
-                  id="vehicle-make"
-                  className="field text-sm"
-                  value={make}
-                  onChange={(e) => setMake(e.target.value)}
-                >
-                  {[...new Set([...MAKES, make])].map((item) => (
-                    <option key={item}>{item}</option>
-                  ))}
-                </select>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="field-label m-0" htmlFor="vehicle-make">Vehicle Make</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingMake(!isAddingMake)}
+                    className="text-xs text-blue-600 hover:underline font-semibold flex items-center gap-1"
+                  >
+                    <Plus size={12} /> {isAddingMake ? 'Cancel' : '+ Add Make'}
+                  </button>
+                </div>
+                {isAddingMake ? (
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      placeholder="e.g. Haval, BYD, Changan"
+                      value={newMakeText}
+                      onChange={(e) => setNewMakeText(e.target.value)}
+                      className="field text-sm flex-1"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const trimmed = newMakeText.trim();
+                        if (!trimmed) return;
+                        const currentMakes = branding?.vehicle_makes ? branding.vehicle_makes.split(',').map((m) => m.trim()) : DEFAULT_MAKES;
+                        if (!currentMakes.includes(trimmed)) {
+                          const updated = [...currentMakes, trimmed].join(', ');
+                          try {
+                            await axios.patch('/api/branding', { vehicle_makes: updated });
+                            setBranding((prev) => ({ ...prev, vehicle_makes: updated }));
+                          } catch (e) {}
+                        }
+                        setMake(trimmed);
+                        setNewMakeText('');
+                        setIsAddingMake(false);
+                      }}
+                      className="btn btn-primary px-3 text-xs rounded-lg"
+                    >
+                      Save
+                    </button>
+                  </div>
+                ) : (
+                  <select
+                    id="vehicle-make"
+                    className="field text-sm"
+                    value={make}
+                    onChange={(e) => setMake(e.target.value)}
+                  >
+                    {[...new Set([...(branding?.vehicle_makes ? branding.vehicle_makes.split(',').map((m) => m.trim()) : DEFAULT_MAKES), make])].map((item) => (
+                      <option key={item}>{item}</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div>
@@ -522,9 +575,20 @@ export default function IntakeForm({ onJobCreated }) {
             ) : (
               selectedServices.map((service) => (
                 <div className="summary-item" key={service.id}>
-                  <div>
-                    <strong className="text-sm font-semibold text-slate-800">{service.name}</strong>
-                    <span className="text-xs font-mono font-bold text-slate-600">Rs. {money(service.price)}</span>
+                  <div className="flex-1 pr-2">
+                    <strong className="text-sm font-semibold text-slate-800 block">{service.name}</strong>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-[11px] font-bold text-slate-400">Rs.</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="50"
+                        value={service.price_charged ?? service.price}
+                        onChange={(e) => handleUpdateServicePrice(service.id, e.target.value)}
+                        className="w-24 px-1.5 py-0.5 text-xs font-mono font-bold text-slate-900 border border-slate-300 rounded focus:border-blue-500 focus:outline-none"
+                        title="Click to adjust price for this job"
+                      />
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -609,71 +673,7 @@ export default function IntakeForm({ onJobCreated }) {
               </div>
             </div>
 
-            <div
-              id="printable-ticket"
-              className="thermal-ticket bg-white border border-slate-300 p-4 rounded-lg font-mono text-xs text-black"
-              style={{ fontFamily: "'Courier New', Courier, monospace" }}
-            >
-              {branding?.logo_url && (
-                <div className="text-center mb-2">
-                  <img
-                    src={branding.logo_url}
-                    alt="Logo"
-                    style={{
-                      maxWidth: `${branding.logo_size || 120}px`,
-                      maxHeight: '75px',
-                      objectFit: 'contain',
-                      margin: '0 auto',
-                      display: 'block',
-                    }}
-                  />
-                </div>
-              )}
-
-              <h3 className="thermal-title font-bold text-center text-sm">
-                {branding?.business_name || 'DF PRO CAR WASH & DETAILING'}
-              </h3>
-              <p className="text-center text-[11px] text-gray-600 mb-2">
-                BAY WORK ORDER · {generatedTicket.ticket_number}
-              </p>
-
-              <div className="thermal-plate-box text-center font-bold text-xl my-2 p-2 bg-slate-50 border border-slate-200 rounded">
-                {generatedTicket.vehicle?.registration_number || plate}
-              </div>
-
-              <div className="ticket-line flex justify-between py-1 border-b border-dashed border-gray-300">
-                <span>Customer</span>
-                <strong>{generatedTicket.customer_name || 'Walk-in Customer'}</strong>
-              </div>
-
-              {generatedTicket.customer_phone ? (
-                <div className="ticket-line flex justify-between py-1 border-b border-dashed border-gray-300">
-                  <span>Phone</span>
-                  <strong>{generatedTicket.customer_phone}</strong>
-                </div>
-              ) : null}
-
-              <div className="py-2 border-b border-gray-300 space-y-1">
-                <span className="font-bold text-[11px] block">Services to perform:</span>
-                {(generatedTicket.services?.length ? generatedTicket.services : generatedTicket.selectedServices).map(
-                  (service) => (
-                    <div className="flex justify-between" key={service.id}>
-                      <span>[ ] {service.service?.name || service.name}</span>
-                      <strong>Rs. {money(service.price_charged ?? service.price)}</strong>
-                    </div>
-                  )
-                )}
-              </div>
-
-              <div className="ticket-line flex justify-between py-1.5 font-bold text-sm border-b border-black">
-                <span>Estimated Total</span>
-                <strong>Rs. {money(generatedTicket.total)}</strong>
-              </div>
-
-              <p className="text-center text-[10px] mt-3 pt-2 border-t border-dashed border-gray-400">
-                Worker: __________ · QC Check: [ ]
-              </p>
-            </div>
+            <TokenThermalTicket ticket={generatedTicket} branding={branding} id="printable-ticket" />
 
             <div className="ticket-actions mt-4 flex gap-2">
               <button

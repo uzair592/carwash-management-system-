@@ -481,6 +481,9 @@ model BusinessBranding {
   logo_url          String?  @db.Text
   logo_size         Int      @default(120)
   loyalty_threshold Int      @default(5)
+  invoice_template  String   @default("CLASSIC_THERMAL") @db.VarChar(50)
+  token_template    String   @default("STANDARD_BOX") @db.VarChar(50)
+  vehicle_makes     String?  @db.Text
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
 

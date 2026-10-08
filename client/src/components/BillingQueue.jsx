@@ -20,6 +20,7 @@ import {
 import axios from 'axios';
 import PinPadModal from './PinPadModal';
 import { printThermal } from '../utils/print';
+import { InvoiceThermalReceipt } from './ThermalTemplates';
 
 const money = (val) => Number(val || 0).toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
@@ -407,96 +408,11 @@ export default function BillingQueue({ onOpenCheckout }) {
             </div>
 
             {/* 80mm ESC/POS Formatted Receipt with Business Logo */}
-            <div
+            <InvoiceThermalReceipt
+              invoice={printInvoiceTarget}
+              branding={branding}
               id="reprint-invoice-dialog"
-              className="bg-slate-50 border border-slate-200 rounded-xl p-5 text-left text-xs font-mono space-y-2 text-black"
-              style={{ fontFamily: "'Courier New', Courier, monospace" }}
-            >
-              {branding?.logo_url && (
-                <div className="text-center mb-2">
-                  <img
-                    src={branding.logo_url}
-                    alt="Business Logo"
-                    style={{
-                      maxWidth: `${branding.logo_size || 140}px`,
-                      maxHeight: '85px',
-                      objectFit: 'contain',
-                      margin: '0 auto',
-                      display: 'block',
-                    }}
-                  />
-                </div>
-              )}
-
-              <div className="text-center font-bold text-sm">
-                {branding?.business_name || 'DF PRO CAR WASH & DETAILING'}
-              </div>
-              <div className="text-center text-[11px] text-gray-500">
-                {branding?.tagline || 'Official Customer Receipt'}
-              </div>
-
-              <div className="border-t border-b border-dashed border-gray-400 py-1.5 my-2 text-[11px] flex justify-between">
-                <span>Invoice: {printInvoiceTarget.invoice_number}</span>
-                <span>{new Date(printInvoiceTarget.created_at).toLocaleDateString('en-GB')}</span>
-              </div>
-
-              <div className="text-[11px] space-y-0.5">
-                <div><strong>Vehicle:</strong> {printInvoiceTarget.job_card?.vehicle?.registration_number || 'N/A'}</div>
-                <div><strong>Customer:</strong> {printInvoiceTarget.job_card?.customer_name || printInvoiceTarget.job_card?.vehicle?.customer_name || 'Walk-in Customer'}</div>
-                <div><strong>Tender:</strong> {printInvoiceTarget.payment_method} ({printInvoiceTarget.status})</div>
-              </div>
-
-              <div className="py-2 border-t border-b border-gray-300 space-y-1">
-                {(printInvoiceTarget.job_card?.services || []).map((s) => (
-                  <div key={s.id} className="flex justify-between">
-                    <span>{s.service?.name || s.name}</span>
-                    <strong>Rs. {money(s.price_charged)}</strong>
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-1 pt-1 font-semibold">
-                <div className="flex justify-between">
-                  <span>Gross Total:</span>
-                  <span>Rs. {money(printInvoiceTarget.total_amount)}</span>
-                </div>
-                {parseFloat(printInvoiceTarget.discount_amount || 0) > 0 && (
-                  <div className="flex justify-between text-red-600">
-                    <span>Discount:</span>
-                    <span>-Rs. {money(printInvoiceTarget.discount_amount)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-sm font-bold border-t border-black pt-1">
-                  <span>Amount Paid:</span>
-                  <span>Rs. {money(printInvoiceTarget.paid_amount || printInvoiceTarget.total_amount)}</span>
-                </div>
-                {printInvoiceTarget.cash_tendered && (
-                  <div className="flex justify-between text-[11px]">
-                    <span>Cash Tendered:</span>
-                    <span>Rs. {money(printInvoiceTarget.cash_tendered)}</span>
-                  </div>
-                )}
-                {printInvoiceTarget.change_returned && parseFloat(printInvoiceTarget.change_returned) > 0 && (
-                  <div className="flex justify-between text-[11px] text-emerald-700">
-                    <span>Change Returned:</span>
-                    <span>Rs. {money(printInvoiceTarget.change_returned)}</span>
-                  </div>
-                )}
-                {parseFloat(printInvoiceTarget.balance_due || 0) > 0 && (
-                  <div className="flex justify-between font-bold text-red-600 border-t border-dashed border-red-300 pt-1">
-                    <span>Balance Due:</span>
-                    <span>Rs. {money(printInvoiceTarget.balance_due)}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="text-center text-[10px] text-gray-500 pt-3 border-t border-dashed border-gray-400">
-                <p>Thank you for choosing DF PRO!</p>
-                {branding?.address && <p>{branding.address}</p>}
-                {branding?.phone && <p>Tel: {branding.phone}</p>}
-                {branding?.ntn_number && <p>NTN: {branding.ntn_number}</p>}
-              </div>
-            </div>
+            />
 
             <div className="flex justify-end gap-3 pt-2">
               <button
