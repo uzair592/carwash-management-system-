@@ -17,11 +17,24 @@ async function getCurrentSessionHandler(req, res, next) {
     });
 
     if (!session) {
+      // Single cashier mode: till is permanently active and synced with live cash drawer ledger
+      const cashLedger = await prisma.ledger.findFirst({
+        where: { account_type: 'Cash_Drawer' },
+      });
+      const currentCash = cashLedger ? parseFloat(cashLedger.current_balance) : 0;
       return res.status(200).json({
         status: 'success',
         data: {
-          is_open: false,
-          session: null,
+          is_open: true,
+          single_cashier_mode: true,
+          session: {
+            id: 'single-cashier-active',
+            status: 'OPEN',
+            opened_at: new Date(0),
+            starting_cash: currentCash,
+          },
+          starting_cash: currentCash,
+          expected_cash_in_drawer: currentCash,
         },
       });
     }

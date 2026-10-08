@@ -54,7 +54,11 @@ async function check(name, fn) { await fn(); checks.push(name); console.log('PAS
 async function noOverflow(page) { assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), false, 'Page must not overflow horizontally'); }
 (async () => {
   fs.mkdirSync(screenshots, { recursive: true });
-  const browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_EXECUTABLE ? { executablePath: process.env.CHROMIUM_EXECUTABLE, args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'] } : {}) });
+  const execPath = process.env.CHROMIUM_EXECUTABLE || 'C:\\Users\\HP\\AppData\\Local\\ms-playwright\\chromium-1243\\chrome-win64\\chrome.exe';
+  const browser = await chromium.launch({
+    headless: true,
+    ...(fs.existsSync(execPath) ? { executablePath: execPath, args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'] } : {})
+  });
   try {
     const context = await browser.newContext({ viewport: { width: 1366, height: 768 } });
     await context.route('**/api/**', fixtures);
@@ -161,6 +165,7 @@ async function noOverflow(page) { assert.equal(await page.evaluate(() => documen
       assert(await page.getByRole('button', { name: 'Create work ticket' }).isDisabled());
       failServices = false; await page.getByRole('button', { name: 'Try again', exact: true }).click();
       await page.getByRole('button', { name: 'Express Foam Wash' }).waitFor();
+      await page.getByText('Shop server connected').waitFor();
       failServer = true; await page.getByRole('button', { name: 'Refresh shop data' }).click();
       await page.getByText('Unable to reach the shop server.', { exact: false }).waitFor();
       assert.match(await page.locator('.workspace-summary').innerText(), /14,500/);

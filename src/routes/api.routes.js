@@ -6,7 +6,7 @@ const prisma = require('../prisma');
 const { getSettingsHandler, updateSettingsHandler } = require('../controllers/settings.controller');
 const { vehicleIntakeHandler, getVehicleHandler } = require('../controllers/vehicle.controller');
 const { updateJobCardStatusHandler, listJobCardsHandler, getJobCardHandler } = require('../controllers/jobcard.controller');
-const { checkoutHandler, listInvoicesHandler } = require('../controllers/invoice.controller');
+const { checkoutHandler, listInvoicesHandler, reversePaymentHandler } = require('../controllers/invoice.controller');
 const { createExpenseHandler, listExpensesHandler } = require('../controllers/expense.controller');
 const { processPayment, recordExpense } = require('../services/ledger.service');
 const dashboardRoutes = require('./dashboard.routes');
@@ -26,6 +26,7 @@ const {
 } = require('../controllers/media.controller');
 const {
   rapidIntakeHandler,
+  checkPlateHandler,
   startJobCardHandler,
   completeJobCardHandler,
   getLiveBayStatusHandler,
@@ -71,6 +72,36 @@ const {
   getPartnerTransactionsHandler,
   listAllPartnerTransactionsHandler,
 } = require('../controllers/partner-tx.controller');
+const {
+  listBankAccountsHandler,
+  createBankAccountHandler,
+  updateBankAccountHandler,
+  deleteBankAccountHandler,
+  getBankAccountTransactionsHandler,
+} = require('../controllers/bank.controller');
+const {
+  getBrandingHandler,
+  updateBrandingHandler,
+  uploadLogoHandler,
+  removeLogoHandler,
+} = require('../controllers/branding.controller');
+const {
+  loginHandler,
+  listUsersHandler,
+  createUserHandler,
+  updateUserHandler,
+  resetPasswordHandler,
+  updatePinHandler,
+  toggleUserStatusHandler,
+} = require('../controllers/user.controller');
+const {
+  listServicesHandler,
+  createServiceHandler,
+  updateServiceHandler,
+  overrideJobCardServicePriceHandler,
+} = require('../controllers/service.controller');
+const { listCustomersHandler } = require('../controllers/customer.controller');
+const { getReportsSummaryHandler } = require('../controllers/reports.controller');
 
 // ---------------------------------------------------------------------------
 // 1. Health & Service Diagnostics (Public)
@@ -78,10 +109,13 @@ const {
 router.get('/health', (req, res) => {
   res.status(200).json({
     status: 'healthy',
-    service: 'Car Wash Management System Core API',
+    service: 'DF PRO Car Wash & Detailing Management System Core API',
     timestamp: new Date().toISOString(),
   });
 });
+
+// Authentication endpoint (Public login)
+router.post('/auth/login', loginHandler);
 
 // Authenticate user across all subsequent API routes
 router.use(authenticateUser);
@@ -100,9 +134,14 @@ router.use('/dashboard', dashboardRoutes);
 router.post('/intake', rapidIntakeHandler);
 router.post('/vehicles/intake', rapidIntakeHandler); // backward compatibility alias
 router.get('/vehicles/:registration', getVehicleHandler);
+router.get('/vehicles/lookup/:plate', checkPlateHandler);
+router.get('/bays/check-plate/:plate', checkPlateHandler);
+router.get('/customers', listCustomersHandler);
+router.get('/loyalty', listCustomersHandler);
+router.get('/reports/summary', getReportsSummaryHandler);
 
 // ---------------------------------------------------------------------------
-// 4. Physical Work Areas (Jack 1, Jack 2, Detailing Center) & Job Cards
+// 4. Physical Work Areas (Jack 1, Jack 2, Detailing Bays 1 & 2) & Job Cards
 // ---------------------------------------------------------------------------
 router.get('/bays/live-status', getLiveBayStatusHandler);
 router.patch('/job-cards/:id/start', startJobCardHandler);
@@ -112,6 +151,7 @@ router.get('/job-cards/:id', getJobCardHandler);
 router.patch('/job-cards/:id/status', updateJobCardStatusHandler);
 router.post('/admin/verify-pin', verifyAdminPinHandler);
 router.post('/invoices/:id/refund', issueRefundHandler);
+router.patch('/job-cards/:jobCardId/services/:serviceId/price-override', overrideJobCardServicePriceHandler);
 
 // ---------------------------------------------------------------------------
 // 4b. Cash Register Sessions (Shift Open / Close / Variance Reconciliation)
@@ -122,23 +162,31 @@ router.post('/register/close', closeSessionHandler);
 router.get('/register/history', getHistorySessionsHandler);
 
 // ---------------------------------------------------------------------------
-// 4c. Thermal Printing Endpoints (80mm ESC/POS)
+// 4c. Thermal Printing Endpoints (80mm ESC/POS with Branding Logo)
 // ---------------------------------------------------------------------------
-router.post('/printer/thermal-ticket', (req, res) => {
-  const result = generateThermalIntakeTicket(req.body);
-  res.status(200).json({ status: 'success', data: result });
+router.post('/printer/thermal-ticket', async (req, res, next) => {
+  try {
+    const result = await generateThermalIntakeTicket(req.body);
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    next(err);
+  }
 });
-router.post('/printer/thermal-receipt', (req, res) => {
-  const result = generateThermalCustomerReceipt(req.body);
-  res.status(200).json({ status: 'success', data: result });
+router.post('/printer/thermal-receipt', async (req, res, next) => {
+  try {
+    const result = await generateThermalCustomerReceipt(req.body);
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    next(err);
+  }
 });
-
 
 // ---------------------------------------------------------------------------
 // 5. Checkout & Invoicing
 // ---------------------------------------------------------------------------
 router.post('/invoices/checkout', checkoutHandler);
 router.post('/checkout', checkoutHandler); // convenience alias
+router.post('/invoices/:id/reverse-payment', reversePaymentHandler);
 router.get('/invoices', listInvoicesHandler);
 
 // ---------------------------------------------------------------------------
@@ -148,42 +196,22 @@ router.post('/expenses', createExpenseHandler);
 router.get('/expenses', listExpensesHandler);
 
 // ---------------------------------------------------------------------------
-// 7. Services & Users Catalog
+// 7. Services Catalog (Editable blocks & independent pricing)
 // ---------------------------------------------------------------------------
-router.get('/services', async (req, res, next) => {
-  try {
-    const services = await prisma.service.findMany({
-      where: { is_active: true },
-      orderBy: { name: 'asc' },
-    });
-    res.status(200).json({ status: 'success', data: services });
-  } catch (err) {
-    next(err);
-  }
-});
+router.get('/services', listServicesHandler);
+router.post('/services', requireRole(['ADMIN', 'MANAGER']), createServiceHandler);
+router.put('/services/:id', requireRole(['ADMIN', 'MANAGER']), updateServiceHandler);
+router.patch('/services/:id', requireRole(['ADMIN', 'MANAGER']), updateServiceHandler);
 
-router.get('/users', async (req, res, next) => {
-  try {
-    const { role } = req.query;
-    const where = { is_active: true };
-    if (role) {
-      where.role = role;
-    }
-    const users = await prisma.user.findMany({
-      where,
-      select: {
-        id: true,
-        name: true,
-        role: true,
-        commission_rate: true,
-      },
-      orderBy: { name: 'asc' },
-    });
-    res.status(200).json({ status: 'success', data: users });
-  } catch (err) {
-    next(err);
-  }
-});
+// ---------------------------------------------------------------------------
+// 7b. Staff User Management (Credentials, PINs, Roles, Status)
+// ---------------------------------------------------------------------------
+router.get('/users', listUsersHandler);
+router.post('/users', requireRole(['ADMIN']), createUserHandler);
+router.put('/users/:id', requireRole(['ADMIN']), updateUserHandler);
+router.post('/users/:id/reset-password', resetPasswordHandler);
+router.post('/users/:id/update-pin', requireRole(['ADMIN', 'MANAGER']), updatePinHandler);
+router.patch('/users/:id/toggle-status', requireRole(['ADMIN']), toggleUserStatusHandler);
 
 // ---------------------------------------------------------------------------
 // 7.1 Gamified Staff Leaderboard
@@ -199,7 +227,7 @@ router.get('/leaderboard', async (req, res, next) => {
 
     const completedJobsToday = await prisma.jobCard.findMany({
       where: {
-        status: 'Completed',
+        status: { in: ['Completed', 'COMPLETED'] },
         updated_at: { gte: startOfDay },
         worker_id: { not: null },
       },
@@ -310,6 +338,23 @@ router.post('/expense', async (req, res, next) => {
 });
 
 // ---------------------------------------------------------------------------
+// 8b. Multiple Bank Accounts
+// ---------------------------------------------------------------------------
+router.get('/banks', listBankAccountsHandler);
+router.post('/banks', requireRole(['ADMIN']), createBankAccountHandler);
+router.put('/banks/:id', requireRole(['ADMIN']), updateBankAccountHandler);
+router.delete('/banks/:id', requireRole(['ADMIN']), deleteBankAccountHandler);
+router.get('/banks/:id/transactions', getBankAccountTransactionsHandler);
+
+// ---------------------------------------------------------------------------
+// 8c. Business Branding & Logo Settings
+// ---------------------------------------------------------------------------
+router.get('/branding', getBrandingHandler);
+router.patch('/branding', requireRole(['ADMIN', 'MANAGER']), updateBrandingHandler);
+router.post('/branding/logo', upload.single('logo'), uploadLogoHandler);
+router.delete('/branding/logo', requireRole(['ADMIN', 'MANAGER']), removeLogoHandler);
+
+// ---------------------------------------------------------------------------
 // 9. Monthly Staff Payroll Engine (Admin Only)
 // ---------------------------------------------------------------------------
 router.use('/payroll', requireRole(['ADMIN']), payrollRoutes);
@@ -373,5 +418,3 @@ router.get('/partners/:id/transactions', requireRole(['ADMIN']), getPartnerTrans
 router.get('/partners/transactions', requireRole(['ADMIN']), listAllPartnerTransactionsHandler);
 
 module.exports = router;
-
-
