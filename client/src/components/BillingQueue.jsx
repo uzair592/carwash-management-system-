@@ -101,21 +101,21 @@ export default function BillingQueue({ onOpenCheckout }) {
   });
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
+    <div className="space-y-5 max-w-6xl mx-auto">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/80 border border-slate-800 rounded-3xl p-6 backdrop-blur-xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-slate-200 rounded-xl p-5 ">
         <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-600 flex items-center justify-center text-slate-950 shadow-lg shadow-amber-500/20 font-black text-xl">
+          <div className="w-12 h-12 rounded-lg bg-gradient-to-tr from-amber-500 to-yellow-600 flex items-center justify-center text-slate-950 shadow-sm font-semibold text-xl">
             3
           </div>
           <div>
-            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
-              Ready for Billing & Settlement
-              <span className="text-[11px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2.5 py-0.5 rounded-full uppercase">
-                {readyJobs.length} Vehicles Awaiting Payment
+            <h2 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight flex items-center gap-2">
+              Ready for payment
+              <span className="text-xs tabular-nums bg-amber-500/10 text-amber-700 border border-amber-500/30 px-2.5 py-0.5 rounded-full uppercase">
+                {readyJobs.length} awaiting payment
               </span>
             </h2>
-            <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
               Vehicles that completed wash/detailing, freed up the jacks, and are ready for cashier settlement.
             </p>
           </div>
@@ -129,31 +129,31 @@ export default function BillingQueue({ onOpenCheckout }) {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Filter plate, customer..."
-              className="bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder:text-slate-600 outline-none focus:border-amber-500 w-48 sm:w-60 font-mono"
+              className="bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 placeholder:text-slate-600 outline-none focus:border-amber-500 w-48 sm:w-60 tabular-nums"
             />
           </div>
 
           <button
             onClick={loadData}
-            className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white transition"
+            className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-slate-200 text-slate-500 hover:text-slate-900 transition"
           >
-            <RotateCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
+            <RotateCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-700' : ''}`} />
           </button>
         </div>
       </div>
 
       {statusFeedback && (
         <div
-          className={`p-4 rounded-2xl border text-xs sm:text-sm font-semibold flex items-center gap-3 ${
+          className={`p-4 rounded-lg border text-xs sm:text-sm font-semibold flex items-center gap-3 ${
             statusFeedback.type === 'success'
-              ? 'bg-emerald-950/80 border-emerald-500 text-emerald-200'
-              : 'bg-rose-950/80 border-rose-500 text-rose-200'
+              ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
+              : 'bg-rose-50 border-rose-500 text-rose-700'
           }`}
         >
           {statusFeedback.type === 'success' ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
           ) : (
-            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+            <AlertCircle className="w-5 h-5 text-rose-700 shrink-0" />
           )}
           <span>{statusFeedback.text}</span>
         </div>
@@ -162,11 +162,11 @@ export default function BillingQueue({ onOpenCheckout }) {
       {/* Main Ready for Billing Grid */}
       <div className="space-y-4">
         {filteredReady.length === 0 ? (
-          <div className="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-12 text-center space-y-3">
-            <div className="w-16 h-16 rounded-3xl bg-slate-950 border border-slate-800 flex items-center justify-center mx-auto text-slate-600">
+          <div className="bg-white border border-slate-200 rounded-xl p-12 text-center space-y-3">
+            <div className="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center mx-auto text-slate-600">
               <Receipt className="w-8 h-8" />
             </div>
-            <h3 className="text-base font-bold text-slate-300">No Vehicles Waiting for Billing</h3>
+            <h3 className="text-base font-bold text-slate-600">No Vehicles Waiting for Billing</h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
               When a wash team marks a vehicle complete in Jack 1, Jack 2, or Detailing, it will instantly appear here for cashier checkout.
             </p>
@@ -188,37 +188,37 @@ export default function BillingQueue({ onOpenCheckout }) {
               return (
                 <div
                   key={job.id}
-                  className="bg-slate-900/90 border-2 border-slate-800 hover:border-amber-500/60 rounded-3xl p-5 shadow-2xl flex flex-col justify-between transition-all duration-150 backdrop-blur-xl group"
+                  className="bg-white border-2 border-slate-200 hover:border-amber-500/60 rounded-xl p-5 shadow-sm flex flex-col justify-between transition-all duration-150  group"
                 >
                   <div>
                     {/* Header: Plate & Ticket */}
-                    <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-800">
+                    <div className="flex items-start justify-between gap-2 pb-3 border-b border-slate-200">
                       <div>
-                        <span className="font-mono text-2xl font-black text-amber-300 tracking-wider">
+                        <span className="tabular-nums text-2xl font-semibold text-amber-700 tracking-wider">
                           {job.vehicle?.registration_number}
                         </span>
-                        <div className="text-xs text-slate-300 font-semibold mt-0.5">
+                        <div className="text-xs text-slate-600 font-semibold mt-0.5">
                           {job.vehicle?.make} {job.vehicle?.model || ''}
                         </div>
                       </div>
-                      <span className="font-mono text-[10px] text-slate-500 bg-slate-950 border border-slate-800 px-2.5 py-1 rounded-lg">
+                      <span className="tabular-nums text-xs text-slate-500 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
                         {job.ticket_number}
                       </span>
                     </div>
 
                     {/* Customer & Bay Info */}
                     <div className="py-3 space-y-1.5 text-xs">
-                      <div className="flex justify-between items-center text-slate-300">
+                      <div className="flex justify-between items-center text-slate-600">
                         <span className="text-slate-500">Customer:</span>
-                        <strong className="text-white">{job.customer_name || job.vehicle?.customer_name}</strong>
+                        <strong className="text-slate-900">{job.customer_name || job.vehicle?.customer_name}</strong>
                       </div>
-                      <div className="flex justify-between items-center text-slate-300">
+                      <div className="flex justify-between items-center text-slate-600">
                         <span className="text-slate-500">Completed From:</span>
-                        <span className="font-mono text-sky-400 font-bold">{bayTag}</span>
+                        <span className="tabular-nums text-sky-700 font-bold">{bayTag}</span>
                       </div>
-                      <div className="flex justify-between items-center text-slate-300">
+                      <div className="flex justify-between items-center text-slate-600">
                         <span className="text-slate-500">Bay Duration:</span>
-                        <span className="font-mono text-amber-400 font-bold flex items-center gap-1">
+                        <span className="tabular-nums text-amber-700 font-bold flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {calculateBayDuration(job.started_at, job.completed_at)}
                         </span>
@@ -226,17 +226,17 @@ export default function BillingQueue({ onOpenCheckout }) {
                     </div>
 
                     {/* Services Breakdown */}
-                    <div className="bg-slate-950 border border-slate-800/80 rounded-2xl p-3 space-y-1.5 my-2">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-1.5 my-2">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
                         Completed Services:
                       </span>
                       {job.services?.map((s) => (
                         <div
                           key={s.id}
-                          className="flex justify-between items-center text-xs text-slate-300"
+                          className="flex justify-between items-center text-xs text-slate-600"
                         >
                           <span className="truncate pr-2">• {s.service?.name}</span>
-                          <span className="font-mono text-emerald-400 font-bold shrink-0">
+                          <span className="tabular-nums text-emerald-700 font-bold shrink-0">
                             Rs. {parseFloat(s.price_charged).toLocaleString()}
                           </span>
                         </div>
@@ -245,10 +245,10 @@ export default function BillingQueue({ onOpenCheckout }) {
                   </div>
 
                   {/* Settle Payment Action */}
-                  <div className="pt-4 border-t border-slate-800 mt-2">
+                  <div className="pt-4 border-t border-slate-200 mt-2">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs text-slate-400 font-semibold">Net Payable</span>
-                      <span className="font-mono text-2xl font-black text-emerald-400">
+                      <span className="text-xs text-slate-500 font-semibold">Net Payable</span>
+                      <span className="tabular-nums text-2xl font-semibold text-emerald-700">
                         Rs. {subtotal.toLocaleString()}
                       </span>
                     </div>
@@ -256,10 +256,10 @@ export default function BillingQueue({ onOpenCheckout }) {
                     <button
                       type="button"
                       onClick={() => onOpenCheckout(job)}
-                      className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-500 active:scale-[0.98] text-slate-950 font-black text-sm flex items-center justify-center gap-2 transition shadow-xl shadow-amber-500/20 group-hover:shadow-amber-500/30"
+                      className="w-full py-3.5 px-4 rounded-lg bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-yellow-500 active:scale-[0.98] text-slate-950 font-semibold text-sm flex items-center justify-center gap-2 transition shadow-sm group-hover:shadow-amber-500/30"
                     >
                       <Receipt className="w-4 h-4 text-slate-950" />
-                      <span>Cashier Settle & Print Receipt</span>
+                      <span>Collect payment</span>
                       <ArrowRight className="w-4 h-4 ml-auto text-slate-950" />
                     </button>
                   </div>
@@ -271,26 +271,26 @@ export default function BillingQueue({ onOpenCheckout }) {
       </div>
 
       {/* RECENT SETTLED INVOICES & IMMUTABLE LEDGER REVERSAL / REFUND */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 backdrop-blur-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800 mb-5">
+      <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-5 ">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 mb-5">
           <div>
-            <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              Settled Invoices & Ledger Immutability
+            <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-700" />
+              Recent invoices
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Invoices are strictly immutable. Corrections or voids require Shop Admin PIN authorization.
+            <p className="text-xs text-slate-500 mt-0.5">
+              Review payments or request an authorised refund.
             </p>
           </div>
-          <span className="text-xs font-mono bg-slate-950 border border-slate-800 text-slate-400 px-3 py-1.5 rounded-xl">
-            Audit Standard: Zero-Deletion
+          <span className="text-xs tabular-nums bg-slate-50 border border-slate-200 text-slate-500 px-3 py-1.5 rounded-xl">
+            Payment history
           </span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-800 text-slate-400 uppercase font-mono text-[10px]">
+              <tr className="border-b border-slate-200 text-slate-500 uppercase tabular-nums text-xs">
                 <th className="py-2.5 px-3">Invoice #</th>
                 <th className="py-2.5 px-3">Vehicle</th>
                 <th className="py-2.5 px-3">Customer</th>
@@ -300,37 +300,37 @@ export default function BillingQueue({ onOpenCheckout }) {
                 <th className="py-2.5 px-3 text-right">Correction</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-slate-200/60">
               {recentInvoices.map((inv) => (
-                <tr key={inv.id} className="hover:bg-slate-800/30 transition">
-                  <td className="py-3 px-3 font-mono font-bold text-sky-400">{inv.invoice_number}</td>
-                  <td className="py-3 px-3 font-mono font-extrabold text-amber-300">
+                <tr key={inv.id} className="hover:bg-slate-100 transition">
+                  <td className="py-3 px-3 tabular-nums font-bold text-sky-700">{inv.invoice_number}</td>
+                  <td className="py-3 px-3 tabular-nums font-semibold text-amber-700">
                     {inv.job_card?.vehicle?.registration_number || 'N/A'}
                   </td>
-                  <td className="py-3 px-3 text-slate-300 font-semibold">
+                  <td className="py-3 px-3 text-slate-600 font-semibold">
                     {inv.job_card?.customer_name || inv.job_card?.vehicle?.customer_name || 'Walk-in'}
                   </td>
                   <td className="py-3 px-3">
                     <span
-                      className={`font-mono text-[10px] px-2 py-0.5 rounded border ${
+                      className={`tabular-nums text-xs px-2 py-0.5 rounded border ${
                         inv.payment_method === 'CASH'
-                          ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
-                          : 'bg-sky-950 text-sky-400 border-sky-800'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-sky-50 text-sky-700 border-sky-200'
                       }`}
                     >
                       {inv.payment_method}
                     </span>
                   </td>
-                  <td className="py-3 px-3 text-right font-mono font-extrabold text-emerald-400">
+                  <td className="py-3 px-3 text-right tabular-nums font-semibold text-emerald-700">
                     Rs. {parseFloat(inv.total_amount).toLocaleString()}
                   </td>
                   <td className="py-3 px-3">
                     {inv.refund ? (
-                      <span className="font-mono text-[10px] bg-rose-950 text-rose-400 border border-rose-800 px-2 py-0.5 rounded font-bold">
+                      <span className="tabular-nums text-xs bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded font-bold">
                         REFUNDED
                       </span>
                     ) : (
-                      <span className="font-mono text-[10px] bg-slate-950 text-slate-400 border border-slate-800 px-2 py-0.5 rounded">
+                      <span className="tabular-nums text-xs bg-slate-50 text-slate-500 border border-slate-200 px-2 py-0.5 rounded">
                         SETTLED
                       </span>
                     )}
@@ -340,7 +340,7 @@ export default function BillingQueue({ onOpenCheckout }) {
                       <button
                         type="button"
                         onClick={() => handleRefundInitiate(inv)}
-                        className="text-[11px] font-semibold text-rose-400 hover:text-rose-300 bg-rose-950/40 hover:bg-rose-950/80 border border-rose-800/60 px-2.5 py-1 rounded-lg transition"
+                        className="text-xs font-semibold text-rose-700 hover:text-rose-700 bg-rose-50 hover:bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-lg transition"
                       >
                         Refund / Void
                       </button>

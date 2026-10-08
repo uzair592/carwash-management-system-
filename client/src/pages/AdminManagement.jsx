@@ -58,7 +58,7 @@ export default function AdminManagement() {
     low_stock_threshold: '10',
   });
 
-  // Service Inventory Yield Mappings state
+  // Service Inventory Mappings state
   const [yieldMappings, setYieldMappings] = useState([]);
   const [servicesList, setServicesList] = useState([]);
   const [yieldModal, setYieldModal] = useState(false);
@@ -364,29 +364,29 @@ export default function AdminManagement() {
   // PIN Lock Screen
   if (!isAdminUnlocked) {
     return (
-      <div className="max-w-md mx-auto my-12 p-8 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl text-center">
-        <div className="w-16 h-16 bg-sky-500/10 border border-sky-500/30 text-sky-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+      <div className="max-w-md mx-auto my-12 p-8 bg-white border border-slate-200 rounded-xl shadow-sm text-center">
+        <div className="w-16 h-16 bg-sky-500/10 border border-sky-500/30 text-sky-700 rounded-lg flex items-center justify-center mx-auto mb-6">
           <Lock className="w-8 h-8" />
         </div>
-        <h2 className="text-2xl font-black text-white">Admin Management Lock</h2>
-        <p className="text-slate-400 text-xs mt-2">
-          Enter Shop Admin PIN to access Inventory Yield Control, Payroll, and Partner Equity Engine.
+        <h2 className="text-2xl font-semibold text-slate-900">Management access</h2>
+        <p className="text-slate-500 text-xs mt-2">
+          Enter Shop Admin PIN to access Inventory Control, Payroll, and Partner Equity Engine.
         </p>
 
         <form onSubmit={handlePinSubmit} className="mt-6 space-y-4">
           <input
             type="password"
             maxLength={6}
-            placeholder="Enter Admin PIN (Default: 1234)"
+            placeholder="Enter management PIN"
             value={pinInput}
             onChange={(e) => setPinInput(e.target.value)}
-            className="w-full text-center text-2xl tracking-widest font-mono bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-sky-500"
+            className="w-full text-center text-2xl tracking-widest tabular-nums bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:border-sky-500"
             autoFocus
           />
-          {pinError && <p className="text-xs text-rose-400">{pinError}</p>}
+          {pinError && <p className="text-xs text-rose-700">{pinError}</p>}
           <button
             type="submit"
-            className="w-full bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold py-3 rounded-xl transition flex items-center justify-center gap-2"
+            className="w-full bg-sky-500 text-white hover:bg-sky-400 text-slate-950 font-bold py-3 rounded-xl transition flex items-center justify-center gap-2"
           >
             <Unlock className="w-4 h-4" /> Unlock Admin Panel
           </button>
@@ -408,10 +408,10 @@ export default function AdminManagement() {
       {/* Toast Notification */}
       {toast && (
         <div
-          className={`fixed bottom-6 right-6 z-50 p-4 rounded-2xl border shadow-2xl flex items-center gap-3 ${
+          className={`fixed bottom-6 right-6 z-50 p-4 rounded-lg border shadow-sm flex items-center gap-3 ${
             toast.type === 'success'
-              ? 'bg-emerald-950 border-emerald-800 text-emerald-200'
-              : 'bg-rose-950 border-rose-800 text-rose-200'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              : 'bg-rose-50 border-rose-200 text-rose-700'
           }`}
         >
           {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
@@ -420,40 +420,40 @@ export default function AdminManagement() {
       )}
 
       {/* Top Banner & Tab Navigation */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-2xl backdrop-blur-xl">
+      <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 shadow-sm ">
         <div className="flex items-center gap-4">
-          <div className="p-3.5 bg-gradient-to-br from-indigo-500/20 to-sky-500/20 border border-indigo-500/30 rounded-2xl text-indigo-400">
+          <div className="p-3.5 bg-gradient-to-br from-indigo-500/20 to-sky-500/20 border border-indigo-500/30 rounded-lg text-indigo-700">
             <Boxes className="w-8 h-8" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                Admin Financial Terminal
+              <h2 className="text-2xl sm:text-2xl font-semibold text-slate-900 tracking-tight">
+                Inventory & finance
               </h2>
-              <span className="bg-emerald-950 text-emerald-300 font-mono text-[10px] uppercase font-bold px-2 py-0.5 rounded border border-emerald-800">
-                Monthly Engine
+              <span className="bg-emerald-50 text-emerald-700 tabular-nums text-xs uppercase font-bold px-2 py-0.5 rounded border border-emerald-200">
+                Management
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               Consumable Yield Tracking • Staff Payroll & Commissions • Partner Equity & Profit Split
             </p>
           </div>
         </div>
 
         {/* Tab Toggle Buttons */}
-        <div className="flex flex-wrap items-center gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+        <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
           <button
             onClick={() => setActiveAdminTab('inventory')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
               activeAdminTab === 'inventory'
-                ? 'bg-sky-500 text-slate-950 shadow-lg'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-sky-500 text-white text-slate-950 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             <Boxes className="w-4 h-4" />
-            Inventory Yield
+            Inventory
             {lowStockCount > 0 && (
-              <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+              <span className="bg-rose-500 text-white text-xs px-1.5 py-0.2 rounded-full font-bold">
                 {lowStockCount}
               </span>
             )}
@@ -464,8 +464,8 @@ export default function AdminManagement() {
                 onClick={() => setActiveAdminTab('payroll')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
                   activeAdminTab === 'payroll'
-                    ? 'bg-sky-500 text-slate-950 shadow-lg'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-sky-500 text-white text-slate-950 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 <Users className="w-4 h-4" />
@@ -475,8 +475,8 @@ export default function AdminManagement() {
                 onClick={() => setActiveAdminTab('dividends')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
                   activeAdminTab === 'dividends'
-                    ? 'bg-emerald-500 text-slate-950 shadow-lg'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-emerald-500 text-white text-slate-950 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 <PieChart className="w-4 h-4" />
@@ -489,14 +489,14 @@ export default function AdminManagement() {
                 }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
                   activeAdminTab === 'audit'
-                    ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/20'
-                    : 'text-rose-400/80 hover:text-rose-300 hover:bg-rose-950/40'
+                    ? 'bg-rose-500 text-white shadow-sm'
+                    : 'text-rose-700/80 hover:text-rose-700 hover:bg-rose-50'
                 }`}
               >
                 <ShieldAlert className="w-4 h-4" />
                 Audit Log
                 {auditLogs.length > 0 && (
-                  <span className="bg-rose-950 text-rose-300 font-mono text-[10px] px-1.5 py-0.2 rounded-full border border-rose-800">
+                  <span className="bg-rose-50 text-rose-700 tabular-nums text-xs px-1.5 py-0.2 rounded-full border border-rose-200">
                     {auditLogs.length}
                   </span>
                 )}
@@ -513,55 +513,55 @@ export default function AdminManagement() {
         <div className="space-y-6">
           {/* Quick Metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-              <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
+            <div className="bg-white border border-slate-200 p-5 rounded-lg">
+              <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
                 <span>Items Cataloged</span>
-                <Package className="w-4 h-4 text-sky-400" />
+                <Package className="w-4 h-4 text-sky-700" />
               </div>
-              <p className="text-2xl font-black text-white mt-2">{inventory.length}</p>
-              <p className="text-[11px] text-slate-500 mt-1">High-value detailing consumables</p>
+              <p className="text-2xl font-semibold text-slate-900 mt-2">{inventory.length}</p>
+              <p className="text-xs text-slate-500 mt-1">High-value detailing consumables</p>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-              <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
+            <div className="bg-white border border-slate-200 p-5 rounded-lg">
+              <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
                 <span>Low Stock Warnings</span>
-                <AlertTriangle className={`w-4 h-4 ${lowStockCount > 0 ? 'text-amber-400' : 'text-slate-600'}`} />
+                <AlertTriangle className={`w-4 h-4 ${lowStockCount > 0 ? 'text-amber-700' : 'text-slate-600'}`} />
               </div>
-              <p className={`text-2xl font-black mt-2 ${lowStockCount > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
+              <p className={`text-2xl font-semibold mt-2 ${lowStockCount > 0 ? 'text-amber-700' : 'text-slate-500'}`}>
                 {lowStockCount} Items
               </p>
-              <p className="text-[11px] text-slate-500 mt-1">Below critical reorder threshold</p>
+              <p className="text-xs text-slate-500 mt-1">Below critical reorder threshold</p>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-              <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
+            <div className="bg-white border border-slate-200 p-5 rounded-lg">
+              <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
                 <span>Active Yield Rules</span>
-                <LinkIcon className="w-4 h-4 text-emerald-400" />
+                <LinkIcon className="w-4 h-4 text-emerald-700" />
               </div>
-              <p className="text-2xl font-black text-emerald-400 mt-2">{yieldMappings.length} Mappings</p>
-              <p className="text-[11px] text-slate-500 mt-1">Deducted automatically on invoice</p>
+              <p className="text-2xl font-semibold text-emerald-700 mt-2">{yieldMappings.length} Mappings</p>
+              <p className="text-xs text-slate-500 mt-1">Deducted automatically on invoice</p>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-              <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
+            <div className="bg-white border border-slate-200 p-5 rounded-lg">
+              <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
                 <span>Est. Inventory Value</span>
-                <DollarSign className="w-4 h-4 text-emerald-400" />
+                <DollarSign className="w-4 h-4 text-emerald-700" />
               </div>
-              <p className="text-2xl font-black text-white mt-2">
+              <p className="text-2xl font-semibold text-slate-900 mt-2">
                 Rs. {totalInvValue.toLocaleString('en-US', { minimumFractionDigits: 0 })}
               </p>
-              <p className="text-[11px] text-slate-500 mt-1">Current assets on premises</p>
+              <p className="text-xs text-slate-500 mt-1">Current assets on premises</p>
             </div>
           </div>
 
           {/* Consumables Catalog Table */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl overflow-hidden">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm overflow-hidden">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
               <div>
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Package className="w-5 h-5 text-sky-400" /> Detailing Consumables & Stock Levels
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Package className="w-5 h-5 text-sky-700" /> Detailing Consumables & Stock Levels
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Protects expensive ceramic bottles and PPF rolls from leakage and unaccounted shrinkage.
                 </p>
               </div>
@@ -569,14 +569,14 @@ export default function AdminManagement() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={fetchInventory}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2.5 rounded-xl transition"
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-600 p-2.5 rounded-xl transition"
                   title="Refresh Stock"
                 >
                   <RefreshCw className={`w-4 h-4 ${isLoadingInv ? 'animate-spin' : ''}`} />
                 </button>
                 <button
                   onClick={() => setNewConsumableModal(true)}
-                  className="bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2"
+                  className="bg-sky-500 text-white hover:bg-sky-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2"
                 >
                   <PlusCircle className="w-4 h-4" /> Add Consumable
                 </button>
@@ -585,7 +585,7 @@ export default function AdminManagement() {
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-950/70 text-slate-400 uppercase font-mono text-[10px] border-b border-slate-800">
+                <thead className="bg-slate-50 text-slate-500 uppercase tabular-nums text-xs border-b border-slate-200">
                   <tr>
                     <th className="py-3 px-4">Item Name</th>
                     <th className="py-3 px-4 text-center">Unit</th>
@@ -597,39 +597,39 @@ export default function AdminManagement() {
                     <th className="py-3 px-4 text-center">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800 text-slate-300">
+                <tbody className="divide-y divide-slate-200 text-slate-600">
                   {inventory.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-800/40 transition">
-                      <td className="py-3.5 px-4 font-bold text-white flex items-center gap-2">
+                    <tr key={item.id} className="hover:bg-slate-100 transition">
+                      <td className="py-3.5 px-4 font-bold text-slate-900 flex items-center gap-2">
                         {item.item_name}
                       </td>
-                      <td className="py-3.5 px-4 text-center font-mono">
-                        <span className="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded font-bold">
+                      <td className="py-3.5 px-4 text-center tabular-nums">
+                        <span className="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded font-bold">
                           {item.unit_type}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-bold text-white">
+                      <td className="py-3.5 px-4 text-right tabular-nums font-bold text-slate-900">
                         {item.current_stock.toLocaleString('en-US', { minimumFractionDigits: 1 })}{' '}
-                        <span className="text-slate-500 text-[10px]">{item.unit_type}</span>
+                        <span className="text-slate-500 text-xs">{item.unit_type}</span>
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono text-slate-300">
+                      <td className="py-3.5 px-4 text-right tabular-nums text-slate-600">
                         Rs. {item.cost_per_unit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-400">
+                      <td className="py-3.5 px-4 text-right tabular-nums font-bold text-emerald-700">
                         Rs. {(item.current_stock * item.cost_per_unit).toLocaleString('en-US', {
                           minimumFractionDigits: 2,
                         })}
                       </td>
-                      <td className="py-3.5 px-4 text-center font-mono text-slate-400">
+                      <td className="py-3.5 px-4 text-center tabular-nums text-slate-500">
                         {item.low_stock_threshold} {item.unit_type}
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         {item.is_low_stock ? (
-                          <span className="inline-flex items-center gap-1 bg-rose-950 text-rose-300 text-[10px] font-mono px-2 py-0.5 rounded font-bold border border-rose-800">
+                          <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 text-xs tabular-nums px-2 py-0.5 rounded font-bold border border-rose-200">
                             <AlertTriangle className="w-3 h-3" /> Low Stock Alert
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 bg-emerald-950 text-emerald-300 text-[10px] font-mono px-2 py-0.5 rounded font-bold border border-emerald-800">
+                          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-xs tabular-nums px-2 py-0.5 rounded font-bold border border-emerald-200">
                             <CheckCircle2 className="w-3 h-3" /> Healthy Stock
                           </span>
                         )}
@@ -640,7 +640,7 @@ export default function AdminManagement() {
                             setRestockModal(item);
                             setRestockQty('');
                           }}
-                          className="text-[11px] bg-slate-800 hover:bg-emerald-600 hover:text-slate-950 text-slate-200 px-3 py-1 rounded-lg font-semibold transition"
+                          className="text-xs bg-slate-100 hover:bg-emerald-600 text-white hover:text-slate-950 text-slate-700 px-3 py-1 rounded-lg font-semibold transition"
                         >
                           + Restock
                         </button>
@@ -660,20 +660,20 @@ export default function AdminManagement() {
           </div>
 
           {/* Service Consumable Yield Rules Table */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
               <div>
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <LinkIcon className="w-5 h-5 text-emerald-400" /> Service Yield Rules (Deduction on Checkout)
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <LinkIcon className="w-5 h-5 text-emerald-700" /> Service Yield Rules (Deduction on Checkout)
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   When a customer is invoiced, the exact chemical/roll quantity is deducted automatically in an atomic transaction.
                 </p>
               </div>
 
               <button
                 onClick={() => setYieldModal(true)}
-                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2"
+                className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2"
               >
                 <PlusCircle className="w-4 h-4" /> Map Consumable to Service
               </button>
@@ -681,7 +681,7 @@ export default function AdminManagement() {
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-950/70 text-slate-400 uppercase font-mono text-[10px] border-b border-slate-800">
+                <thead className="bg-slate-50 text-slate-500 uppercase tabular-nums text-xs border-b border-slate-200">
                   <tr>
                     <th className="py-3 px-4">Service Name</th>
                     <th className="py-3 px-4">Deducted Consumable</th>
@@ -691,26 +691,26 @@ export default function AdminManagement() {
                     <th className="py-3 px-4 text-center">Theft Shield</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800 text-slate-300">
+                <tbody className="divide-y divide-slate-200 text-slate-600">
                   {yieldMappings.map((map) => (
-                    <tr key={map.id} className="hover:bg-slate-800/40 transition">
-                      <td className="py-3.5 px-4 font-bold text-white">{map.service?.name}</td>
-                      <td className="py-3.5 px-4 text-slate-200">{map.inventory?.item_name}</td>
-                      <td className="py-3.5 px-4 text-center font-mono">
-                        <span className="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded font-bold">
+                    <tr key={map.id} className="hover:bg-slate-100 transition">
+                      <td className="py-3.5 px-4 font-bold text-slate-900">{map.service?.name}</td>
+                      <td className="py-3.5 px-4 text-slate-700">{map.inventory?.item_name}</td>
+                      <td className="py-3.5 px-4 text-center tabular-nums">
+                        <span className="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded font-bold">
                           {map.inventory?.unit_type}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-bold text-amber-400">
+                      <td className="py-3.5 px-4 text-right tabular-nums font-bold text-amber-700">
                         {map.deduction_amount} {map.inventory?.unit_type}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono text-emerald-400 font-bold">
+                      <td className="py-3.5 px-4 text-right tabular-nums text-emerald-700 font-bold">
                         Rs. {(map.deduction_amount * (map.inventory?.cost_per_unit || 0)).toLocaleString('en-US', {
                           minimumFractionDigits: 2,
                         })}
                       </td>
                       <td className="py-3.5 px-4 text-center">
-                        <span className="inline-flex items-center gap-1 bg-emerald-950 text-emerald-300 text-[10px] font-mono px-2 py-0.5 rounded font-bold border border-emerald-800">
+                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-xs tabular-nums px-2 py-0.5 rounded font-bold border border-emerald-200">
                           <ShieldCheck className="w-3 h-3" /> Auto-Deducted
                         </span>
                       </td>
@@ -736,21 +736,21 @@ export default function AdminManagement() {
       {activeAdminTab === 'payroll' && (
         <div className="space-y-6">
           {/* Payroll Header & Month Navigation */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Users className="w-5 h-5 text-sky-400" /> Monthly Staff Payroll & Commissions Engine
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Users className="w-5 h-5 text-sky-700" /> Monthly Staff Payroll & Commissions Engine
               </h3>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Automated compensation breakdown: Base Salary + Flat Rate Per Car or Detailing Percentage.
               </p>
             </div>
 
             {/* Month Picker Controls */}
-            <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 p-1.5 rounded-2xl">
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-lg">
               <button
                 onClick={() => shiftMonth(-1)}
-                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
+                className="p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition"
                 title="Previous Month"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -760,12 +760,12 @@ export default function AdminManagement() {
                 type="month"
                 value={currentMonth}
                 onChange={(e) => setCurrentMonth(e.target.value)}
-                className="bg-transparent text-white font-mono text-sm px-2 py-1 focus:outline-none cursor-pointer"
+                className="bg-transparent text-slate-900 tabular-nums text-sm px-2 py-1 focus:outline-none cursor-pointer"
               />
 
               <button
                 onClick={() => shiftMonth(1)}
-                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
+                className="p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition"
                 title="Next Month"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -773,7 +773,7 @@ export default function AdminManagement() {
 
               <button
                 onClick={() => fetchPayroll(currentMonth)}
-                className="bg-sky-500 hover:bg-sky-400 text-slate-950 p-2 rounded-xl transition"
+                className="bg-sky-500 text-white hover:bg-sky-400 text-slate-950 p-2 rounded-xl transition"
                 title="Refresh Payroll"
               >
                 <RefreshCw className={`w-4 h-4 ${isLoadingPayroll ? 'animate-spin' : ''}`} />
@@ -783,51 +783,51 @@ export default function AdminManagement() {
 
           {/* Payroll KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-              <span className="text-xs text-slate-400 font-medium">Active Staff Count</span>
-              <p className="text-2xl font-black text-white mt-2">
+            <div className="bg-white border border-slate-200 p-5 rounded-lg">
+              <span className="text-xs text-slate-500 font-medium">Active Staff Count</span>
+              <p className="text-2xl font-semibold text-slate-900 mt-2">
                 {payrollData?.summary?.staff_count || 0} Members
               </p>
-              <p className="text-[11px] text-slate-500 mt-1">Admins, Cashiers & Bay Detailers</p>
+              <p className="text-xs text-slate-500 mt-1">Admins, Cashiers & Bay Detailers</p>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-              <span className="text-xs text-slate-400 font-medium">Total Base Salaries</span>
-              <p className="text-2xl font-black text-slate-200 mt-2">
+            <div className="bg-white border border-slate-200 p-5 rounded-lg">
+              <span className="text-xs text-slate-500 font-medium">Total Base Salaries</span>
+              <p className="text-2xl font-semibold text-slate-700 mt-2">
                 Rs. {(payrollData?.summary?.total_base_salaries || 0).toLocaleString('en-US', {
                   minimumFractionDigits: 0,
                 })}
               </p>
-              <p className="text-[11px] text-slate-500 mt-1">Fixed monthly payroll commitments</p>
+              <p className="text-xs text-slate-500 mt-1">Fixed monthly payroll commitments</p>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-              <span className="text-xs text-slate-400 font-medium">Total Commissions</span>
-              <p className="text-2xl font-black text-amber-400 mt-2">
+            <div className="bg-white border border-slate-200 p-5 rounded-lg">
+              <span className="text-xs text-slate-500 font-medium">Total Commissions</span>
+              <p className="text-2xl font-semibold text-amber-700 mt-2">
                 Rs. {(payrollData?.summary?.total_commissions || 0).toLocaleString('en-US', {
                   minimumFractionDigits: 0,
                 })}
               </p>
-              <p className="text-[11px] text-slate-500 mt-1">Earned from completed wash & detailing jobs</p>
+              <p className="text-xs text-slate-500 mt-1">Earned from completed wash & detailing jobs</p>
             </div>
 
-            <div className="bg-gradient-to-br from-emerald-950/60 to-slate-900 border border-emerald-800/60 p-5 rounded-2xl">
-              <span className="text-xs text-emerald-300 font-medium">Grand Total Payroll Payout</span>
-              <p className="text-2xl font-black text-emerald-400 mt-2">
+            <div className="bg-gradient-to-br from-emerald-50 to-white border border-emerald-200 p-5 rounded-lg">
+              <span className="text-xs text-emerald-700 font-medium">Grand Total Payroll Payout</span>
+              <p className="text-2xl font-semibold text-emerald-700 mt-2">
                 Rs. {(payrollData?.summary?.total_payroll_expense || 0).toLocaleString('en-US', {
                   minimumFractionDigits: 0,
                 })}
               </p>
-              <p className="text-[11px] text-emerald-500/80 mt-1">Base Salaries + Total Commissions</p>
+              <p className="text-xs text-emerald-500/80 mt-1">Base Salaries + Total Commissions</p>
             </div>
           </div>
 
           {/* Detailed Staff Payroll Table */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl overflow-hidden">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-lg font-bold text-white">Staff Compensation Breakdown</h3>
-                <p className="text-xs text-slate-400">
+                <h3 className="text-lg font-bold text-slate-900">Staff Compensation Breakdown</h3>
+                <p className="text-xs text-slate-500">
                   Month Period: {payrollData?.month || currentMonth} • Direct integration with job card ledger
                 </p>
               </div>
@@ -835,7 +835,7 @@ export default function AdminManagement() {
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-950/70 text-slate-400 uppercase font-mono text-[10px] border-b border-slate-800">
+                <thead className="bg-slate-50 text-slate-500 uppercase tabular-nums text-xs border-b border-slate-200">
                   <tr>
                     <th className="py-3 px-4">Staff Member</th>
                     <th className="py-3 px-4">Role & Team</th>
@@ -844,45 +844,45 @@ export default function AdminManagement() {
                     <th className="py-3 px-4 text-right">Revenue Generated</th>
                     <th className="py-3 px-4 text-center">Commission Plan</th>
                     <th className="py-3 px-4 text-right">Commissions Earned</th>
-                    <th className="py-3 px-4 text-right font-black text-white">Total Payout</th>
+                    <th className="py-3 px-4 text-right font-semibold text-slate-900">Total Payout</th>
                     <th className="py-3 px-4 text-center">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800 text-slate-300">
+                <tbody className="divide-y divide-slate-200 text-slate-600">
                   {payrollData?.payroll?.map((staff) => (
-                    <tr key={staff.user_id} className="hover:bg-slate-800/40 transition">
-                      <td className="py-3.5 px-4 font-bold text-white">{staff.name}</td>
+                    <tr key={staff.user_id} className="hover:bg-slate-100 transition">
+                      <td className="py-3.5 px-4 font-bold text-slate-900">{staff.name}</td>
                       <td className="py-3.5 px-4">
                         <span
-                          className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                          className={`text-xs tabular-nums px-2 py-0.5 rounded font-bold ${
                             staff.role === 'Admin'
-                              ? 'bg-purple-950 text-purple-300 border border-purple-800'
+                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
                               : staff.role === 'Cashier'
-                              ? 'bg-sky-950 text-sky-300 border border-sky-800'
-                              : 'bg-amber-950 text-amber-300 border border-amber-800'
+                              ? 'bg-sky-50 text-sky-700 border border-sky-200'
+                              : 'bg-amber-50 text-amber-700 border border-amber-200'
                           }`}
                         >
                           {staff.role} {staff.team ? `(${staff.team})` : ''}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono text-slate-200">
+                      <td className="py-3.5 px-4 text-right tabular-nums text-slate-700">
                         Rs. {staff.base_salary.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="py-3.5 px-4 text-center font-mono font-bold text-white">
+                      <td className="py-3.5 px-4 text-center tabular-nums font-bold text-slate-900">
                         {staff.completed_jobs_count}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono text-slate-400">
+                      <td className="py-3.5 px-4 text-right tabular-nums text-slate-500">
                         Rs. {staff.total_revenue_generated.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="py-3.5 px-4 text-center font-mono text-amber-400 font-bold">
+                      <td className="py-3.5 px-4 text-center tabular-nums text-amber-700 font-bold">
                         {staff.commission_mode === 'FLAT_PER_CAR'
                           ? `Rs. ${staff.flat_commission} / car`
                           : `${staff.commission_rate}%`}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-bold text-amber-400">
+                      <td className="py-3.5 px-4 text-right tabular-nums font-bold text-amber-700">
                         Rs. {staff.commissions_earned.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-black text-emerald-400 text-sm">
+                      <td className="py-3.5 px-4 text-right tabular-nums font-semibold text-emerald-700 text-sm">
                         Rs. {staff.total_payout.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="py-3.5 px-4 text-center">
@@ -895,7 +895,7 @@ export default function AdminManagement() {
                               flat_commission: staff.flat_commission || 0,
                             });
                           }}
-                          className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg transition"
+                          className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2.5 py-1 rounded-lg transition"
                         >
                           Edit Pay
                         </button>
@@ -922,28 +922,28 @@ export default function AdminManagement() {
       {activeAdminTab === 'dividends' && (
         <div className="space-y-6">
           {/* Header & Telegram Outbox Dispatch */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
-                  <PieChart className="w-6 h-6 text-emerald-400" /> Sleeping Partner Profit Split & Equity Engine
+                <h3 className="text-xl sm:text-2xl font-semibold text-slate-900 flex items-center gap-2">
+                  <PieChart className="w-6 h-6 text-emerald-700" /> Sleeping Partner Profit Split & Equity Engine
                 </h3>
-                <span className="bg-emerald-950 text-emerald-300 font-mono text-[10px] uppercase font-bold px-2 py-0.5 rounded border border-emerald-800">
+                <span className="bg-emerald-50 text-emerald-700 tabular-nums text-xs uppercase font-bold px-2 py-0.5 rounded border border-emerald-200">
                   Strict Accounting
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-                True absentee-owner transparency: <code className="text-emerald-300">Net Distributable Profit = Gross Revenue − Expenses − Staff Payroll − Consumable COGS</code>.
+              <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+                True absentee-owner transparency: <code className="text-emerald-700">Net Distributable Profit = Gross Revenue − Expenses − Staff Payroll − Consumable COGS</code>.
                 Calculated strictly from immutable invoices and inventory deductions.
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
               {/* Month Picker Controls */}
-              <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 p-1.5 rounded-2xl">
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-lg">
                 <button
                   onClick={() => shiftMonth(-1)}
-                  className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
+                  className="p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition"
                   title="Previous Month"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -953,12 +953,12 @@ export default function AdminManagement() {
                   type="month"
                   value={currentMonth}
                   onChange={(e) => setCurrentMonth(e.target.value)}
-                  className="bg-transparent text-white font-mono text-sm px-2 py-1 focus:outline-none cursor-pointer"
+                  className="bg-transparent text-slate-900 tabular-nums text-sm px-2 py-1 focus:outline-none cursor-pointer"
                 />
 
                 <button
                   onClick={() => shiftMonth(1)}
-                  className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
+                  className="p-2 text-slate-500 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition"
                   title="Next Month"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -966,7 +966,7 @@ export default function AdminManagement() {
 
                 <button
                   onClick={() => fetchDividends(currentMonth)}
-                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 p-2 rounded-xl transition"
+                  className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 p-2 rounded-xl transition"
                   title="Refresh Financials"
                 >
                   <RefreshCw className={`w-4 h-4 ${isLoadingDividends ? 'animate-spin' : ''}`} />
@@ -977,9 +977,9 @@ export default function AdminManagement() {
               <button
                 onClick={handleDispatchDividends}
                 disabled={isDispatchingDividends}
-                className="bg-sky-500 hover:bg-sky-400 disabled:opacity-50 text-slate-950 font-bold px-4 py-2.5 rounded-2xl text-xs transition flex items-center gap-2 shadow-lg shadow-sky-500/20"
+                className="bg-sky-500 text-white hover:bg-sky-400 disabled:opacity-50 text-slate-950 font-bold px-4 py-2.5 rounded-lg text-xs transition flex items-center gap-2 shadow-sm"
               >
-                <Send className={`w-4 h-4 ${isDispatchingDividends ? 'animate-pulse' : ''}`} />
+                <Send className={`w-4 h-4 ${isDispatchingDividends ? '' : ''}`} />
                 {isDispatchingDividends ? 'Queueing Dossier...' : 'Push to Telegram Outbox'}
               </button>
             </div>
@@ -987,74 +987,74 @@ export default function AdminManagement() {
 
           {/* Month-End P&L Waterfall KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-              <span className="text-xs text-slate-400 font-medium">1. Gross Revenue</span>
-              <p className="text-2xl font-black text-white mt-2">
+            <div className="bg-white border border-slate-200 p-5 rounded-lg">
+              <span className="text-xs text-slate-500 font-medium">1. Gross Revenue</span>
+              <p className="text-2xl font-semibold text-slate-900 mt-2">
                 Rs. {(dividendData?.summary?.gross_revenue || 0).toLocaleString('en-US', {
                   minimumFractionDigits: 0,
                 })}
               </p>
-              <p className="text-[11px] text-slate-500 mt-1">Sum of all customer invoices</p>
+              <p className="text-xs text-slate-500 mt-1">Sum of all customer invoices</p>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-              <span className="text-xs text-slate-400 font-medium">2. Operating Expenses</span>
-              <p className="text-2xl font-black text-rose-400 mt-2">
+            <div className="bg-white border border-slate-200 p-5 rounded-lg">
+              <span className="text-xs text-slate-500 font-medium">2. Operating Expenses</span>
+              <p className="text-2xl font-semibold text-rose-700 mt-2">
                 - Rs. {(dividendData?.summary?.total_expenses || 0).toLocaleString('en-US', {
                   minimumFractionDigits: 0,
                 })}
               </p>
-              <p className="text-[11px] text-slate-500 mt-1">Shop rent, utilities, tea, misc</p>
+              <p className="text-xs text-slate-500 mt-1">Shop rent, utilities, tea, misc</p>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-              <span className="text-xs text-slate-400 font-medium">3. Staff Payroll</span>
-              <p className="text-2xl font-black text-amber-400 mt-2">
+            <div className="bg-white border border-slate-200 p-5 rounded-lg">
+              <span className="text-xs text-slate-500 font-medium">3. Staff Payroll</span>
+              <p className="text-2xl font-semibold text-amber-700 mt-2">
                 - Rs. {(dividendData?.summary?.total_payroll || 0).toLocaleString('en-US', {
                   minimumFractionDigits: 0,
                 })}
               </p>
-              <p className="text-[11px] text-slate-500 mt-1">Base salaries + commissions</p>
+              <p className="text-xs text-slate-500 mt-1">Base salaries + commissions</p>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-              <span className="text-xs text-slate-400 font-medium">4. Consumables COGS</span>
-              <p className="text-2xl font-black text-indigo-400 mt-2">
+            <div className="bg-white border border-slate-200 p-5 rounded-lg">
+              <span className="text-xs text-slate-500 font-medium">4. Consumables COGS</span>
+              <p className="text-2xl font-semibold text-indigo-700 mt-2">
                 - Rs. {(dividendData?.summary?.cogs || 0).toLocaleString('en-US', {
                   minimumFractionDigits: 0,
                 })}
               </p>
-              <p className="text-[11px] text-slate-500 mt-1">Chemicals & PPF rolls used</p>
+              <p className="text-xs text-slate-500 mt-1">Chemicals & PPF rolls used</p>
             </div>
 
-            <div className="bg-gradient-to-br from-emerald-950/80 via-slate-900 to-slate-950 border border-emerald-600/60 p-5 rounded-2xl shadow-xl shadow-emerald-950/40">
-              <div className="flex items-center justify-between text-emerald-300 text-xs font-semibold">
+            <div className="bg-gradient-to-br from-emerald-50 via-white to-slate-50 border border-emerald-600/60 p-5 rounded-lg shadow-sm">
+              <div className="flex items-center justify-between text-emerald-700 text-xs font-semibold">
                 <span>Net Distributable</span>
-                <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded text-[10px] font-mono">
+                <span className="bg-emerald-500/20 text-emerald-700 px-2 py-0.5 rounded text-xs tabular-nums">
                   {dividendData?.summary?.profit_margin_percent || 0}% Margin
                 </span>
               </div>
-              <p className="text-2xl font-black text-emerald-400 mt-2">
+              <p className="text-2xl font-semibold text-emerald-700 mt-2">
                 Rs. {(dividendData?.summary?.net_distributable_profit || 0).toLocaleString('en-US', {
                   minimumFractionDigits: 0,
                 })}
               </p>
-              <p className="text-[11px] text-emerald-500/80 mt-1">Available for Partner Dividends</p>
+              <p className="text-xs text-emerald-500/80 mt-1">Available for Partner Dividends</p>
             </div>
           </div>
 
           {/* Partner Equity & Dividend Distribution Cards */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
               <div>
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Wallet className="w-5 h-5 text-emerald-400" /> Partner Equity & Monthly Dividend Distribution
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Wallet className="w-5 h-5 text-emerald-700" /> Partner Equity & Monthly Dividend Distribution
                 </h3>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Total Equity Registered:{' '}
                   <span
-                    className={`font-mono font-bold ${
-                      Math.abs(totalEquitySum - 100) < 0.1 ? 'text-emerald-400' : 'text-amber-400'
+                    className={`tabular-nums font-bold ${
+                      Math.abs(totalEquitySum - 100) < 0.1 ? 'text-emerald-700' : 'text-amber-700'
                     }`}
                   >
                     {totalEquitySum.toFixed(1)}%
@@ -1066,7 +1066,7 @@ export default function AdminManagement() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setTransferModal(true)}
-                  className="bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 font-bold px-3.5 py-2.5 rounded-xl text-xs transition flex items-center gap-2"
+                  className="bg-sky-500/10 hover:bg-sky-500/20 text-sky-700 border border-sky-500/30 font-bold px-3.5 py-2.5 rounded-xl text-xs transition flex items-center gap-2"
                 >
                   <Wallet className="w-4 h-4" /> Transfer Cash to Bank
                 </button>
@@ -1075,7 +1075,7 @@ export default function AdminManagement() {
                     setPartnerForm({ id: '', partner_name: '', equity_percentage: '', phone: '' });
                     setEditPartnerModal({ isNew: true });
                   }}
-                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2"
+                  className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2"
                 >
                   <PlusCircle className="w-4 h-4" /> Add Partner
                 </button>
@@ -1100,51 +1100,51 @@ export default function AdminManagement() {
                 return (
                   <div
                     key={partner.id}
-                    className="bg-slate-950/80 border border-slate-800 hover:border-slate-700 rounded-2xl p-6 transition flex flex-col justify-between"
+                    className="bg-slate-50 border border-slate-200 hover:border-slate-200 rounded-lg p-5 transition flex flex-col justify-between"
                   >
                     <div>
                       <div className="flex items-start justify-between">
                         <div>
-                          <h4 className="text-base font-bold text-white">{partner.partner_name}</h4>
+                          <h4 className="text-base font-bold text-slate-900">{partner.partner_name}</h4>
                           {partner.phone && (
-                            <span className="text-[11px] text-slate-400 font-mono mt-0.5 block">
+                            <span className="text-xs text-slate-500 tabular-nums mt-0.5 block">
                               {partner.phone}
                             </span>
                           )}
                         </div>
-                        <span className="bg-sky-950 text-sky-300 font-mono text-xs font-bold px-2.5 py-1 rounded-full border border-sky-800">
+                        <span className="bg-sky-50 text-sky-700 tabular-nums text-xs font-bold px-2.5 py-1 rounded-full border border-sky-200">
                           {equityPct.toFixed(1)}% Equity
                         </span>
                       </div>
 
                       {/* Visual Progress Bar */}
-                      <div className="w-full bg-slate-900 h-2 rounded-full mt-4 overflow-hidden">
+                      <div className="w-full bg-white h-2 rounded-full mt-4 overflow-hidden">
                         <div
-                          className="bg-gradient-to-r from-emerald-500 to-sky-500 h-full rounded-full transition-all duration-500"
+                          className="bg-gradient-to-r from-emerald-500 text-white to-sky-500 h-full rounded-full transition-all duration-500"
                           style={{ width: `${Math.min(100, equityPct)}%` }}
                         />
                       </div>
 
-                      <div className="mt-5 pt-4 border-t border-slate-800/80 space-y-2">
-                        <div className="flex justify-between items-center text-[11px] text-slate-400">
+                      <div className="mt-5 pt-4 border-t border-slate-200 space-y-2">
+                        <div className="flex justify-between items-center text-xs text-slate-500">
                           <span>Gross Dividend Share:</span>
-                          <span className="font-mono text-slate-200">
+                          <span className="tabular-nums text-slate-700">
                             Rs. {calculatedDividend.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                           </span>
                         </div>
                         {drawingsDeducted > 0 && (
-                          <div className="flex justify-between items-center text-[11px] text-amber-400">
+                          <div className="flex justify-between items-center text-xs text-amber-700">
                             <span>Drawings Taken from Till:</span>
-                            <span className="font-mono font-bold">
+                            <span className="tabular-nums font-bold">
                               -Rs. {drawingsDeducted.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                             </span>
                           </div>
                         )}
-                        <div className="pt-2 border-t border-slate-800 flex justify-between items-baseline">
-                          <span className="text-[11px] text-emerald-400 uppercase tracking-wider font-bold">
+                        <div className="pt-2 border-t border-slate-200 flex justify-between items-baseline">
+                          <span className="text-xs text-emerald-700 uppercase tracking-wider font-bold">
                             Net Equity Payout:
                           </span>
-                          <p className="text-xl font-black text-emerald-400 font-mono">
+                          <p className="text-xl font-semibold text-emerald-700 tabular-nums">
                             Rs. {finalNetPayout.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                           </p>
                         </div>
@@ -1163,7 +1163,7 @@ export default function AdminManagement() {
                           });
                           setPartnerTxModal(partner);
                         }}
-                        className="text-xs bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 px-2.5 py-1.5 rounded-xl transition border border-amber-800/60 font-semibold"
+                        className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-2.5 py-1.5 rounded-xl transition border border-amber-200 font-semibold"
                       >
                         Record Drawing
                       </button>
@@ -1177,7 +1177,7 @@ export default function AdminManagement() {
                             phone: partner.phone || '',
                           });
                         }}
-                        className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl transition border border-slate-800"
+                        className="text-xs bg-white hover:bg-slate-100 text-slate-600 px-3 py-1.5 rounded-xl transition border border-slate-200"
                       >
                         Edit Share
                       </button>
@@ -1189,13 +1189,13 @@ export default function AdminManagement() {
           </div>
 
           {/* Consumable COGS Breakdown Ledger */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Package className="w-5 h-5 text-indigo-400" /> Detailing Consumables COGS Ledger
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Package className="w-5 h-5 text-indigo-700" /> Detailing Consumables COGS Ledger
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-500">
                   Itemized chemical/film consumption for {dividendData?.month || currentMonth}. Deducted strictly at cost.
                 </p>
               </div>
@@ -1203,31 +1203,31 @@ export default function AdminManagement() {
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-950/70 text-slate-400 uppercase font-mono text-[10px] border-b border-slate-800">
+                <thead className="bg-slate-50 text-slate-500 uppercase tabular-nums text-xs border-b border-slate-200">
                   <tr>
                     <th className="py-3 px-4">Consumable Item</th>
                     <th className="py-3 px-4 text-center">Unit</th>
                     <th className="py-3 px-4 text-right">Consumed Units</th>
                     <th className="py-3 px-4 text-right">Cost Per Unit</th>
-                    <th className="py-3 px-4 text-right font-black text-white">Total COGS Deduction</th>
+                    <th className="py-3 px-4 text-right font-semibold text-slate-900">Total COGS Deduction</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800 text-slate-300">
+                <tbody className="divide-y divide-slate-200 text-slate-600">
                   {dividendData?.cogs_breakdown?.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-slate-800/40 transition">
-                      <td className="py-3 px-4 font-bold text-white">{item.inventory_name}</td>
-                      <td className="py-3 px-4 text-center font-mono">
-                        <span className="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded font-bold">
+                    <tr key={idx} className="hover:bg-slate-100 transition">
+                      <td className="py-3 px-4 font-bold text-slate-900">{item.inventory_name}</td>
+                      <td className="py-3 px-4 text-center tabular-nums">
+                        <span className="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded font-bold">
                           {item.unit}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-amber-400 font-bold">
+                      <td className="py-3 px-4 text-right tabular-nums text-amber-700 font-bold">
                         {item.total_units_consumed} {item.unit}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-slate-400">
+                      <td className="py-3 px-4 text-right tabular-nums text-slate-500">
                         Rs. {item.cost_per_unit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-bold text-indigo-300">
+                      <td className="py-3 px-4 text-right tabular-nums font-bold text-indigo-700">
                         Rs. {item.total_cogs.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
@@ -1252,21 +1252,21 @@ export default function AdminManagement() {
       {activeAdminTab === 'audit' && (
         <div className="space-y-6">
           {/* Header & Control Bar */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 shadow-xl">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-7 shadow-sm">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-rose-400">
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-700">
                     <ShieldAlert className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-black text-white flex items-center gap-2">
+                    <h3 className="text-xl font-semibold text-slate-900 flex items-center gap-2">
                       Immutable System Audit Trail
-                      <span className="text-[10px] bg-rose-950 text-rose-400 font-mono px-2 py-0.5 rounded border border-rose-800 font-bold uppercase">
+                      <span className="text-xs bg-rose-50 text-rose-700 tabular-nums px-2 py-0.5 rounded border border-rose-200 font-bold uppercase">
                         Tamper-Evident
                       </span>
                     </h3>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="text-xs text-slate-500 mt-0.5">
                       Chronological ledger tracking cash variances, discounts, refunds, and manual inventory shifts.
                     </p>
                   </div>
@@ -1275,8 +1275,8 @@ export default function AdminManagement() {
 
               {/* Action Filter & Refresh */}
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5">
-                  <Filter className="w-4 h-4 text-slate-400" />
+                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+                  <Filter className="w-4 h-4 text-slate-500" />
                   <select
                     value={auditFilter}
                     onChange={(e) => {
@@ -1284,52 +1284,52 @@ export default function AdminManagement() {
                       setAuditFilter(val);
                       fetchAuditLogs(val);
                     }}
-                    className="bg-transparent text-xs text-slate-200 font-semibold focus:outline-none cursor-pointer"
+                    className="bg-transparent text-xs text-slate-700 font-semibold focus:outline-none cursor-pointer"
                   >
-                    <option value="ALL" className="bg-slate-900">All Audit Events</option>
-                    <option value="REGISTER_VARIANCE" className="bg-slate-900">Register Cash Variances</option>
-                    <option value="INVOICE_REFUND" className="bg-slate-900">Credit Notes / Refunds</option>
-                    <option value="INVOICE_DISCOUNT" className="bg-slate-900">Invoice Discounts</option>
-                    <option value="INVENTORY_ADJUSTMENT" className="bg-slate-900">Manual Stock Adjustments</option>
-                    <option value="INVENTORY_RESTOCK" className="bg-slate-900">Shipment Restocks</option>
+                    <option value="ALL" className="bg-white">All Audit Events</option>
+                    <option value="REGISTER_VARIANCE" className="bg-white">Register Cash Variances</option>
+                    <option value="INVOICE_REFUND" className="bg-white">Credit Notes / Refunds</option>
+                    <option value="INVOICE_DISCOUNT" className="bg-white">Invoice Discounts</option>
+                    <option value="INVENTORY_ADJUSTMENT" className="bg-white">Manual Stock Adjustments</option>
+                    <option value="INVENTORY_RESTOCK" className="bg-white">Shipment Restocks</option>
                   </select>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => fetchAuditLogs(auditFilter)}
-                  className="bg-slate-800 hover:bg-slate-700 text-white p-2.5 rounded-xl transition flex items-center gap-2 text-xs font-bold"
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-900 p-2.5 rounded-xl transition flex items-center gap-2 text-xs font-bold"
                   title="Reload Audit Logs"
                 >
-                  <RefreshCw className={`w-4 h-4 ${isLoadingAudit ? 'animate-spin text-rose-400' : ''}`} />
+                  <RefreshCw className={`w-4 h-4 ${isLoadingAudit ? 'animate-spin text-rose-700' : ''}`} />
                   <span className="hidden sm:inline">Refresh</span>
                 </button>
               </div>
             </div>
 
             {/* Quick Metrics Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-800/80">
-              <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Total Logged Events</span>
-                <span className="text-xl font-mono font-black text-white mt-1 block">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-200">
+              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+                <span className="text-xs text-slate-500 uppercase font-bold block">Total Logged Events</span>
+                <span className="text-xl tabular-nums font-semibold text-slate-900 mt-1 block">
                   {auditLogs.length}
                 </span>
               </div>
-              <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
-                <span className="text-[10px] text-rose-400 uppercase font-bold block">Cash Variances</span>
-                <span className="text-xl font-mono font-black text-rose-400 mt-1 block">
+              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+                <span className="text-xs text-rose-700 uppercase font-bold block">Cash Variances</span>
+                <span className="text-xl tabular-nums font-semibold text-rose-700 mt-1 block">
                   {auditLogs.filter((l) => l.action === 'REGISTER_VARIANCE').length}
                 </span>
               </div>
-              <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
-                <span className="text-[10px] text-amber-400 uppercase font-bold block">Credit Refunds</span>
-                <span className="text-xl font-mono font-black text-amber-400 mt-1 block">
+              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+                <span className="text-xs text-amber-700 uppercase font-bold block">Credit Refunds</span>
+                <span className="text-xl tabular-nums font-semibold text-amber-700 mt-1 block">
                   {auditLogs.filter((l) => l.action === 'INVOICE_REFUND').length}
                 </span>
               </div>
-              <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl">
-                <span className="text-[10px] text-purple-400 uppercase font-bold block">Authorized Discounts</span>
-                <span className="text-xl font-mono font-black text-purple-400 mt-1 block">
+              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+                <span className="text-xs text-purple-700 uppercase font-bold block">Authorized Discounts</span>
+                <span className="text-xl tabular-nums font-semibold text-purple-700 mt-1 block">
                   {auditLogs.filter((l) => l.action === 'INVOICE_DISCOUNT').length}
                 </span>
               </div>
@@ -1337,11 +1337,11 @@ export default function AdminManagement() {
           </div>
 
           {/* Audit Log Table */}
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-950/80 text-slate-400 border-b border-slate-800 uppercase font-mono text-[11px] tracking-wider">
+                  <tr className="bg-slate-50 text-slate-500 border-b border-slate-200 uppercase tabular-nums text-xs tracking-wider">
                     <th className="py-3.5 px-4">Timestamp</th>
                     <th className="py-3.5 px-4">Action Type</th>
                     <th className="py-3.5 px-4">Audit Narrative</th>
@@ -1349,43 +1349,43 @@ export default function AdminManagement() {
                     <th className="py-3.5 px-4 text-right">Details</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/80 text-slate-300">
+                <tbody className="divide-y divide-slate-200/80 text-slate-600">
                   {auditLogs.map((log) => {
                     const actionBadge = (() => {
                       switch (log.action) {
                         case 'REGISTER_VARIANCE':
                           return (
-                            <span className="bg-rose-950/80 text-rose-400 border border-rose-800 font-mono text-[10px] font-bold px-2 py-0.5 rounded">
+                            <span className="bg-rose-50 text-rose-700 border border-rose-200 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
                               REGISTER VARIANCE
                             </span>
                           );
                         case 'INVOICE_REFUND':
                           return (
-                            <span className="bg-amber-950/80 text-amber-400 border border-amber-800 font-mono text-[10px] font-bold px-2 py-0.5 rounded">
+                            <span className="bg-amber-50 text-amber-700 border border-amber-200 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
                               CREDIT REFUND
                             </span>
                           );
                         case 'INVOICE_DISCOUNT':
                           return (
-                            <span className="bg-purple-950/80 text-purple-300 border border-purple-800 font-mono text-[10px] font-bold px-2 py-0.5 rounded">
+                            <span className="bg-purple-50 text-purple-700 border border-purple-200 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
                               DISCOUNT OVERRIDE
                             </span>
                           );
                         case 'INVENTORY_RESTOCK':
                           return (
-                            <span className="bg-emerald-950/80 text-emerald-400 border border-emerald-800 font-mono text-[10px] font-bold px-2 py-0.5 rounded">
+                            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
                               STOCK RESTOCK
                             </span>
                           );
                         case 'INVENTORY_ADJUSTMENT':
                           return (
-                            <span className="bg-sky-950/80 text-sky-400 border border-sky-800 font-mono text-[10px] font-bold px-2 py-0.5 rounded">
+                            <span className="bg-sky-50 text-sky-700 border border-sky-200 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
                               MANUAL STOCK
                             </span>
                           );
                         default:
                           return (
-                            <span className="bg-slate-800 text-slate-300 font-mono text-[10px] font-bold px-2 py-0.5 rounded">
+                            <span className="bg-slate-100 text-slate-600 tabular-nums text-xs font-bold px-2 py-0.5 rounded">
                               {log.action}
                             </span>
                           );
@@ -1404,31 +1404,31 @@ export default function AdminManagement() {
                       : 'N/A';
 
                     return (
-                      <tr key={log.id} className="hover:bg-slate-800/30 transition">
-                        <td className="py-3.5 px-4 font-mono text-slate-400 whitespace-nowrap">
+                      <tr key={log.id} className="hover:bg-slate-100 transition">
+                        <td className="py-3.5 px-4 tabular-nums text-slate-500 whitespace-nowrap">
                           {dateStr}
                         </td>
                         <td className="py-3.5 px-4 whitespace-nowrap">
                           {actionBadge}
                         </td>
-                        <td className="py-3.5 px-4 font-medium text-slate-200">
+                        <td className="py-3.5 px-4 font-medium text-slate-700">
                           {log.description}
                         </td>
                         <td className="py-3.5 px-4 whitespace-nowrap">
-                          <span className="font-semibold text-white">
+                          <span className="font-semibold text-slate-900">
                             {log.performed_by_name || 'System / Staff'}
                           </span>
                           {log.performed_by_user_id && (
-                            <span className="block font-mono text-[10px] text-slate-500 truncate max-w-[120px]">
+                            <span className="block tabular-nums text-xs text-slate-500 truncate max-w-[120px]">
                               {log.performed_by_user_id}
                             </span>
                           )}
                         </td>
-                        <td className="py-3.5 px-4 text-right font-mono text-[11px] text-slate-400">
+                        <td className="py-3.5 px-4 text-right tabular-nums text-xs text-slate-500">
                           {log.metadata ? (
                             <span
                               title={JSON.stringify(log.metadata, null, 2)}
-                              className="bg-slate-950 px-2 py-1 rounded border border-slate-800 inline-block max-w-[180px] truncate"
+                              className="bg-slate-50 px-2 py-1 rounded border border-slate-200 inline-block max-w-[180px] truncate"
                             >
                               {Object.entries(log.metadata)
                                 .slice(0, 2)
@@ -1448,7 +1448,7 @@ export default function AdminManagement() {
                       <td colSpan={5} className="py-12 text-center text-slate-500">
                         <ShieldAlert className="w-10 h-10 text-slate-700 mx-auto mb-2 opacity-50" />
                         <p className="font-medium">No audit events match the selected criteria.</p>
-                        <p className="text-[11px] text-slate-600 mt-1">
+                        <p className="text-xs text-slate-600 mt-1">
                           Sensitive actions such as variances, discounts, and refunds will appear here in real time.
                         </p>
                       </td>
@@ -1456,8 +1456,8 @@ export default function AdminManagement() {
                   )}
                   {isLoadingAudit && (
                     <tr>
-                      <td colSpan={5} className="py-12 text-center text-slate-400">
-                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-rose-400" />
+                      <td colSpan={5} className="py-12 text-center text-slate-500">
+                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-rose-700" />
                         <p>Loading tamper-evident audit logs...</p>
                       </td>
                     </tr>
@@ -1473,18 +1473,18 @@ export default function AdminManagement() {
       {/* RESTOCK MODAL */}
       {/* ============================================================== */}
       {restockModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <PlusCircle className="w-5 h-5 text-emerald-400" /> Restock Consumable Shipment
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 max-w-md w-full shadow-sm">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <PlusCircle className="w-5 h-5 text-emerald-700" /> Restock Consumable Shipment
             </h3>
-            <p className="text-xs text-slate-400 mt-1">
-              Add arriving stock for <span className="text-white font-semibold">{restockModal.item_name}</span>.
+            <p className="text-xs text-slate-500 mt-1">
+              Add arriving stock for <span className="text-slate-900 font-semibold">{restockModal.item_name}</span>.
             </p>
 
             <form onSubmit={handleRestockSubmit} className="mt-5 space-y-4">
               <div>
-                <label className="text-xs text-slate-400">
+                <label className="text-xs text-slate-500">
                   Current Stock: {restockModal.current_stock} {restockModal.unit_type}
                 </label>
                 <div className="relative mt-1">
@@ -1496,10 +1496,10 @@ export default function AdminManagement() {
                     placeholder={`Quantity to add in ${restockModal.unit_type}`}
                     value={restockQty}
                     onChange={(e) => setRestockQty(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white font-mono focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums focus:outline-none focus:border-emerald-500"
                     autoFocus
                   />
-                  <span className="absolute right-4 top-2.5 text-slate-500 text-xs font-mono">
+                  <span className="absolute right-4 top-2.5 text-slate-500 text-xs tabular-nums">
                     {restockModal.unit_type}
                   </span>
                 </div>
@@ -1509,13 +1509,13 @@ export default function AdminManagement() {
                 <button
                   type="button"
                   onClick={() => setRestockModal(null)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
+                  className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
                 >
                   Confirm Restock
                 </button>
@@ -1529,33 +1529,33 @@ export default function AdminManagement() {
       {/* NEW CONSUMABLE MODAL */}
       {/* ============================================================== */}
       {newConsumableModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Package className="w-5 h-5 text-sky-400" /> New Consumable Item
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 max-w-md w-full shadow-sm">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Package className="w-5 h-5 text-sky-700" /> New Consumable Item
             </h3>
-            <p className="text-xs text-slate-400 mt-1">Register a high-value consumable in inventory.</p>
+            <p className="text-xs text-slate-500 mt-1">Register a high-value consumable in inventory.</p>
 
             <form onSubmit={handleCreateItemSubmit} className="mt-5 space-y-4">
               <div>
-                <label className="text-xs text-slate-400">Item Name</label>
+                <label className="text-xs text-slate-500">Item Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Ceramic Coating 9H Pro"
                   value={newItemForm.item_name}
                   onChange={(e) => setNewItemForm({ ...newItemForm, item_name: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white text-xs mt-1 focus:outline-none focus:border-sky-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-slate-400">Unit Type</label>
+                  <label className="text-xs text-slate-500">Unit Type</label>
                   <select
                     value={newItemForm.unit_type}
                     onChange={(e) => setNewItemForm({ ...newItemForm, unit_type: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs mt-1 focus:outline-none focus:border-sky-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500"
                   >
                     <option value="ML">ML (Milliliters)</option>
                     <option value="ROLL">ROLL (PPF / Film)</option>
@@ -1565,7 +1565,7 @@ export default function AdminManagement() {
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-400">Initial Stock</label>
+                  <label className="text-xs text-slate-500">Initial Stock</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1573,14 +1573,14 @@ export default function AdminManagement() {
                     placeholder="e.g. 500"
                     value={newItemForm.current_stock}
                     onChange={(e) => setNewItemForm({ ...newItemForm, current_stock: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs mt-1 focus:outline-none focus:border-sky-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-slate-400">Cost Per Unit (Rs.)</label>
+                  <label className="text-xs text-slate-500">Cost Per Unit (Rs.)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1588,12 +1588,12 @@ export default function AdminManagement() {
                     placeholder="e.g. 150"
                     value={newItemForm.cost_per_unit}
                     onChange={(e) => setNewItemForm({ ...newItemForm, cost_per_unit: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs mt-1 focus:outline-none focus:border-sky-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs text-slate-400">Low Stock Alert Threshold</label>
+                  <label className="text-xs text-slate-500">Low Stock Alert Threshold</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1603,7 +1603,7 @@ export default function AdminManagement() {
                     onChange={(e) =>
                       setNewItemForm({ ...newItemForm, low_stock_threshold: e.target.value })
                     }
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs mt-1 focus:outline-none focus:border-sky-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500"
                   />
                 </div>
               </div>
@@ -1612,13 +1612,13 @@ export default function AdminManagement() {
                 <button
                   type="button"
                   onClick={() => setNewConsumableModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
+                  className="bg-sky-500 text-white hover:bg-sky-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
                 >
                   Create Consumable
                 </button>
@@ -1632,23 +1632,23 @@ export default function AdminManagement() {
       {/* SERVICE INVENTORY YIELD MAPPING MODAL */}
       {/* ============================================================== */}
       {yieldModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <LinkIcon className="w-5 h-5 text-emerald-400" /> Map Consumable Yield to Service
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 max-w-md w-full shadow-sm">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <LinkIcon className="w-5 h-5 text-emerald-700" /> Map Consumable Yield to Service
             </h3>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               Specify how much chemical or film is deducted automatically when this service is invoiced.
             </p>
 
             <form onSubmit={handleYieldMappingSubmit} className="mt-5 space-y-4">
               <div>
-                <label className="text-xs text-slate-400">Select Service</label>
+                <label className="text-xs text-slate-500">Select Service</label>
                 <select
                   required
                   value={yieldForm.service_id}
                   onChange={(e) => setYieldForm({ ...yieldForm, service_id: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs mt-1 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-emerald-500"
                 >
                   <option value="">-- Choose Billed Service --</option>
                   {servicesList.map((srv) => (
@@ -1660,12 +1660,12 @@ export default function AdminManagement() {
               </div>
 
               <div>
-                <label className="text-xs text-slate-400">Select Consumable Inventory</label>
+                <label className="text-xs text-slate-500">Select Consumable Inventory</label>
                 <select
                   required
                   value={yieldForm.inventory_id}
                   onChange={(e) => setYieldForm({ ...yieldForm, inventory_id: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs mt-1 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-emerald-500"
                 >
                   <option value="">-- Choose Inventory Consumable --</option>
                   {inventory.map((inv) => (
@@ -1677,7 +1677,7 @@ export default function AdminManagement() {
               </div>
 
               <div>
-                <label className="text-xs text-slate-400">Deduction Amount Per Vehicle</label>
+                <label className="text-xs text-slate-500">Deduction Amount Per Vehicle</label>
                 <input
                   type="number"
                   step="0.01"
@@ -1686,7 +1686,7 @@ export default function AdminManagement() {
                   placeholder="e.g. 30 (for 30 ML) or 1.5 (for rolls)"
                   value={yieldForm.deduction_amount}
                   onChange={(e) => setYieldForm({ ...yieldForm, deduction_amount: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white font-mono text-sm mt-1 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-sm mt-1 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -1694,13 +1694,13 @@ export default function AdminManagement() {
                 <button
                   type="button"
                   onClick={() => setYieldModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
+                  className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
                 >
                   Save Yield Mapping
                 </button>
@@ -1714,31 +1714,31 @@ export default function AdminManagement() {
       {/* EDIT SALARY / COMMISSION MODAL */}
       {/* ============================================================== */}
       {editSalaryModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-emerald-400" /> Edit Staff Compensation
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 max-w-md w-full shadow-sm">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-emerald-700" /> Edit Staff Compensation
             </h3>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               Adjust base monthly salary, flat per-car rate, or commission rate for{' '}
-              <span className="text-white font-semibold">{editSalaryModal.name}</span>.
+              <span className="text-slate-900 font-semibold">{editSalaryModal.name}</span>.
             </p>
 
             <form onSubmit={handleSalarySubmit} className="mt-5 space-y-4">
               <div>
-                <label className="text-xs text-slate-400">Base Monthly Salary (Rs.)</label>
+                <label className="text-xs text-slate-500">Base Monthly Salary (Rs.)</label>
                 <input
                   type="number"
                   step="100"
                   required
                   value={salaryForm.base_salary}
                   onChange={(e) => setSalaryForm({ ...salaryForm, base_salary: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white font-mono text-sm mt-1 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-sm mt-1 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400">Flat Commission Per Car (Rs.) - Wash Teams</label>
+                <label className="text-xs text-slate-500">Flat Commission Per Car (Rs.) - Wash Teams</label>
                 <input
                   type="number"
                   step="10"
@@ -1746,12 +1746,12 @@ export default function AdminManagement() {
                   placeholder="e.g. 150 (paid per car washed)"
                   value={salaryForm.flat_commission}
                   onChange={(e) => setSalaryForm({ ...salaryForm, flat_commission: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white font-mono text-sm mt-1 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-sm mt-1 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400">Percentage Commission Rate (%) - Detailing Team</label>
+                <label className="text-xs text-slate-500">Percentage Commission Rate (%) - Detailing Team</label>
                 <input
                   type="number"
                   step="0.1"
@@ -1760,7 +1760,7 @@ export default function AdminManagement() {
                   placeholder="e.g. 10 (%)"
                   value={salaryForm.commission_rate}
                   onChange={(e) => setSalaryForm({ ...salaryForm, commission_rate: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white font-mono text-sm mt-1 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-sm mt-1 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -1768,13 +1768,13 @@ export default function AdminManagement() {
                 <button
                   type="button"
                   onClick={() => setEditSalaryModal(null)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
+                  className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
                 >
                   Save Changes
                 </button>
@@ -1788,31 +1788,31 @@ export default function AdminManagement() {
       {/* EDIT / CREATE PARTNER EQUITY MODAL */}
       {/* ============================================================== */}
       {editPartnerModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <PieChart className="w-5 h-5 text-emerald-400" />{' '}
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 max-w-md w-full shadow-sm">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <PieChart className="w-5 h-5 text-emerald-700" />{' '}
               {editPartnerModal.isNew ? 'Register Partner Equity' : 'Edit Partner Equity'}
             </h3>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               Configure profit dividend allocation percentage for sleeping partner.
             </p>
 
             <form onSubmit={handlePartnerSubmit} className="mt-5 space-y-4">
               <div>
-                <label className="text-xs text-slate-400">Partner Full Name</label>
+                <label className="text-xs text-slate-500">Partner Full Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Malik Umair"
                   value={partnerForm.partner_name}
                   onChange={(e) => setPartnerForm({ ...partnerForm, partner_name: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-xs mt-1 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400">Equity Share Percentage (%)</label>
+                <label className="text-xs text-slate-500">Equity Share Percentage (%)</label>
                 <input
                   type="number"
                   step="0.1"
@@ -1822,18 +1822,18 @@ export default function AdminManagement() {
                   placeholder="e.g. 40.0"
                   value={partnerForm.equity_percentage}
                   onChange={(e) => setPartnerForm({ ...partnerForm, equity_percentage: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white font-mono text-sm mt-1 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-sm mt-1 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400">Phone / Telegram Contact (Optional)</label>
+                <label className="text-xs text-slate-500">Phone / Telegram Contact (Optional)</label>
                 <input
                   type="text"
                   placeholder="e.g. +923001234567"
                   value={partnerForm.phone}
                   onChange={(e) => setPartnerForm({ ...partnerForm, phone: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white font-mono text-xs mt-1 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-xs mt-1 focus:outline-none focus:border-emerald-500"
                 />
               </div>
 
@@ -1841,13 +1841,13 @@ export default function AdminManagement() {
                 <button
                   type="button"
                   onClick={() => setEditPartnerModal(null)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
+                  className="bg-emerald-500 text-white hover:bg-emerald-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
                 >
                   Save Partner Share
                 </button>
@@ -1861,22 +1861,22 @@ export default function AdminManagement() {
       {/* RECORD PARTNER TRANSACTION (DRAWINGS / CAPITAL) MODAL */}
       {/* ============================================================== */}
       {partnerTxModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-amber-400" /> Record Partner Transaction
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 max-w-md w-full shadow-sm">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-amber-700" /> Record Partner Transaction
             </h3>
-            <p className="text-xs text-slate-400 mt-1">
-              Partner: <strong className="text-white">{partnerTxModal.partner_name}</strong> • Strict Double-Entry Ledger
+            <p className="text-xs text-slate-500 mt-1">
+              Partner: <strong className="text-slate-900">{partnerTxModal.partner_name}</strong> • Strict Double-Entry Ledger
             </p>
 
             <form onSubmit={handlePartnerTxSubmit} className="mt-5 space-y-4">
               <div>
-                <label className="text-xs text-slate-400">Transaction Classification</label>
+                <label className="text-xs text-slate-500">Transaction Classification</label>
                 <select
                   value={partnerTxForm.type}
                   onChange={(e) => setPartnerTxForm({ ...partnerTxForm, type: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none focus:border-amber-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-xs mt-1 focus:outline-none focus:border-amber-500"
                 >
                   <option value="DRAWING">DRAWING (Personal withdrawal from till - Deducted from Equity Payout)</option>
                   <option value="CAPITAL_INVESTMENT">CAPITAL_INVESTMENT (Owner equity injection into till)</option>
@@ -1886,7 +1886,7 @@ export default function AdminManagement() {
               </div>
 
               <div>
-                <label className="text-xs text-slate-400">Amount (Rs.) *</label>
+                <label className="text-xs text-slate-500">Amount (Rs.) *</label>
                 <input
                   type="number"
                   step="0.01"
@@ -1895,16 +1895,16 @@ export default function AdminManagement() {
                   placeholder="e.g. 10000"
                   value={partnerTxForm.amount}
                   onChange={(e) => setPartnerTxForm({ ...partnerTxForm, amount: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white font-mono text-base mt-1 focus:outline-none focus:border-amber-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-base mt-1 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400">Source Vault Tender</label>
+                <label className="text-xs text-slate-500">Source Vault Tender</label>
                 <select
                   value={partnerTxForm.payment_method}
                   onChange={(e) => setPartnerTxForm({ ...partnerTxForm, payment_method: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white text-xs mt-1 focus:outline-none focus:border-amber-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-xs mt-1 focus:outline-none focus:border-amber-500"
                 >
                   <option value="CASH">Cash Drawer (Shop Physical Cash Till)</option>
                   <option value="BANK">Main Bank (Business Bank Account)</option>
@@ -1912,17 +1912,17 @@ export default function AdminManagement() {
               </div>
 
               <div>
-                <label className="text-xs text-slate-400">Notes / Audit Memo</label>
+                <label className="text-xs text-slate-500">Notes / Audit Memo</label>
                 <input
                   type="text"
                   placeholder="e.g. Personal emergency withdrawal from cashier drawer"
                   value={partnerTxForm.notes}
                   onChange={(e) => setPartnerTxForm({ ...partnerTxForm, notes: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white text-xs mt-1 focus:outline-none focus:border-amber-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
-              <div className="p-3 bg-amber-950/30 border border-amber-800/40 rounded-xl text-[11px] text-amber-200">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
                 ⚖️ <strong>P&L Protected:</strong> Drawings reduce cash vault &amp; equity payouts, but are <em>not</em> business expenses on the Income Statement.
               </div>
 
@@ -1930,7 +1930,7 @@ export default function AdminManagement() {
                 <button
                   type="button"
                   onClick={() => setPartnerTxModal(null)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
                 >
                   Cancel
                 </button>
@@ -1950,34 +1950,34 @@ export default function AdminManagement() {
       {/* CASH-TO-BANK LEDGER VAULT TRANSFER MODAL */}
       {/* ============================================================== */}
       {transferModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Wallet className="w-5 h-5 text-sky-400" /> Cash-to-Bank Vault Transfer
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 max-w-md w-full shadow-sm">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-sky-700" /> Cash-to-Bank Vault Transfer
             </h3>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               Deposit physical cash from register till into the business bank account.
             </p>
 
             <form onSubmit={handleTransferSubmit} className="mt-5 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-slate-400">From Account</label>
+                  <label className="text-xs text-slate-500">From Account</label>
                   <select
                     value={transferForm.from_account}
                     onChange={(e) => setTransferForm({ ...transferForm, from_account: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs mt-1"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1"
                   >
                     <option value="Cash_Drawer">Cash Drawer</option>
                     <option value="Main_Bank">Main Bank</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400">To Account</label>
+                  <label className="text-xs text-slate-500">To Account</label>
                   <select
                     value={transferForm.to_account}
                     onChange={(e) => setTransferForm({ ...transferForm, to_account: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white text-xs mt-1"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs mt-1"
                   >
                     <option value="Main_Bank">Main Bank</option>
                     <option value="Cash_Drawer">Cash Drawer</option>
@@ -1986,7 +1986,7 @@ export default function AdminManagement() {
               </div>
 
               <div>
-                <label className="text-xs text-slate-400">Transfer Amount (Rs.) *</label>
+                <label className="text-xs text-slate-500">Transfer Amount (Rs.) *</label>
                 <input
                   type="number"
                   step="0.01"
@@ -1995,22 +1995,22 @@ export default function AdminManagement() {
                   placeholder="e.g. 50000"
                   value={transferForm.amount}
                   onChange={(e) => setTransferForm({ ...transferForm, amount: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-white font-mono text-base mt-1 focus:outline-none focus:border-sky-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums text-base mt-1 focus:outline-none focus:border-sky-500"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400">Transfer Notes / Reason</label>
+                <label className="text-xs text-slate-500">Transfer Notes / Reason</label>
                 <input
                   type="text"
                   placeholder="e.g. Night deposit to business bank branch"
                   value={transferForm.notes}
                   onChange={(e) => setTransferForm({ ...transferForm, notes: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white text-xs mt-1 focus:outline-none focus:border-sky-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs mt-1 focus:outline-none focus:border-sky-500"
                 />
               </div>
 
-              <div className="p-3 bg-sky-950/30 border border-sky-800/40 rounded-xl text-[11px] text-sky-200">
+              <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-700">
                 🔒 <strong>Zero P&L Impact:</strong> Balances both vaults without altering revenue or expense ledgers.
               </div>
 
@@ -2018,13 +2018,13 @@ export default function AdminManagement() {
                 <button
                   type="button"
                   onClick={() => setTransferModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+                  className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
+                  className="bg-sky-500 text-white hover:bg-sky-400 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs transition"
                 >
                   Execute Vault Transfer
                 </button>

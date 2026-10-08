@@ -53,22 +53,22 @@ export default function CloseShiftModal({ isOpen, onClose, onSessionClosed, sess
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl animate-fadeIn">
-      <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden p-6 text-slate-100 flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40  animate-fadeIn">
+      <div className="bg-white border-2 border-slate-200 rounded-xl w-full max-w-lg shadow-sm overflow-hidden p-5 text-slate-900 flex flex-col">
         {/* Modal Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-200">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-700">
               <Lock className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-white">Close Cashier Shift & Reconcile</h3>
-              <p className="text-xs text-slate-400 font-mono">End-of-Day Till Settlement</p>
+              <h3 className="text-lg font-semibold text-slate-900">Close Cashier Shift & Reconcile</h3>
+              <p className="text-xs text-slate-500 tabular-nums">End-of-Day Till Settlement</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+            className="text-slate-500 hover:text-slate-900 p-1 rounded-lg hover:bg-slate-100 transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -77,48 +77,48 @@ export default function CloseShiftModal({ isOpen, onClose, onSessionClosed, sess
         {closedResult ? (
           /* Closed Success Receipt */
           <div className="py-6 space-y-5 text-center">
-            <div className="w-16 h-16 rounded-full bg-emerald-950 border-2 border-emerald-500 flex items-center justify-center mx-auto text-emerald-400 shadow-lg shadow-emerald-500/20">
+            <div className="w-16 h-16 rounded-full bg-emerald-50 border-2 border-emerald-500 flex items-center justify-center mx-auto text-emerald-700 shadow-sm">
               <CheckCircle2 className="w-9 h-9" />
             </div>
             <div>
-              <h4 className="text-xl font-black text-white">Shift Closed & Reconciled!</h4>
-              <p className="text-xs text-slate-400 mt-1">
+              <h4 className="text-xl font-semibold text-slate-900">Shift Closed & Reconciled!</h4>
+              <p className="text-xs text-slate-500 mt-1">
                 Variance audit saved and dispatched to Telegram partners.
               </p>
             </div>
 
-            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 text-xs font-mono space-y-2 text-left">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs tabular-nums space-y-2 text-left">
               <div className="flex justify-between">
-                <span className="text-slate-400">STARTING FLOAT:</span>
-                <span className="text-white font-bold">Rs. {startingCash.toLocaleString()}</span>
+                <span className="text-slate-500">STARTING FLOAT:</span>
+                <span className="text-slate-900 font-bold">Rs. {startingCash.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">CASH SALES:</span>
-                <span className="text-emerald-400 font-bold">+Rs. {cashCollected.toLocaleString()}</span>
+                <span className="text-slate-500">CASH SALES:</span>
+                <span className="text-emerald-700 font-bold">+Rs. {cashCollected.toLocaleString()}</span>
               </div>
               {cashOutflow > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-slate-400">CASH EXP/REFUNDS:</span>
-                  <span className="text-rose-400 font-bold">-Rs. {cashOutflow.toLocaleString()}</span>
+                  <span className="text-slate-500">CASH EXP/REFUNDS:</span>
+                  <span className="text-rose-700 font-bold">-Rs. {cashOutflow.toLocaleString()}</span>
                 </div>
               )}
-              <div className="flex justify-between border-t border-slate-800 pt-1.5">
-                <span className="text-slate-400">EXPECTED IN TILL:</span>
-                <span className="text-white font-bold">Rs. {expectedCash.toLocaleString()}</span>
+              <div className="flex justify-between border-t border-slate-200 pt-1.5">
+                <span className="text-slate-500">EXPECTED IN TILL:</span>
+                <span className="text-slate-900 font-bold">Rs. {expectedCash.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">ACTUAL COUNTED:</span>
-                <span className="text-amber-300 font-black">Rs. {countedNum.toLocaleString()}</span>
+                <span className="text-slate-500">ACTUAL COUNTED:</span>
+                <span className="text-amber-700 font-semibold">Rs. {countedNum.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between border-t border-slate-800 pt-2 font-bold text-sm">
+              <div className="flex justify-between border-t border-slate-200 pt-2 font-bold text-sm">
                 <span>TILL VARIANCE:</span>
                 <span
                   className={
                     Math.abs(variance) < 0.01
-                      ? 'text-emerald-400'
+                      ? 'text-emerald-700'
                       : variance < 0
-                      ? 'text-rose-400'
-                      : 'text-sky-400'
+                      ? 'text-rose-700'
+                      : 'text-sky-700'
                   }
                 >
                   {Math.abs(variance) < 0.01
@@ -131,7 +131,7 @@ export default function CloseShiftModal({ isOpen, onClose, onSessionClosed, sess
             <button
               type="button"
               onClick={onClose}
-              className="w-full py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition"
+              className="w-full py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-xs transition"
             >
               Done / Lock POS
             </button>
@@ -139,31 +139,31 @@ export default function CloseShiftModal({ isOpen, onClose, onSessionClosed, sess
         ) : (
           <form onSubmit={handleCloseShift} className="space-y-4 my-4">
             {errorMsg && (
-              <div className="p-3 rounded-xl bg-rose-950/80 border border-rose-500 text-rose-200 text-xs font-semibold flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-500 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-700 shrink-0" />
                 <span>{errorMsg}</span>
               </div>
             )}
 
             {/* Shift Balance Overview Card */}
-            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2 text-xs">
-              <div className="flex justify-between items-center text-slate-300">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2 text-xs">
+              <div className="flex justify-between items-center text-slate-600">
                 <span className="text-slate-500 font-semibold">Starting Float Cash:</span>
-                <span className="font-mono font-bold text-white">Rs. {startingCash.toLocaleString()}</span>
+                <span className="tabular-nums font-bold text-slate-900">Rs. {startingCash.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between items-center text-slate-300">
+              <div className="flex justify-between items-center text-slate-600">
                 <span className="text-slate-500 font-semibold">Cash Sales Inflow:</span>
-                <span className="font-mono font-bold text-emerald-400">+Rs. {cashCollected.toLocaleString()}</span>
+                <span className="tabular-nums font-bold text-emerald-700">+Rs. {cashCollected.toLocaleString()}</span>
               </div>
               {cashOutflow > 0 && (
-                <div className="flex justify-between items-center text-slate-300">
+                <div className="flex justify-between items-center text-slate-600">
                   <span className="text-slate-500 font-semibold">Cash Outflow:</span>
-                  <span className="font-mono font-bold text-rose-400">-Rs. {cashOutflow.toLocaleString()}</span>
+                  <span className="tabular-nums font-bold text-rose-700">-Rs. {cashOutflow.toLocaleString()}</span>
                 </div>
               )}
-              <div className="flex justify-between items-center pt-2 border-t border-slate-800 text-sm font-bold">
-                <span className="text-slate-300">System Expected in Till:</span>
-                <span className="font-mono text-base font-black text-amber-300">
+              <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-sm font-bold">
+                <span className="text-slate-600">System Expected in Till:</span>
+                <span className="tabular-nums text-base font-semibold text-amber-700">
                   Rs. {expectedCash.toLocaleString()}
                 </span>
               </div>
@@ -171,12 +171,12 @@ export default function CloseShiftModal({ isOpen, onClose, onSessionClosed, sess
 
             {/* Input: Physical Cash Counted */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center justify-between">
                 <span>Physically Counted Cash in Till *</span>
-                <span className="text-[10px] text-amber-400 font-mono">COUNT CAREFULLY</span>
+                <span className="text-xs text-amber-700 tabular-nums">COUNT CAREFULLY</span>
               </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-mono text-sm font-bold">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 tabular-nums text-sm font-bold">
                   Rs.
                 </span>
                 <input
@@ -187,23 +187,23 @@ export default function CloseShiftModal({ isOpen, onClose, onSessionClosed, sess
                   value={countedCash}
                   onChange={(e) => setCountedCash(e.target.value)}
                   placeholder="0.00"
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border-2 border-slate-800 focus:border-rose-500 rounded-2xl text-white font-mono text-xl font-black outline-none"
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 border-slate-200 focus:border-rose-500 rounded-lg text-slate-900 tabular-nums text-xl font-semibold outline-none"
                 />
               </div>
             </div>
 
             {/* Real-time Variance Badge */}
             <div
-              className={`p-3 rounded-2xl border flex items-center justify-between text-xs font-mono font-bold ${
+              className={`p-3 rounded-lg border flex items-center justify-between text-xs tabular-nums font-bold ${
                 Math.abs(variance) < 0.01
-                  ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300'
+                  ? 'bg-emerald-50 border-emerald-500/50 text-emerald-700'
                   : variance < 0
-                  ? 'bg-rose-950/40 border-rose-500/50 text-rose-300'
-                  : 'bg-sky-950/40 border-sky-500/50 text-sky-300'
+                  ? 'bg-rose-50 border-rose-500/50 text-rose-700'
+                  : 'bg-sky-50 border-sky-500/50 text-sky-700'
               }`}
             >
               <span>Calculated Till Discrepancy:</span>
-              <span className="text-sm font-black">
+              <span className="text-sm font-semibold">
                 {Math.abs(variance) < 0.01
                   ? 'Rs. 0.00 (PERFECTLY BALANCED ✅)'
                   : `${variance < 0 ? '⚠️ -Rs. ' : '+Rs. '}${Math.abs(variance).toLocaleString()}`}
@@ -212,7 +212,7 @@ export default function CloseShiftModal({ isOpen, onClose, onSessionClosed, sess
 
             {/* Optional Notes */}
             <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Closing Notes / Explanation (Optional)
               </label>
               <input
@@ -220,14 +220,14 @@ export default function CloseShiftModal({ isOpen, onClose, onSessionClosed, sess
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="e.g. End of night shift, counted by cashier"
-                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-xs outline-none focus:border-slate-700"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 text-xs outline-none focus:border-slate-200"
               />
             </div>
 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-rose-600 to-red-700 hover:from-rose-500 active:scale-[0.98] disabled:opacity-50 text-white font-black text-sm transition shadow-xl shadow-rose-600/20 flex items-center justify-center gap-2"
+              className="w-full py-4 rounded-lg bg-gradient-to-r from-rose-600 text-white to-red-700 hover:from-rose-500 text-white active:scale-[0.98] disabled:opacity-50 text-slate-900 font-semibold text-sm transition shadow-sm flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
                 <>
