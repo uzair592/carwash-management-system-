@@ -196,6 +196,7 @@ router.get('/expenses', listExpensesHandler);
 router.get('/services', listServicesHandler);
 router.post('/services', requireRole(['ADMIN', 'MANAGER']), createServiceHandler);
 router.put('/services/:id', requireRole(['ADMIN', 'MANAGER']), updateServiceHandler);
+router.patch('/services/:id', requireRole(['ADMIN', 'MANAGER']), updateServiceHandler);
 
 // ---------------------------------------------------------------------------
 // 7b. Staff User Management (Credentials, PINs, Roles, Status)

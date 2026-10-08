@@ -563,7 +563,7 @@ export default function AdminManagement() {
       {/* NEW TABS: SERVICES, STAFF, BANKS, BRANDING */}
       {/* ============================================================== */}
       {activeAdminTab === 'services' && (
-        <AdminServicesTab onRefreshNeeded={fetchYieldMappings} />
+        <AdminServicesTab onRefreshNeeded={fetchYieldData} />
       )}
       {activeAdminTab === 'staff' && (
         <AdminStaffTab />
