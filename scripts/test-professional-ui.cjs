@@ -161,6 +161,7 @@ async function noOverflow(page) { assert.equal(await page.evaluate(() => documen
       assert(await page.getByRole('button', { name: 'Create work ticket' }).isDisabled());
       failServices = false; await page.getByRole('button', { name: 'Try again', exact: true }).click();
       await page.getByRole('button', { name: 'Express Foam Wash' }).waitFor();
+      await page.getByText('Shop server connected').waitFor();
       failServer = true; await page.getByRole('button', { name: 'Refresh shop data' }).click();
       await page.getByText('Unable to reach the shop server.', { exact: false }).waitFor();
       assert.match(await page.locator('.workspace-summary').innerText(), /14,500/);

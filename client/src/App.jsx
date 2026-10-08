@@ -100,7 +100,109 @@ export default function App() {
         <main id="workspace-content" className="workspace-content" tabIndex={-1}>
           <div className="workspace-heading"><div><span className="eyebrow">CAR WASH & DETAILING</span><h1>{page.title}</h1><p>{page.description}</p></div><div className="heading-actions">{isCashier && <button className="btn btn-secondary" disabled={!registerData || syncState === 'offline'} onClick={() => registerData?.is_open ? setIsCloseShiftModalOpen(true) : setIsRegisterModalOpen(true)}><Wallet size={16} />{registerData?.is_open ? 'Close shift' : 'Open shift'}</button>}{isCashier && activeTab !== 'intake' && <button className="btn btn-primary" onClick={() => navigate('intake')}><Plus size={17} />New vehicle</button>}</div></div>
           {syncState === 'offline' && <div className="connection-notice" role="alert">Unable to reach the shop server. {lastSync ? `Showing the last update from ${lastSync.toLocaleTimeString()}.` : 'Check the server and local network.'} <button onClick={sync}>Try again</button></div>}
-          {['intake', 'bays', 'billing'].includes(activeTab) && <div className={`workspace-summary ${isCashier ? '' : 'summary-worker'}`}><div><span className="stat-icon blue"><Car size={18} /></span><div><span>Waiting for a bay</span><strong>{snapshot ? snapshot.queued : '—'} <small>vehicles</small></strong></div></div><div><span className="stat-icon amber"><Receipt size={18} /></span><div><span>Ready for billing</span><strong>{snapshot ? snapshot.ready : '—'} <small>vehicles</small></strong></div></div>{isCashier && <><div><span className="stat-icon green"><Wallet size={18} /></span><div><span>Cash balance</span><strong>{snapshot ? `Rs. ${money(snapshot.cash)}` : '—'}</strong></div></div><div><span className="stat-icon purple"><Landmark size={18} /></span><div><span>Bank balance</span><strong>{snapshot ? `Rs. ${money(snapshot.bank)}` : '—'}</strong></div></div></>}</div>}
+          {['intake', 'bays', 'billing'].includes(activeTab) && (
+            <div className="workspace-summary grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6" id="executive-kpi-bar">
+              {/* Card 1: Waiting for a Bay */}
+              <div
+                onClick={() => navigate('bays')}
+                className="bg-white border border-slate-200/90 hover:border-blue-400 rounded-xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer group flex items-center justify-between"
+              >
+                <div className="space-y-1">
+                  <p className="text-[11px] font-bold tracking-wider uppercase text-slate-500">
+                    Waiting for Bay
+                  </p>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl font-black text-slate-900 tracking-tight">
+                      {snapshot ? snapshot.queued : '—'}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-500">vehicles</span>
+                  </div>
+                  <p className="text-[11px] text-blue-600 font-semibold flex items-center gap-1 group-hover:underline">
+                    <span>Intake queue</span>
+                    <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+                  </p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                  <Car size={24} />
+                </div>
+              </div>
+
+              {/* Card 2: Ready for Billing */}
+              <div
+                onClick={() => isCashier && navigate('billing')}
+                className={`bg-white border border-slate-200/90 rounded-xl p-4 shadow-sm hover:shadow-md transition-all flex items-center justify-between ${
+                  isCashier ? 'hover:border-amber-400 cursor-pointer group' : ''
+                }`}
+              >
+                <div className="space-y-1">
+                  <p className="text-[11px] font-bold tracking-wider uppercase text-slate-500">
+                    Ready for Billing
+                  </p>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl font-black text-amber-600 tracking-tight">
+                      {snapshot ? snapshot.ready : '—'}
+                    </span>
+                    <span className="text-xs font-semibold text-slate-500">vehicles</span>
+                  </div>
+                  <p className="text-[11px] text-amber-700 font-semibold flex items-center gap-1">
+                    <span>{snapshot?.ready > 0 ? 'Pending checkout' : 'All jobs billed'}</span>
+                    {isCashier && <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />}
+                  </p>
+                </div>
+                <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                  <Receipt size={24} />
+                </div>
+              </div>
+
+              {/* Card 3: Cash Drawer Balance */}
+              {isCashier ? (
+                <div
+                  onClick={() => (registerData?.is_open ? setIsCloseShiftModalOpen(true) : setIsRegisterModalOpen(true))}
+                  className="bg-white border border-slate-200/90 hover:border-emerald-400 rounded-xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer group flex items-center justify-between"
+                >
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-bold tracking-wider uppercase text-slate-500">
+                      Cash Drawer Balance
+                    </p>
+                    <div className="flex items-baseline">
+                      <span className="text-xl sm:text-2xl font-black text-emerald-700 tracking-tight">
+                        {snapshot ? `Rs. ${money(snapshot.cash)}` : '—'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1.5">
+                      <span className={`w-2 h-2 rounded-full ${registerData?.is_open ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                      <span>{registerData?.is_open ? 'Drawer Shift Open' : 'Drawer Closed'}</span>
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                    <Wallet size={24} />
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Card 4: Main Bank Balance */}
+              {isCashier ? (
+                <div className="bg-white border border-slate-200/90 hover:border-purple-300 rounded-xl p-4 shadow-sm hover:shadow-md transition-all flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-bold tracking-wider uppercase text-slate-500">
+                      Main Bank Balance
+                    </p>
+                    <div className="flex items-baseline">
+                      <span className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                        {snapshot ? `Rs. ${money(snapshot.bank)}` : '—'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Meezan & Alfalah Accounts
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0 shadow-xs">
+                    <Landmark size={24} />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
           <div className="page-content">
             {activeTab === 'intake' && isCashier && <IntakeForm onJobCreated={() => { sync(); navigate('bays'); }} />}
             {activeTab === 'bays' && <PhysicalBayDashboard onGoToBilling={isCashier ? () => navigate('billing') : undefined} />}
