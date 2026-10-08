@@ -220,6 +220,7 @@ async function calculateMonthlyDividends(monthParam, yearParam) {
     const netPayout = Math.max(0, parseFloat((dividendAmount - partnerDrawings).toFixed(2)));
 
     return {
+      id: partner.id,
       partner_id: partner.id,
       partner_name: partner.partner_name,
       equity_percentage: percentage,

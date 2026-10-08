@@ -19,7 +19,7 @@ async function getCurrentSessionHandler(req, res, next) {
     if (!session) {
       // Single cashier mode: till is permanently active and synced with live cash drawer ledger
       const cashLedger = await prisma.ledger.findFirst({
-        where: { account_type: { in: ['Cash', 'Cash_Drawer'] } },
+        where: { account_type: 'Cash_Drawer' },
       });
       const currentCash = cashLedger ? parseFloat(cashLedger.current_balance) : 0;
       return res.status(200).json({

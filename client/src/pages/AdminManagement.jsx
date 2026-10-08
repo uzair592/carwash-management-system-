@@ -447,115 +447,73 @@ export default function AdminManagement() {
 
         {/* Tab Toggle Buttons */}
         <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
-          <button
-            onClick={() => setActiveAdminTab('services')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-              activeAdminTab === 'services'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Tag className="w-4 h-4" />
-            Services Catalog
-          </button>
-          {isAdmin && (
-            <>
+          {[
+            { id: 'services', label: 'Services Catalog', icon: Tag, color: 'blue' },
+            ...(isAdmin
+              ? [
+                  { id: 'staff', label: 'Staff & Roles', icon: Users, color: 'blue' },
+                  { id: 'banks', label: 'Bank Accounts', icon: Landmark, color: 'blue' },
+                  { id: 'branding', label: 'Logo & Branding', icon: Building2, color: 'blue' },
+                ]
+              : []),
+            {
+              id: 'inventory',
+              label: 'Inventory',
+              icon: Boxes,
+              color: 'sky',
+              badge: lowStockCount > 0 ? (
+                <span className="bg-rose-500 text-white text-xs px-1.5 py-0.2 rounded-full font-bold">
+                  {lowStockCount}
+                </span>
+              ) : null,
+            },
+            ...(isAdmin
+              ? [
+                  { id: 'payroll', label: 'Monthly Payroll', icon: Users, color: 'sky' },
+                  { id: 'dividends', label: 'Partner Profit Split', icon: PieChart, color: 'emerald' },
+                  {
+                    id: 'audit',
+                    label: 'Audit Log',
+                    icon: ShieldAlert,
+                    color: 'rose',
+                    onClick: () => {
+                      setActiveAdminTab('audit');
+                      fetchAuditLogs(auditFilter);
+                    },
+                    badge: auditLogs.length > 0 ? (
+                      <span className="bg-rose-50 text-rose-700 tabular-nums text-xs px-1.5 py-0.2 rounded-full border border-rose-200">
+                        {auditLogs.length}
+                      </span>
+                    ) : null,
+                  },
+                ]
+              : []),
+          ].map((tab) => {
+            const IconComponent = tab.icon;
+            const isActive = activeAdminTab === tab.id;
+            let activeClass = 'bg-blue-600 text-white shadow-sm';
+            if (tab.color === 'sky') activeClass = 'bg-sky-500 text-white text-slate-950 shadow-sm';
+            if (tab.color === 'emerald') activeClass = 'bg-emerald-500 text-white text-slate-950 shadow-sm';
+            if (tab.color === 'rose') activeClass = 'bg-rose-500 text-white shadow-sm';
+
+            let inactiveClass = 'text-slate-600 hover:text-slate-900';
+            if (tab.color === 'sky' || tab.color === 'emerald') inactiveClass = 'text-slate-500 hover:text-slate-900';
+            if (tab.color === 'rose') inactiveClass = 'text-rose-700/80 hover:text-rose-700 hover:bg-rose-50';
+
+            return (
               <button
-                onClick={() => setActiveAdminTab('staff')}
+                key={tab.id}
+                onClick={tab.onClick || (() => setActiveAdminTab(tab.id))}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-                  activeAdminTab === 'staff'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                  isActive ? activeClass : inactiveClass
                 }`}
               >
-                <Users className="w-4 h-4" />
-                Staff & Roles
+                <IconComponent className="w-4 h-4" />
+                {tab.label}
+                {tab.badge}
               </button>
-              <button
-                onClick={() => setActiveAdminTab('banks')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-                  activeAdminTab === 'banks'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Landmark className="w-4 h-4" />
-                Bank Accounts
-              </button>
-              <button
-                onClick={() => setActiveAdminTab('branding')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-                  activeAdminTab === 'branding'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Building2 className="w-4 h-4" />
-                Logo & Branding
-              </button>
-            </>
-          )}
-          <button
-            onClick={() => setActiveAdminTab('inventory')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-              activeAdminTab === 'inventory'
-                ? 'bg-sky-500 text-white text-slate-950 shadow-sm'
-                : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            <Boxes className="w-4 h-4" />
-            Inventory
-            {lowStockCount > 0 && (
-              <span className="bg-rose-500 text-white text-xs px-1.5 py-0.2 rounded-full font-bold">
-                {lowStockCount}
-              </span>
-            )}
-          </button>
-          {isAdmin && (
-            <>
-              <button
-                onClick={() => setActiveAdminTab('payroll')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-                  activeAdminTab === 'payroll'
-                    ? 'bg-sky-500 text-white text-slate-950 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                <Users className="w-4 h-4" />
-                Monthly Payroll
-              </button>
-              <button
-                onClick={() => setActiveAdminTab('dividends')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-                  activeAdminTab === 'dividends'
-                    ? 'bg-emerald-500 text-white text-slate-950 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                <PieChart className="w-4 h-4" />
-                Partner Profit Split
-              </button>
-              <button
-                onClick={() => {
-                  setActiveAdminTab('audit');
-                  fetchAuditLogs(auditFilter);
-                }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
-                  activeAdminTab === 'audit'
-                    ? 'bg-rose-500 text-white shadow-sm'
-                    : 'text-rose-700/80 hover:text-rose-700 hover:bg-rose-50'
-                }`}
-              >
-                <ShieldAlert className="w-4 h-4" />
-                Audit Log
-                {auditLogs.length > 0 && (
-                  <span className="bg-rose-50 text-rose-700 tabular-nums text-xs px-1.5 py-0.2 rounded-full border border-rose-200">
-                    {auditLogs.length}
-                  </span>
-                )}
-              </button>
-            </>
-          )}
+            );
+          })}
         </div>
       </div>
 
@@ -1153,7 +1111,7 @@ export default function AdminManagement() {
 
             {/* Partner Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {(dividendData?.partners || partnersList).map((partner) => {
+              {(dividendData?.partners || partnersList).map((partner, pIdx) => {
                 const equityPct = parseFloat(partner.equity_percentage) || 0;
                 const netProfit = dividendData?.summary?.net_distributable_profit || 0;
                 const calculatedDividend =
@@ -1168,7 +1126,7 @@ export default function AdminManagement() {
 
                 return (
                   <div
-                    key={partner.id}
+                    key={partner.id || partner.partner_id || partner.partner_name || `partner-${pIdx}`}
                     className="bg-slate-50 border border-slate-200 hover:border-slate-200 rounded-lg p-5 transition flex flex-col justify-between"
                   >
                     <div>
