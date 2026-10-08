@@ -29,7 +29,9 @@
     "test:ui": "node scripts/test-professional-ui.cjs",
     "backup:shop": "node scripts/backup-shop.js",
     "restore:shop": "node scripts/restore-shop.js",
-    "prisma:deploy": "prisma migrate deploy"
+    "prisma:deploy": "prisma migrate deploy",
+    "test:migrations": "node scripts/test-migrations.cjs",
+    "printer:self-test": "node scripts/printer-self-test.cjs"
   },
   "keywords": [
     "carwash",
@@ -57,7 +59,8 @@
     "nodemon": "^3.1.9",
     "pm2": "^7.0.4",
     "prisma": "^5.22.0",
-    "serve": "^14.2.6"
+    "serve": "^14.2.6",
+    "@electric-sql/pglite": "^0.5.8"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
