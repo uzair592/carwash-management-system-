@@ -21,7 +21,7 @@ import {
   Save,
 } from 'lucide-react';
 import axios from 'axios';
-import { InvoiceThermalReceipt, TokenThermalTicket } from './ThermalTemplates';
+import { InvoiceThermalReceipt, TokenThermalTicket, BOLD_RECEIPT_THEMES } from './ThermalTemplates';
 import { printThermal } from '../utils/print';
 
 const DEFAULT_MAKES = [
@@ -397,25 +397,26 @@ export default function SettingsToggle() {
 
             <div className="space-y-2.5">
               {[
+                ...BOLD_RECEIPT_THEMES,
                 {
                   id: 'CLASSIC_THERMAL',
                   title: 'Classic Thermal',
-                  desc: 'Traditional high-density ESC/POS layout with centered logo, dashed rules, and clear totals.',
+                  desc: 'Bold standard receipt with centered logo and clear payment totals.',
                 },
                 {
                   id: 'MODERN_CLEAN',
                   title: 'Modern Clean ERP',
-                  desc: 'Clean borders, boxed license plate, black grand total highlight, and store thank-you message.',
+                  desc: 'Solid sans-serif type, item table and prominent totals.',
                 },
                 {
                   id: 'DETAILED_TAX',
                   title: 'Detailed Tax & NTN Invoice',
-                  desc: 'Formal invoice layout with prominent NTN/STRN registration, tax breakdowns, and itemized charges.',
+                  desc: 'Framed invoice with configured NTN and itemized service charges.',
                 },
                 {
                   id: 'LUXURY_STUDIO',
                   title: 'Luxury Studio Passport (Elite Detailing)',
-                  desc: 'High-end ceramic studio layout with vehicle passport box, aftercare guidance, and satisfaction guarantee stamp.',
+                  desc: 'Framed studio receipt with vehicle information and a bold total.',
                 },
                 {
                   id: 'ENTERPRISE_MINIMAL',
@@ -425,7 +426,7 @@ export default function SettingsToggle() {
                 {
                   id: 'VIP_GOLD_PASS',
                   title: 'Auto Care Club & Loyalty Pass',
-                  desc: 'Features customer visit tracker, VIP member banner, service checkmarks, and loyalty reward progress.',
+                  desc: 'Bold customer receipt with vehicle details and an itemized service table.',
                 },
               ].map((tmpl) => (
                 <label

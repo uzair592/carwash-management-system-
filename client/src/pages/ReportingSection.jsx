@@ -24,10 +24,12 @@ const money = (val) => Number(val || 0).toLocaleString('en-PK', { minimumFractio
 export default function ReportingSection() {
   const [range, setRange] = useState('month');
   const [reportData, setReportData] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchReports = async () => {
     setIsLoading(true);
+    setLoadError('');
     try {
       const res = await axios.get('/api/reports/summary', {
         params: { range },
@@ -36,6 +38,7 @@ export default function ReportingSection() {
         setReportData(res.data.data);
       }
     } catch (err) {
+      setLoadError('Unable to load data. Check the shop server and try again.');
       console.error('Failed to load reports:', err);
     } finally {
       setIsLoading(false);
@@ -56,7 +59,8 @@ export default function ReportingSection() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="business-directory business-report space-y-4">
+      {loadError && <div className="form-error" role="alert">{loadError}<button className="btn btn-secondary" onClick={fetchReports}>Try again</button></div>}
       {/* Top Controls Header */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -66,10 +70,10 @@ export default function ReportingSection() {
             </div>
             <div>
               <h2 className="text-xl font-black text-slate-900 tracking-tight">
-                Reports & Business Analytics
+                Sales reports
               </h2>
               <p className="text-xs text-slate-500 font-medium">
-                Comprehensive revenue breakdown, service performance metrics, cash vs bank flow, and sales logs.
+                Sales, collections and service performance.
               </p>
             </div>
           </div>
@@ -125,7 +129,7 @@ export default function ReportingSection() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Gross Sales */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4.5 shadow-xs">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Gross Revenue
@@ -133,7 +137,7 @@ export default function ReportingSection() {
             <TrendingUp className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-black text-slate-900 font-mono">
+            <span className="text-2xl font-black text-slate-900 tabular-nums">
               Rs. {money(summary.gross_revenue)}
             </span>
           </div>
@@ -143,7 +147,7 @@ export default function ReportingSection() {
         </div>
 
         {/* Card 2: Cash vs Bank Collection */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4.5 shadow-xs">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
             Tender Split
           </p>
@@ -152,7 +156,7 @@ export default function ReportingSection() {
               <span className="flex items-center gap-1 text-emerald-700 font-bold">
                 <Wallet className="w-3.5 h-3.5" /> Cash:
               </span>
-              <span className="font-mono font-bold text-slate-800">
+              <span className="tabular-nums font-bold text-slate-800">
                 Rs. {money(summary.cash_revenue)}
               </span>
             </div>
@@ -160,7 +164,7 @@ export default function ReportingSection() {
               <span className="flex items-center gap-1 text-purple-700 font-bold">
                 <Landmark className="w-3.5 h-3.5" /> Bank/Card:
               </span>
-              <span className="font-mono font-bold text-slate-800">
+              <span className="tabular-nums font-bold text-slate-800">
                 Rs. {money(summary.bank_revenue)}
               </span>
             </div>
@@ -168,7 +172,7 @@ export default function ReportingSection() {
         </div>
 
         {/* Card 3: Invoices & Average Ticket */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4.5 shadow-xs">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Avg Ticket Size
@@ -176,7 +180,7 @@ export default function ReportingSection() {
             <Receipt className="w-4 h-4 text-blue-600" />
           </div>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-black text-blue-600 font-mono">
+            <span className="text-2xl font-black text-blue-600 tabular-nums">
               Rs. {money(summary.average_ticket)}
             </span>
           </div>
@@ -186,7 +190,7 @@ export default function ReportingSection() {
         </div>
 
         {/* Card 4: Operating Expenses & Net */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4.5 shadow-xs">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
               Net Operating Profit
@@ -194,7 +198,7 @@ export default function ReportingSection() {
             <DollarSign className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-black text-emerald-700 font-mono">
+            <span className="text-2xl font-black text-emerald-700 tabular-nums">
               Rs. {money(summary.net_operating_profit)}
             </span>
           </div>
@@ -224,13 +228,13 @@ export default function ReportingSection() {
                   <div key={srv.name || idx} className="space-y-1">
                     <div className="flex justify-between items-center text-xs">
                       <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-slate-100 text-slate-700 font-mono text-[10px] flex items-center justify-center font-bold">
+                        <span className="w-4 h-4 rounded-full bg-slate-100 text-slate-700 tabular-nums text-[10px] flex items-center justify-center font-bold">
                           {idx + 1}
                         </span>
                         {srv.name}
                       </span>
                       <div className="text-right">
-                        <span className="font-black text-slate-900 font-mono">
+                        <span className="font-black text-slate-900 tabular-nums">
                           Rs. {money(srv.revenue)}
                         </span>
                         <span className="text-[10px] text-slate-400 ml-1.5">
@@ -271,7 +275,7 @@ export default function ReportingSection() {
                   <p className="text-xs font-black text-slate-800 uppercase tracking-wide">
                     {m.make}
                   </p>
-                  <p className="text-xl font-black text-purple-700 font-mono mt-1">
+                  <p className="text-xl font-black text-purple-700 tabular-nums mt-1">
                     {m.count}
                   </p>
                   <p className="text-[10px] text-slate-500 font-semibold">vehicles serviced</p>
@@ -315,7 +319,7 @@ export default function ReportingSection() {
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {recentInvoices.map((inv) => (
                   <tr key={inv.id} className="hover:bg-slate-50 transition">
-                    <td className="py-3 px-4 font-mono font-bold text-slate-900">
+                    <td className="py-3 px-4 tabular-nums font-bold text-slate-900">
                       {inv.invoice_number || 'INV-0000'}
                     </td>
                     <td className="py-3 px-4 text-slate-500 text-[11px]">
@@ -327,7 +331,7 @@ export default function ReportingSection() {
                       })}
                     </td>
                     <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded bg-slate-900 text-white font-mono font-bold text-[11px]">
+                      <span className="px-2 py-0.5 rounded bg-slate-900 text-white tabular-nums font-bold text-[11px]">
                         {inv.plate}
                       </span>
                     </td>
@@ -348,7 +352,7 @@ export default function ReportingSection() {
                     <td className="py-3 px-4 text-slate-600">
                       {inv.cashier_name}
                     </td>
-                    <td className="py-3 px-4 text-right font-black font-mono text-slate-900">
+                    <td className="py-3 px-4 text-right font-black tabular-nums text-slate-900">
                       Rs. {money(inv.total_amount)}
                     </td>
                   </tr>
