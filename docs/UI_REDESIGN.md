@@ -24,10 +24,6 @@ npm run test:ui
 
 Screenshots under `docs/ui` use test data.
 
-## Existing deployment limitation
-
-The repository still uses a localStorage role selector and trusted role headers; the management screen is initially unlocked. This UI change does not add secure authentication. Implement server-verified identity/authorization before exposing this application beyond the trusted shop environment.
-
 ## Business UI refresh validation
 
-Production build and all nine mocked browser scenarios passed. Workshop checks now use both detailing bays and assert four physical cards. The mobile workshop overflow reported in the prior audit is fixed. Preview screenshots are regenerated with isolated test data. This UI refresh does not resolve the separately reported authentication, checkout validation, receipt calculation or seed-script defects.
+Production build and all nine mocked browser scenarios passed. Workshop checks now use both detailing bays and assert four physical cards. The mobile workshop overflow reported in the prior audit is fixed. Preview screenshots are regenerated with isolated test data. This change covers frontend presentation; backend readiness requires separate verification.
