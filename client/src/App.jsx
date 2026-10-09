@@ -85,6 +85,7 @@ export default function App() {
     const hash = window.location.hash.slice(1);
     return PAGES[hash] ? hash : window.location.pathname === '/admin' ? 'admin' : 'intake';
   });
+  const [managementSection, setManagementSection] = useState(null);
   const [intakeCustomer, setIntakeCustomer] = useState(null);
   const [mobileNav, setMobileNav] = useState(false);
   const [checkoutTarget, setCheckoutTarget] = useState(null);
@@ -204,9 +205,9 @@ export default function App() {
             navigate('intake');
           }} />}
             {activeTab === 'reports' && allowed('reports') && <ReportingSection />}
-            {activeTab === 'leaderboard' && allowed('leaderboard') && <Leaderboard />}
+            {activeTab === 'leaderboard' && allowed('leaderboard') && <Leaderboard onPayroll={() => { setManagementSection('payroll'); navigate('admin'); }} />}
             {activeTab === 'investor' && allowed('investor') && <InvestorDashboard />}
-            {activeTab === 'admin' && allowed('admin') && <AdminManagement />}
+            {activeTab === 'admin' && allowed('admin') && <AdminManagement section={managementSection} />}
             {activeTab === 'settings' && allowed('settings') && <><SettingsToggle /><section className="surface cash-reconciliation"><div><h2>Cash drawer reconciliation</h2><p>Use one shop cash drawer. Record its opening float or reconcile the counted cash.</p></div><button className="btn btn-secondary" disabled={!can('finance.manage')} onClick={() => registerData?.is_open ? setIsCloseShiftModalOpen(true) : setIsRegisterModalOpen(true)}><Wallet size={17} />{registerData?.is_open ? 'Reconcile cash drawer' : 'Set opening cash'}</button></section></>}
           </div>
         </main>

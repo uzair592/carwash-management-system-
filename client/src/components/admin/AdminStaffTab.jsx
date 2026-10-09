@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Plus, RefreshCw, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 const money = value => Number(value || 0).toLocaleString('en-PK', { maximumFractionDigits: 2 });
-export default function AdminStaffTab({ mode = 'staff' }) {
+export default function AdminStaffTab({ mode = 'staff', onOvertime }) {
   const accounts = mode === 'accounts';
   const { currentUser } = useAuth();
   const endpoint = accounts ? '/api/users' : '/api/staff';
@@ -49,7 +49,7 @@ export default function AdminStaffTab({ mode = 'staff' }) {
     finally { setBusy(false); }
   }
   return <section className="operator-records surface">
-    <header className="operator-records-header"><div><h2>{accounts ? 'Shop accounts' : 'Workshop staff'}</h2><p>{accounts ? 'Admin and Accountant logins.' : 'Names, salaries and commissions. No staff login needed.'}</p></div><div className="flex gap-2"><button className="btn btn-secondary" aria-label="Refresh records" disabled={loading || busy} onClick={load}><RefreshCw size={16}/></button><button className="btn btn-primary" onClick={() => open('details')}><Plus size={16}/>{accounts ? 'Add accountant' : 'Add worker'}</button></div></header>
+    <header className="operator-records-header"><div><h2>{accounts ? 'Shop accounts' : 'Workshop staff'}</h2><p>{accounts ? 'Admin and Accountant logins.' : 'Names, salaries and commissions. No staff login needed.'}</p></div><div className="flex gap-2"><button className="btn btn-secondary" aria-label="Refresh records" disabled={loading || busy} onClick={load}><RefreshCw size={16}/></button>{!accounts && onOvertime && <button className="btn btn-secondary" onClick={onOvertime}>Overtime & pay</button>}<button className="btn btn-primary" onClick={() => open('details')}><Plus size={16}/>{accounts ? 'Add accountant' : 'Add worker'}</button></div></header>
     {error && !editor && <div className="form-error m-3" role="alert">{error}</div>}{notice && <p className="success-note px-4 py-2" role="status">{notice}</p>}
     <div className="overflow-x-auto"><table className="operator-table"><thead><tr><th>{accounts ? 'Username' : 'Name'}</th>{accounts ? <th>Account</th> : <><th>Monthly salary</th><th>Commission</th></>}<th>Status</th><th>Actions</th></tr></thead><tbody>
       {loading ? <tr><td colSpan={5}>Loading…</td></tr> : records.length === 0 ? <tr><td colSpan={5}>{accounts ? 'No operator accounts found.' : 'Add your workshop staff to assign them to jobs.'}</td></tr> : records.map(u => <tr key={u.id}><td><strong>{u.name}</strong>{u.id === currentUser?.id && <span className="text-xs text-slate-500 ml-2">You</span>}</td>{accounts ? <td>{u.role}</td> : <><td>Rs. {money(u.base_salary)}</td><td>{Number(u.flat_commission) > 0 ? `Rs. ${money(u.flat_commission)} / car` : `${money(u.commission_rate)}%`}</td></>}<td><span className={u.is_active ? 'record-status active' : 'record-status'}>{u.is_active ? 'Active' : 'Inactive'}</span></td><td><div className="record-actions"><button disabled={busy} className="btn btn-secondary" onClick={() => open('details',u)}>Edit</button>{accounts && <button disabled={busy} className="btn btn-secondary" onClick={() => open('password',u)}>Change password</button>}{accounts && u.role === 'Admin' && <button disabled={busy} className="btn btn-secondary" onClick={() => open('pin',u)}>Approval PIN</button>}<button disabled={busy || u.id === currentUser?.id} className="btn btn-secondary" onClick={() => toggle(u)}>{u.is_active ? 'Deactivate' : 'Reactivate'}</button></div></td></tr>)}

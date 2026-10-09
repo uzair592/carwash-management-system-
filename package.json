@@ -32,7 +32,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "test:migrations": "node scripts/test-migrations.cjs",
     "printer:self-test": "node scripts/printer-self-test.cjs",
-    "test:backup-restore": "node --test scripts/test-backup-restore.cjs"
+    "test:backup-restore": "node --test scripts/test-backup-restore.cjs",
+    "test:startup": "node --test scripts/test-shop-startup.cjs"
   },
   "keywords": [
     "carwash",

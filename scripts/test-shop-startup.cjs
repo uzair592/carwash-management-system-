@@ -1,0 +1,14 @@
+const {test,beforeEach}=require('node:test'),assert=require('node:assert/strict');
+let commands=[],backups=0,tables=0,backupFails=false;
+const child=require('node:child_process');child.spawnSync=(binary,args)=>{commands.push(args);return {status:0};};
+const fs=require('node:fs'),oldExists=fs.existsSync;fs.existsSync=p=>String(p).endsWith('client/dist/index.html')?true:oldExists(p);
+require.cache[require.resolve('@prisma/client')]={exports:{PrismaClient:class{async $queryRawUnsafe(){return [{count:tables}];}async $disconnect(){}}}};
+require.cache[require.resolve('./backup-shop')]={exports:{backupShop:async()=>{backups++;if(backupFails)throw new Error('Backup failed');}}};
+process.env.DATABASE_URL='postgresql://test:test@localhost/disposable';
+const {setup}=require('./shop-setup'),{launch}=require('./shop-launch');
+beforeEach(()=>{commands=[];backups=0;tables=0;backupFails=false;});
+test('Daily launcher starts and saves PM2 without database/dependency commands',()=>{launch();assert.equal(commands.length,2);assert.equal(commands[0][1],'start');assert.equal(commands[1][1],'save');assert(!JSON.stringify(commands).includes('prisma'));});
+test('First installation refuses an existing database before migrations or seed',async()=>{tables=1;await assert.rejects(setup('install'),/already has tables/);assert(!commands.some(a=>a.includes('prisma:deploy')));assert.equal(backups,0);});
+test('Existing update requires a verified backup and never seeds',async()=>{tables=1;await setup('update');assert.equal(backups,1);assert(commands.some(a=>a.includes('prisma:deploy')));assert(!commands.some(a=>a.includes('prisma:seed')));assert(!JSON.stringify(commands).includes('db push'));});
+test('Backup failure prevents migration and app start',async()=>{tables=1;backupFails=true;await assert.rejects(setup('update'),/Backup failed/);assert(!commands.some(a=>a.includes('prisma:deploy')||a.includes('ecosystem.config.js')));});
+test('Fresh setup deploys migrations and seeds once without db push',async()=>{await setup('install');assert(commands.some(a=>a.includes('prisma:deploy')));assert.equal(commands.filter(a=>a.includes('prisma:seed')).length,1);assert.equal(backups,0);});

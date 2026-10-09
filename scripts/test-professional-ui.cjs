@@ -679,6 +679,7 @@ async function noOverflow(page) {
         name: 'Save',
         exact: true
       }).click();
+      await dialog.waitFor({state:'hidden'});
       assert(requests.some(r => r.endpoint === '/api/customers' && r.body?.registration_number === 'NEW-123'));
       await page.getByRole('button', {
         name: 'Edit customer',
@@ -693,6 +694,7 @@ async function noOverflow(page) {
         name: 'Save',
         exact: true
       }).click();
+      await dialog.waitFor({state:'hidden'});
       assert(requests.some(r => r.endpoint === '/api/customers/c1' && r.body?.customer_phone === '03009998888'));
       await page.getByRole('button', {
         name: 'Inventory & finance',
@@ -905,6 +907,16 @@ async function noOverflow(page) {
       await dialog.getByRole('button',{name:'Save',exact:true}).click();
       assert(requests.some(r => r.endpoint === '/api/staff' && r.body?.name === 'Workshop helper' && !r.body?.password && !r.body?.role));
       await page.screenshot({path:path.join(screenshots,'staff-clean-14inch.png')});
+    });
+    await check('Staff overtime shortcuts open payroll directly with readable navigation', async()=>{
+      await page.getByRole('button',{name:'Staff performance',exact:true}).click();
+      await page.getByRole('button',{name:'Overtime & pay',exact:true}).click();
+      await page.getByRole('heading',{name:'Monthly payroll',exact:true}).waitFor();
+      assert.equal(await page.getByRole('button',{name:'Monthly Payroll',exact:true}).getAttribute('aria-pressed'),'true');
+      await page.getByRole('button',{name:'Workshop staff',exact:true}).click();
+      await page.getByRole('button',{name:'Overtime & pay',exact:true}).click();
+      await page.getByRole('heading',{name:'Staff overtime',exact:true}).waitFor();
+      await noOverflow(page);
     });
     await check('Overtime records hours/rates, allows edits and retains removed history', async()=>{
       await page.getByRole('button',{name:'Inventory & finance',exact:true}).click();
