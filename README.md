@@ -43,4 +43,4 @@ Run `npm run test:integrity`, `npm run test:ui`, `npm run test:migrations`, `npm
 
 ## Mobile app
 
-DF PRO now builds as an installable PWA with selected offline viewing. See [mobile app setup](docs/MOBILE_APP.md) for installation, Save latest for offline, supported snapshots and the required HTTPS tunnel setup.
+DF PRO builds as an installable PWA with account-scoped, read-only offline snapshots. For temporary phone access, install `cloudflared` and run `start-mobile-tunnel.bat`; it detects the live production port and prints the generated Quick Tunnel HTTPS URL. See [mobile app setup](docs/MOBILE_APP.md) for Windows commands, Android/iPhone installation, the exact saved-data scope and Quick Tunnel limitations.

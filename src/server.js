@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 const prisma = require('./prisma');
 const apiRoutes = require('./routes/api.routes');
 const app = express();
@@ -24,7 +26,10 @@ app.use((req, res, next) => {
 });
 
 // Root Information Endpoint
-app.get('/', (req, res) => {
+app.get('/', (req, res, next) => {
+  if (req.accepts('html') && fs.existsSync(path.join(__dirname, '../client/dist/index.html'))) {
+    return next();
+  }
   res.json({
     name: 'Car Wash & Detailing Management API',
     status: 'ONLINE',
@@ -65,8 +70,6 @@ app.use('/api', (req, res, next) => {
 app.use('/api', apiRoutes);
 
 // Static Asset Serving (Digital Vehicle Inspection Uploads)
-const path = require('path');
-const fs = require('fs');
 const publicPath = path.join(__dirname, '../public');
 if (!fs.existsSync(publicPath)) {
   fs.mkdirSync(publicPath, {
