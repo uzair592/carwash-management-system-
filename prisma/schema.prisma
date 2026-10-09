@@ -119,6 +119,8 @@ model User {
   permissions     Json?
   commission_rate Decimal  @default(0.00) @db.Decimal(5, 2)
   flat_commission Decimal  @default(0.00) @db.Decimal(10, 2)
+  overtime_rate   Decimal  @default(0.00) @db.Decimal(10, 2)
+  overtime_entries StaffOvertime[]
   base_salary     Decimal  @default(0.00) @db.Decimal(10, 2)
   is_active       Boolean  @default(true)
   created_at      DateTime @default(now())
@@ -605,4 +607,23 @@ model PrinterJob {
   completed_at DateTime?
 
   @@map("printer_jobs")
+}
+
+model StaffOvertime {
+  id String @id @default(uuid())
+  user_id String
+  user User @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  work_date DateTime @db.Date
+  minutes Int
+  hourly_rate Decimal @db.Decimal(10, 2)
+  amount Decimal @db.Decimal(12, 2)
+  notes String
+  request_key String @unique
+  version Int @default(0)
+  voided_at DateTime?
+  void_reason String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  @@index([user_id, work_date])
+  @@map("staff_overtime")
 }

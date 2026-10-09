@@ -26,7 +26,7 @@ async function updateStaffSalaryHandler(req, res, next) {
   try {
     const F = require('../services/finance.service');
     const data = {};
-    for (const key of ['base_salary', 'commission_rate', 'flat_commission']) if (req.body[key] !== undefined) data[key] = F.amount(req.body[key], {
+    for (const key of ['base_salary', 'commission_rate', 'flat_commission', 'overtime_rate']) if (req.body[key] !== undefined) data[key] = F.amount(req.body[key], {
       zero: true
     });
     if (data.commission_rate > 100) throw F.error('Commission rate cannot exceed 100%.');

@@ -10,14 +10,9 @@ async function generateMonthlyPayroll(month, year) {
     start,
     end
   } = monthBounds(key);
-  const staff = await prisma.user.findMany({
-    where: {
-      is_active: true
-    },
-    orderBy: {
-      name: 'asc'
-    }
-  });
+  const overtime = await prisma.staffOvertime.findMany({where:{work_date:{gte:new Date(key+'-01T00:00:00Z'),lt:new Date(Date.UTC(Number(key.slice(0,4)),Number(key.slice(5,7)),1))},voided_at:null}});
+  const users = await prisma.user.findMany({orderBy:{name:'asc'}});
+  const staff = users.filter(u=>u.is_active || overtime.some(o=>o.user_id===u.id));
   const jobs = await prisma.jobCard.findMany({
     where: {
       completed_at: {
@@ -40,7 +35,7 @@ async function generateMonthlyPayroll(month, year) {
     }
   });
   let commissions = 0,
-    base = 0;
+    base = 0, totalOvertimeCents = 0;
   const payroll = staff.map(user => {
     let earned = 0,
       revenue = 0,
@@ -65,7 +60,11 @@ async function generateMonthlyPayroll(month, year) {
       earned += assignment.flat > 0 ? assignment.flat : jobRevenue * (assignment.share || 1) * assignment.rate / 100;
     }
     earned = Math.round(earned * 100) / 100;
-    const salary = Number(user.base_salary);
+    const entries = overtime.filter(o=>o.user_id===user.id);
+    const overtimeMinutes = entries.reduce((sum,o)=>sum+o.minutes,0);
+    const overtimeCents = entries.reduce((sum,o)=>sum+F.cents(o.amount),0);
+    totalOvertimeCents += overtimeCents;
+    const salary = user.is_active ? Number(user.base_salary) : 0;
     commissions += earned;
     base += salary;
     return {
@@ -82,7 +81,10 @@ async function generateMonthlyPayroll(month, year) {
       revenue_generated: revenue,
       total_revenue_generated: revenue,
       commissions_earned: earned,
-      total_payout: salary + earned
+      overtime_hours: overtimeMinutes / 60,
+      overtime_pay: overtimeCents / 100,
+      overtime_rate: Number(user.overtime_rate || 0),
+      total_payout: (F.cents(salary) + F.cents(earned) + overtimeCents) / 100
     };
   });
   return {
@@ -96,7 +98,8 @@ async function generateMonthlyPayroll(month, year) {
       total_cars_washed: jobs.length,
       total_base_salaries: base,
       total_commissions: commissions,
-      total_payroll_expense: base + commissions
+      total_overtime: totalOvertimeCents / 100,
+      total_payroll_expense: (F.cents(base) + F.cents(commissions) + totalOvertimeCents) / 100
     },
     payroll
   };

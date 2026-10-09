@@ -11,6 +11,7 @@ let state,
 function matches(row, where = {}) {
   return Object.entries(where).every(([k, v]) => {
     const x = row[k];
+    if (v instanceof Date) return x instanceof Date && x.getTime() === v.getTime();
     if (v && typeof v === 'object' && !(v instanceof Date)) {
       if ('equals' in v) {
         const value = v.path ? v.path.reduce((value, key) => value?.[key], x) : x;
@@ -21,6 +22,7 @@ function matches(row, where = {}) {
       if ('gte' in v && x < v.gte) return false;
       if ('lte' in v && x > v.lte) return false;
       if ('gt' in v && !(x > v.gt)) return false;
+      if ('lt' in v && !(x < v.lt)) return false;
       return true;
     }
     return x === v;
@@ -54,7 +56,7 @@ function patch(row, data) {
   }
   return row;
 }
-const models = ['user', 'vehicle', 'jobCard', 'invoice', 'payment', 'customerDeposit', 'depositApplication', 'expense', 'inventory', 'materialIssuance', 'bankAccount', 'ledger', 'financialMovement', 'auditLog', 'alertOutbox', 'documentCounter', 'refund', 'registerSession', 'service', 'jobCardService', 'printerSetting', 'printerJob', 'businessBranding', 'serviceInventory'];
+const models = ['staffOvertime', 'user', 'vehicle', 'jobCard', 'invoice', 'payment', 'customerDeposit', 'depositApplication', 'expense', 'inventory', 'materialIssuance', 'bankAccount', 'ledger', 'financialMovement', 'auditLog', 'alertOutbox', 'documentCounter', 'refund', 'registerSession', 'service', 'jobCardService', 'printerSetting', 'printerJob', 'businessBranding', 'serviceInventory'];
 const db = {};
 for (const model of models) db[model] = {
   async count(args = {}) {
@@ -90,6 +92,7 @@ for (const model of models) db[model] = {
       created_at: new Date(),
       ...structuredClone(data)
     };
+    if (model === 'staffOvertime') { row.voided_at ||= null; row.version ||= 0; }
     if (model === 'customerDeposit') row.status ||= 'ACTIVE';
     if (model === 'alertOutbox') {
       row.status ||= 'PENDING';
@@ -1028,6 +1031,11 @@ test('HTTP API enforces Accountant permissions, including changes during an exis
       value: true
     })).status, 403);
     assert.equal((await request('/banks', accountToken)).status, 200);
+    assert.equal((await request('/payroll/overtime', accountToken)).status, 200);
+    await request('/permissions/accountant', ownerToken, 'PATCH', {permissions:{'payroll.manage':false}});
+    assert.equal((await request('/payroll/overtime', accountToken, 'POST', {})).status, 403);
+    assert.equal((await request('/payroll/overtime/x', accountToken, 'PUT', {})).status, 403);
+    assert.equal((await request('/payroll/overtime/x', accountToken, 'DELETE', {})).status, 403);
     assert.equal((await request('/permissions/accountant', ownerToken, 'PATCH', {
       permissions: {
         'reports.read': true
@@ -1233,4 +1241,36 @@ test('Only Admin and Accountant can log in; staff records cannot acquire login r
   assert.equal((await call(users.loginHandler, { username: 'Admin', password: 'admin-password' })).status, 200);
   await assert.rejects(call(users.updateUserHandler, { name: 'bookkeeper' }, { params: { id: 'admin-login' } }), /username is already in use/);
   assert.equal((await call(users.loginHandler, { username: 'Admin', password: 'wrong-password', pin: '1234' })).status, 401);
+});
+
+
+test('Overtime snapshots rates, protects dates and daily totals, retries safely and updates payroll', async () => {
+ const c=require('../src/controllers/overtime.controller');
+ const invoke=(handler,body,extra={})=>call(handler,body,{headers:{},...extra});
+ state.user.push({id:'ot-worker',name:'Detailer',role:'Worker',is_active:true,base_salary:10000,overtime_rate:200,flat_commission:0,commission_rate:0});
+ const body={user_id:'ot-worker',work_date:'2026-10-01',minutes:90,hourly_rate:200,notes:'Late detailing job',request_key:'overtime-request-1'};
+ const saved=await invoke(c.save,body); const id=saved.body.data.id;
+ assert.equal(saved.body.data.amount,300);
+ await invoke(c.save,body); assert.equal(state.staffOvertime.length,1);
+ await assert.rejects(invoke(c.save,{...body,minutes:60}),/different overtime/);
+ state.user.find(u=>u.id==='ot-worker').overtime_rate=500;
+ let pay=await require('../src/services/payroll.service').generateMonthlyPayroll('2026-10');
+ assert.equal(pay.payroll.find(p=>p.user_id==='ot-worker').total_payout,10300);
+ assert.equal(pay.summary.total_overtime,300);
+ await assert.rejects(invoke(c.save,{...body,work_date:'2099-01-01',request_key:'future-overtime'}),/future/);
+ await assert.rejects(invoke(c.save,{...body,work_date:'2026-02-30'}),/Invalid calendar/);
+ await assert.rejects(invoke(c.save,{...body,minutes:1400,request_key:'too-many-hours'}),/24 hours/);
+ await assert.rejects(invoke(c.save,{...body,hourly_rate:0}),/valid amount/);
+ await assert.rejects(invoke(c.save,{...body,user_id:'missing',request_key:'missing-worker'}),/active workshop/);
+ await invoke(c.save,{...body,minutes:120,version:0},{params:{id}});
+ await assert.rejects(invoke(c.save,{...body,version:0},{params:{id}}),/changed/);
+ pay=await require('../src/services/payroll.service').generateMonthlyPayroll('2026-10');assert.equal(pay.summary.total_overtime,400);
+ assert.equal((await require('../src/services/payroll.service').generateMonthlyPayroll('2026-09')).summary.total_overtime,0);
+ state.user.find(u=>u.id==='ot-worker').is_active=false;
+ pay=await require('../src/services/payroll.service').generateMonthlyPayroll('2026-10');assert.equal(pay.payroll.find(p=>p.user_id==='ot-worker').overtime_pay,400);
+ await invoke(c.remove,{reason:'Recorded twice',version:1},{params:{id}});
+ pay=await require('../src/services/payroll.service').generateMonthlyPayroll('2026-10');assert.equal(pay.summary.total_overtime,0);
+ assert.equal(state.staffOvertime.length,1);assert(state.staffOvertime[0].voided_at);
+ assert(state.auditLog.some(r=>r.action==='OVERTIME_REMOVED'));
+ assert.equal(state.financialMovement.length,0);
 });
