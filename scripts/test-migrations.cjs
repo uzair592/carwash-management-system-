@@ -13,6 +13,12 @@ async function checks(db) {
     INSERT INTO printer_settings (id,updated_at,mode,auto_cut) VALUES ('shop',now(),'NETWORK',true);
     INSERT INTO printer_jobs (id,request_key,kind,document_id,requested_by) VALUES ('p1','test-key','TICKET','j1','operator');`);
   await assert.rejects(db.exec(`INSERT INTO printer_jobs (id,request_key,kind,document_id,requested_by) VALUES ('p2','test-key','TICKET','j1','operator')`), e => e.code === '23505');
+  await db.exec(`INSERT INTO users (id,name,role,pin_code,updated_at) VALUES ('ot-worker','Detailer','Worker','',now());
+    INSERT INTO staff_overtime (id,user_id,work_date,minutes,hourly_rate,amount,notes,request_key) VALUES ('ot1','ot-worker','2026-10-01',90,200,300,'Late job','ot-key');`);
+  assert.equal((await db.query("SELECT amount::text FROM staff_overtime WHERE id='ot1'")).rows[0].amount,'300.00');
+  await assert.rejects(db.exec(`INSERT INTO staff_overtime (id,user_id,work_date,minutes,hourly_rate,amount,notes,request_key) VALUES ('ot2','ot-worker','2026-10-01',0,200,300,'Invalid','ot-bad');`),e=>e.code==='23514');
+  await assert.rejects(db.exec(`INSERT INTO staff_overtime (id,user_id,work_date,minutes,hourly_rate,amount,notes,request_key) VALUES ('ot2','ot-worker','2026-10-01',60,200,200,'Replay','ot-key');`),e=>e.code==='23505');
+  assert.equal((await db.query("SELECT overtime_rate::text FROM users WHERE id='ot-worker'")).rows[0].overtime_rate,'0.00');
   const permissions = await db.query(`SELECT permissions FROM users WHERE id='operator'`);
   assert.equal(permissions.rows[0].permissions['reports.read'], true);
   const table = await db.query(`SELECT services_version FROM job_cards LIMIT 1`);

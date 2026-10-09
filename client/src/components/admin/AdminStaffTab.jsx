@@ -26,7 +26,7 @@ export default function AdminStaffTab({ mode = 'staff' }) {
   function open(action, user = {}) {
     setError(''); setNotice('');
     setEditor({ action, user });
-    setForm({ name: user.name || '', password: '', pin_code: '', base_salary: user.base_salary || 0, flat_commission: user.flat_commission || 0, commission_rate: user.commission_rate || 0 });
+    setForm({ name: user.name || '', password: '', pin_code: '', overtime_rate: user.overtime_rate || 0, base_salary: user.base_salary || 0, flat_commission: user.flat_commission || 0, commission_rate: user.commission_rate || 0 });
   }
   async function save(e) {
     e.preventDefault(); setBusy(true); setError('');
@@ -35,7 +35,7 @@ export default function AdminStaffTab({ mode = 'staff' }) {
       if (editor.action === 'password') await axios.post(`/api/users/${user.id}/reset-password`, { new_password: form.password });
       else if (editor.action === 'pin') await axios.post(`/api/users/${user.id}/update-pin`, { new_pin: form.pin_code });
       else {
-        const payload = accounts ? { name: form.name, ...(user.id ? {} : { role: 'Accountant', password: form.password }) } : { name: form.name, base_salary: Number(form.base_salary), flat_commission: Number(form.flat_commission), commission_rate: Number(form.commission_rate) };
+        const payload = accounts ? { name: form.name, ...(user.id ? {} : { role: 'Accountant', password: form.password }) } : { name: form.name, overtime_rate: Number(form.overtime_rate), base_salary: Number(form.base_salary), flat_commission: Number(form.flat_commission), commission_rate: Number(form.commission_rate) };
         if (user.id) await axios.put(`${endpoint}/${user.id}`, payload); else await axios.post(endpoint, payload);
       }
       setEditor(null); setNotice('Saved.'); await load();
@@ -59,7 +59,7 @@ export default function AdminStaffTab({ mode = 'staff' }) {
       {editor.action === 'details' && <label className="field-label">{accounts ? 'Username' : 'Worker name'}<input className="field" required maxLength={100} value={form.name} onChange={e => setForm({...form,name:e.target.value})}/></label>}
       {(editor.action === 'password' || accounts && editor.action === 'details' && !editor.user.id) && <label className="field-label">{editor.action === 'password' ? 'New password' : 'Password'}<input className="field" aria-label={editor.action === 'password' ? 'New password' : 'Password'} type="password" autoComplete="new-password" required minLength={8} value={form.password} onChange={e => setForm({...form,password:e.target.value})}/><span className="text-xs text-slate-500">At least 8 characters.</span></label>}
       {editor.action === 'pin' && <label className="field-label">New PIN<input className="field" type="password" inputMode="numeric" pattern="[0-9]{4,8}" autoComplete="new-password" required value={form.pin_code} onChange={e => setForm({...form,pin_code:e.target.value})}/><span className="text-xs text-slate-500">4–8 digits, used only for restricted approvals.</span></label>}
-      {!accounts && editor.action === 'details' && <div className="staff-pay-fields">{[['base_salary','Monthly salary'],['flat_commission','Commission per car'],['commission_rate','Commission %']].map(([key,label]) => <label className="field-label" key={key}>{label}<input className="field" type="number" min="0" step="0.01" max={key === 'commission_rate' ? 100 : undefined} required value={form[key]} onChange={e => setForm({...form,[key]:e.target.value})}/></label>)}</div>}
+      {!accounts && editor.action === 'details' && <div className="staff-pay-fields">{[['base_salary','Monthly salary'],['flat_commission','Commission per car'],['commission_rate','Commission %'],['overtime_rate','Overtime rate / hour']].map(([key,label]) => <label className="field-label" key={key}>{label}<input className="field" type="number" min="0" step="0.01" max={key === 'commission_rate' ? 100 : undefined} required value={form[key]} onChange={e => setForm({...form,[key]:e.target.value})}/></label>)}</div>}
       <footer className="flex justify-end gap-2"><button type="button" disabled={busy} className="btn btn-secondary" onClick={() => setEditor(null)}>Cancel</button><button disabled={busy} className="btn btn-primary">{busy ? 'Saving…' : 'Save'}</button></footer>
     </form></div>}
   </section>;

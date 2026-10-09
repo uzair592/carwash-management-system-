@@ -121,3 +121,14 @@ Backup/restore briefly pauses new shop requests and drains existing HTTP/backgro
 UI backups require the configured `DATABASE_URL` and working `pg_dump`/`pg_restore` binaries on the shop PC (`PG_DUMP_BIN`/`PG_RESTORE_BIN` can specify Windows paths). Use matching PostgreSQL tools. Restore accepts backups with the same latest migration version as the installed software, limits expanded data to 2 GiB, and validates archive paths/checksums before changing shop data. Nightly dual-drive backups remain a separate existing schedule; a UI download does not require its drive configuration. No new migration is introduced by this update.
 
 Validation: 30 integrity tests (including password-only authentication and backup access restrictions), 5 archive/restore tests, 17 browser scenarios, and production frontend build passed. Restore tests exercise real archives/files/maintenance with mocked PostgreSQL tool calls. A native PostgreSQL backup/restore acceptance test on the Windows shop installation remains required; these checks do not claim that the live shop database was restored.
+
+
+## Staff overtime
+
+Inventory & finance → Monthly Payroll now includes Staff overtime. Set a worker's default overtime rate through Workshop staff → Edit worker. Add actual overtime by work date, hours, hourly rate and reason. The rate and calculated amount are stored per entry; later default-rate changes do not change previous entries. Payroll adds overtime to salary and commissions, and monthly partner calculations that use payroll include this cost. Entries can be edited with conflict detection or removed with a reason; removed entries retain their history and are excluded from payroll.
+
+Existing payroll.read/payroll.manage permissions control overtime viewing and changes for Admin/Accountant. Workers do not receive logins. Future dates, invalid amounts and totals exceeding 24 overtime hours per worker/day are rejected. Retries reuse a request key. This records payroll owed; it does not automatically withdraw cash/bank funds or settle wages. No shift system or automatic statutory overtime multiplier is assumed; enter the shop's agreed rate.
+
+Before enabling on the shop PC: back up first, then run `npm run prisma:deploy`, `npm run prisma:generate`, rebuild the UI and restart the backend. Migration `20261009010000_staff_overtime` adds a default-zero hourly rate and overtime records without changing existing balances or salaries. UI backups created before this migration require the matching prior software version for restore.
+
+Overtime validation: 31 controller/integrity scenarios, 18 browser scenarios, production frontend build and fresh/legacy migration checks passed. Database locking concurrency and deployment on the shop PC remain acceptance checks.

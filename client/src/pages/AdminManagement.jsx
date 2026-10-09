@@ -4,6 +4,7 @@ import axios from 'axios';
 import RecordEditorModal from '../components/RecordEditorModal';
 import { useAuth } from '../context/AuthContext';
 import AdminServicesTab from '../components/admin/AdminServicesTab';
+import OvertimePanel from '../components/OvertimePanel';
 import AdminStaffTab from '../components/admin/AdminStaffTab';
 import AdminBanksTab from '../components/admin/AdminBanksTab';
 import AdminBrandingTab from '../components/admin/AdminBrandingTab';
@@ -647,6 +648,7 @@ export default function AdminManagement() {
       {/* TAB 2: STAFF PAYROLL ENGINE */}
       {/* ============================================================== */}
       {activeAdminTab === 'payroll' && <div className="space-y-6">
+          <OvertimePanel month={currentMonth} onChange={() => fetchPayroll(currentMonth)} />
           {/* Payroll Header & Month Navigation */}
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
@@ -654,7 +656,7 @@ export default function AdminManagement() {
                 <Users className="w-5 h-5 text-sky-700" /> Monthly Staff Payroll & Commissions Engine
               </h3>
               <p className="text-xs text-slate-500 mt-1">
-                Automated compensation breakdown: Base Salary + Flat Rate Per Car or Detailing Percentage.
+                Automated compensation breakdown: Salary + commissions + recorded overtime.
               </p>
             </div>
 
@@ -713,7 +715,7 @@ export default function AdminManagement() {
               minimumFractionDigits: 0
             })}
               </p>
-              <p className="text-xs text-emerald-500/80 mt-1">Base Salaries + Total Commissions</p>
+              <p className="text-xs text-emerald-500/80 mt-1">Base Salaries + Commissions + Overtime</p>
             </div>
           </div>
 
@@ -739,7 +741,7 @@ export default function AdminManagement() {
                     <th className="py-3 px-4 text-right">Revenue Generated</th>
                     <th className="py-3 px-4 text-center">Commission Plan</th>
                     <th className="py-3 px-4 text-right">Commissions Earned</th>
-                    <th className="py-3 px-4 text-right font-semibold text-slate-900">Total Payout</th>
+                    <th className="py-3 px-4 text-right">Overtime</th><th className="py-3 px-4 text-right font-semibold text-slate-900">Total Payout</th>
                     <th className="py-3 px-4 text-center">Action</th>
                   </tr>
                 </thead>
@@ -772,7 +774,7 @@ export default function AdminManagement() {
                     minimumFractionDigits: 2
                   })}
                       </td>
-                      <td className="py-3.5 px-4 text-right tabular-nums font-semibold text-emerald-700 text-sm">
+                      <td className="py-3.5 px-4 text-right">{Number(staff.overtime_hours || 0).toFixed(2)} hrs<br/>Rs. {Number(staff.overtime_pay || 0).toLocaleString('en-PK')}</td><td className="py-3.5 px-4 text-right tabular-nums font-semibold text-emerald-700 text-sm">
                         Rs. {staff.total_payout.toLocaleString('en-US', {
                     minimumFractionDigits: 2
                   })}

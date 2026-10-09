@@ -20,6 +20,7 @@ function sanitizeUser(user) {
     commission_rate: parseFloat(user.commission_rate || 0),
     flat_commission: parseFloat(user.flat_commission || 0),
     base_salary: parseFloat(user.base_salary || 0),
+    overtime_rate: Number(user.overtime_rate || 0),
     is_active: user.is_active,
     has_password: Boolean(user.password_hash),
     permissions: require('../services/permission.service').effectivePermissions(user),
@@ -173,7 +174,7 @@ async function createUserHandler(req, res, next) {
     const initialPassword = password;
     const passwordHash = role === 'Worker' ? null : hashSecret(initialPassword);
     const F = require('../services/finance.service');
-    const pay = { base_salary: F.amount(base_salary, { zero: true }), flat_commission: F.amount(flat_commission, { zero: true }), commission_rate: F.amount(commission_rate, { zero: true }) };
+    const pay = { overtime_rate: F.amount(req.body.overtime_rate ?? 0, { zero: true }), base_salary: F.amount(base_salary, { zero: true }), flat_commission: F.amount(flat_commission, { zero: true }), commission_rate: F.amount(commission_rate, { zero: true }) };
     if (pay.commission_rate > 100) throw F.error('Commission percentage cannot exceed 100.');
     if ((['Admin', 'Manager'].includes(role) || pin_code) && !/^\d{4,8}$/.test(String(pin_code || ''))) return res.status(400).json({
       status: 'error',
@@ -238,7 +239,7 @@ async function updateUserHandler(req, res, next) {
     }
     if (role !== undefined) data.role = role;
     if (is_active !== undefined) data.is_active = is_active;
-    for (const key of ['commission_rate', 'flat_commission', 'base_salary']) if (req.body[key] !== undefined) data[key] = F.amount(req.body[key], {
+    for (const key of ['commission_rate', 'flat_commission', 'base_salary', 'overtime_rate']) if (req.body[key] !== undefined) data[key] = F.amount(req.body[key], {
       zero: true
     });
     if (data.commission_rate > 100) throw F.error('Commission percentage cannot exceed 100.');

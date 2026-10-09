@@ -117,6 +117,7 @@ const recent = [{
 const requests = [],
   errors = [],
   checks = [];
+let overtimeRows = [];
 let failServices = false,
   failServer = false,
   fixtureRole = "ADMIN";
@@ -152,6 +153,11 @@ async function fixtures(route) {
   };else if (endpoint === '/api/backups/download') { await route.fulfill({status:200,contentType:'application/octet-stream',body:'fixture backup bytes'}); return; }
   else if (endpoint === '/api/backups/safety') data=[];
   else if (endpoint === '/api/backups/inspect') data={id:'backup-preview',created_at:'2026-10-09T07:00:00Z',schema_version:'20261009000000_two_operator_accounts',file_count:4,media_count:3,total_bytes:1024000};
+  else if (endpoint === '/api/payroll/overtime-workers') data=[{id:'worker',name:'Test Technician',role:'Worker',is_active:true,overtime_rate:200}];
+  else if (endpoint === '/api/payroll/overtime' && request.method()==='GET') data=overtimeRows;
+  else if (endpoint === '/api/payroll/overtime' && request.method()==='POST') {data={...body,id:'ot1',version:0,amount:body.minutes*body.hourly_rate/60,user:{name:'Test Technician'}};overtimeRows=[data];}
+  else if (endpoint === '/api/payroll/overtime/ot1' && request.method()==='PUT') {data={...overtimeRows[0],...body,version:1,amount:body.minutes*body.hourly_rate/60};overtimeRows=[data];}
+  else if (endpoint === '/api/payroll/overtime/ot1' && request.method()==='DELETE') {overtimeRows=[{...overtimeRows[0],voided_at:new Date().toISOString(),void_reason:body.reason}];}
   else if (endpoint === '/api/users') data = [{ id: 'fixture-user', name: 'Shop Owner', role: 'Admin', is_active: true }, { id: 'accountant', name: 'Bookkeeper', role: 'Accountant', is_active: true }];
   else if (endpoint === '/api/staff') data = [{ id: 'worker', name: 'Test Technician', role: 'Worker', is_active: true, base_salary: 30000, flat_commission: 150 }];
   else if (endpoint === '/api/printer/settings') data = {
@@ -899,6 +905,26 @@ async function noOverflow(page) {
       await dialog.getByRole('button',{name:'Save',exact:true}).click();
       assert(requests.some(r => r.endpoint === '/api/staff' && r.body?.name === 'Workshop helper' && !r.body?.password && !r.body?.role));
       await page.screenshot({path:path.join(screenshots,'staff-clean-14inch.png')});
+    });
+    await check('Overtime records hours/rates, allows edits and retains removed history', async()=>{
+      await page.getByRole('button',{name:'Inventory & finance',exact:true}).click();
+      await page.getByRole('button',{name:'Monthly Payroll',exact:true}).click();
+      await page.getByRole('button',{name:'Add overtime',exact:true}).click();
+      let d=page.getByRole('dialog',{name:'Staff overtime entry'});
+      await d.getByLabel('Worker',{exact:true}).selectOption('worker');
+      await d.getByLabel('Overtime hours').fill('1.5');
+      await d.getByLabel('Reason',{exact:true}).fill('Late detailing');
+      await d.getByRole('button',{name:'Save overtime',exact:true}).click();
+      const panel=page.locator('section').filter({has:page.getByRole('heading',{name:'Staff overtime',exact:true})}).last();
+      await panel.getByRole('cell',{name:'Late detailing',exact:true}).waitFor();
+      assert(requests.some(r=>r.endpoint==='/api/payroll/overtime'&&r.body.minutes===90&&r.body.hourly_rate===200));
+      await panel.getByRole('button',{name:'Edit',exact:true}).click();
+      await d.getByLabel('Overtime hours').fill('2');await d.getByRole('button',{name:'Save overtime',exact:true}).click();
+      await panel.getByRole('cell',{name:'2.00',exact:true}).waitFor();
+      await noOverflow(page);await page.screenshot({path:path.join(screenshots,'staff-overtime-14inch.png')});
+      await panel.getByRole('button',{name:'Remove',exact:true}).click();
+      await d.getByLabel('Removal reason').fill('Duplicate record');await d.getByRole('button',{name:'Confirm removal',exact:true}).click();
+      await panel.getByText('Removed',{exact:true}).waitFor();
     });
     await check('Admin approval accepts 4–8 digits without auto-submitting a partial PIN', async () => {
       const from = requests.length;
