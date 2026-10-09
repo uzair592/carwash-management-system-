@@ -420,7 +420,7 @@ export default function AdminManagement({ section }) {
           badge: auditLogs.length > 0 ? <span className="bg-rose-50 text-rose-700 tabular-nums text-xs px-1.5 py-0.2 rounded-full border border-rose-200">
                         {auditLogs.length}
                       </span> : null
-        }] : [])].filter(tab => tab.id === 'staff' ? isAdmin : can(tabPermission[tab.id])).map(tab => {
+        }] : [])].filter(tab => tab.id === 'staff' ? isAdmin && can('payroll.manage') : can(tabPermission[tab.id])).map(tab => {
           const IconComponent = tab.icon;
           const isActive = activeAdminTab === tab.id;
           const activeClass = 'bg-blue-600 text-white';

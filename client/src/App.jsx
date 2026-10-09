@@ -1,3 +1,4 @@
+import AppConnection from './components/AppConnection';
 import React, { useEffect, useRef, useState } from 'react';
 import { Car, LayoutDashboard, Receipt, Users, Boxes, PieChart, Settings, RefreshCw, Menu, X, Plus, Wallet, Landmark, ChevronRight, Crown, BarChart3 } from 'lucide-react';
 import axios from 'axios';
@@ -137,8 +138,9 @@ export default function App() {
         ready: bayRes.data.ready_for_billing?.length || 0,
         register
       });
-      setLastSync(new Date());
-      setSyncState('online');
+      const saved=[bayRes,ledgerRes,registerRes].filter(Boolean).find(r=>r.offline);
+      setLastSync(saved ? new Date(saved.savedAt) : new Date());
+      setSyncState(saved ? 'offline' : 'online');
       setIsRegisterModalOpen(false);
     } catch {
       if (requestRole === roleRef.current) setSyncState('offline');
@@ -186,7 +188,7 @@ export default function App() {
       <div className="app-workspace">
 
         <main id="workspace-content" className="workspace-content">
-          <div className="workspace-heading compact-page-heading"><div className="compact-title"><button className="icon-button mobile-only" aria-label="Open navigation" onClick={() => setMobileNav(true)}><Menu size={21} /></button><h1>{page.title}</h1></div><div className="heading-actions"><button className="icon-button" aria-label="Refresh shop data" onClick={sync} disabled={syncState === 'loading'}><RefreshCw size={17} className={syncState === 'loading' ? 'animate-spin' : ''} /></button>{can('intake.manage') && activeTab !== 'intake' && <button className="btn btn-primary" onClick={() => {
+          <AppConnection /><div className="workspace-heading compact-page-heading"><div className="compact-title"><button className="icon-button mobile-only" aria-label="Open navigation" onClick={() => setMobileNav(true)}><Menu size={21} /></button><h1>{page.title}</h1></div><div className="heading-actions"><button className="icon-button" aria-label="Refresh shop data" onClick={sync} disabled={syncState === 'loading'}><RefreshCw size={17} className={syncState === 'loading' ? 'animate-spin' : ''} /></button>{can('intake.manage') && activeTab !== 'intake' && <button className="btn btn-primary" onClick={() => {
               setIntakeCustomer(null);
               navigate('intake');
             }}><Plus size={17} />New vehicle</button>}</div></div>

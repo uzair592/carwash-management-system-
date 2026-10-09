@@ -40,3 +40,7 @@ Test thermal printer readability, cutting and failure handling on the physical d
 The software records a **financial movement log** with separate cash/bank balances; it is not a complete double-entry general journal. Payroll/overtime totals calculate pay owed and do not automatically settle wages. History protection, complete wage settlement, EOD catch-up and real hardware/deployment acceptance remain separate work.
 
 Run `npm run test:integrity`, `npm run test:ui`, `npm run test:migrations`, `npm run test:backup-restore` and `npm run test:startup`. Automated tests do not replace real PostgreSQL concurrency, restore, power-loss, offline messaging, reboot or physical printer tests.
+
+## Mobile app
+
+DF PRO now builds as an installable PWA with selected offline viewing. See [mobile app setup](docs/MOBILE_APP.md) for installation, Save latest for offline, supported snapshots and the required HTTPS tunnel setup.

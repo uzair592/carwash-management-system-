@@ -1,4 +1,7 @@
 import React from 'react';
+import { installOffline } from './offline';
+installOffline();
+if (import.meta.env.PROD && 'serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import LoginScreen from './components/LoginScreen';

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import { rememberUser, savedUser, markOffline, clearOffline, connection } from '../offline';
 const AuthContext = createContext();
 export const ROLES = { ADMIN: 'ADMIN', ACCOUNTANT: 'ACCOUNTANT' };
 const clear = () => {
@@ -11,6 +12,8 @@ const clear = () => {
 export function AuthProvider({
   children
 }) {
+  const [offlineMode,setOfflineMode] = useState(false);
+  useEffect(() => { const change=e=>setOfflineMode(e.detail.offline);window.addEventListener('dfpro-connection',change);return()=>window.removeEventListener('dfpro-connection',change); }, []);
   const [pending] = useState(() => new Map());
   useEffect(() => {
     const id = axios.interceptors.request.use(config => {
@@ -49,15 +52,18 @@ export function AuthProvider({
       return;
     }
     axios.defaults.headers.common.Authorization = `Bearer ${token}`;
-    axios.get('/api/auth/me').then(r => setCurrentUser({
-      ...r.data.user,
-      token
-    })).catch(clear).finally(() => setLoading(false));
+    (async()=>{
+      const saved=await savedUser();
+      try {const r=await axios.get('/api/auth/me');const profile={...r.data.user,role:String(r.data.user.role).toUpperCase(),token};await rememberUser(profile);setCurrentUser(profile);}
+      catch(e){if(!e.response&&saved&&saved.token===token){markOffline();setCurrentUser(saved);}else{clear();await clearOffline();}}
+      finally{setLoading(false);}
+    })();
   }, []);
   useEffect(() => {
     const id = axios.interceptors.response.use(r => r, e => {
       if (e.response?.status === 401 && !e.config?.url?.includes('/auth/login')) {
         clear();
+        clearOffline();
         setCurrentUser(null);
       }
       return Promise.reject(e);
@@ -77,6 +83,7 @@ export function AuthProvider({
       };
       localStorage.setItem('carwash_auth_token', user.token);
       axios.defaults.headers.common.Authorization = `Bearer ${user.token}`;
+      await rememberUser(user);
       setCurrentUser(user);
       return {
         success: true
@@ -91,25 +98,27 @@ export function AuthProvider({
   const logout = async () => {
     try {
       await axios.post('/api/auth/logout');
+    } catch {
+      // Local sign-out must work even when the server is unavailable.
     } finally {
       clear();
+      await clearOffline();
       setCurrentUser(null);
     }
   };
-  const can = key => currentUser?.role === 'ADMIN' || currentUser?.permissions?.[key] === true;
+  const can = key => (!offlineMode || key.endsWith('.read')) && (currentUser?.role === 'ADMIN' || currentUser?.permissions?.[key] === true);
   const refreshUser = async () => {
     const r = await axios.get('/api/auth/me');
-    setCurrentUser(prev => ({
-      ...prev,
-      ...r.data.user
-    }));
+    const next={...currentUser,...r.data.user,role:String(r.data.user.role).toUpperCase()};
+    await rememberUser(next);setCurrentUser(next);
   };
   useEffect(() => {
     if (!currentUser) return;
+    const retry=()=>refreshUser().catch(()=>{});window.addEventListener('online',retry);
     const timer = setInterval(() => refreshUser().catch(() => {}), 30000);
-    return () => clearInterval(timer);
+    return () => {clearInterval(timer);window.removeEventListener('online',retry);};
   }, [currentUser?.id]);
-  const isAdmin = currentUser?.role === ROLES.ADMIN;
+  const isAdmin = currentUser?.role === ROLES.ADMIN && !offlineMode;
   return <AuthContext.Provider value={{
     currentUser,
     loading,
