@@ -108,3 +108,16 @@ Use `--width 58` for 58mm paper. Omit `--cut` for printers without a cutter. Wit
 Confirm bold readable text, aligned amounts, no excessive top gap, and exactly one cut. If a send fails or the outcome is unclear, inspect the device before running it again. Then print one saved bill and one work ticket from the app, checking each configured template and the logo on the actual paper. Browser mode cutter behaviour belongs to the driver and must be tested separately.
 
 `npm run test:migrations` requires the development dependencies. It uses disposable in-memory PostgreSQL and does not open or modify DATABASE_URL. The real installation still needs the backup and `npm run prisma:deploy` procedure above.
+
+
+## Username/password login and downloadable backups
+
+Login now requires **Username and Password** for Admin or Accountant. The Username field in Settings → Accounts is the login identifier. Passwords are set/reset by Admin there; existing saved passwords remain unchanged. A correct approval PIN cannot bypass an incorrect password. Approval PINs continue to protect restricted actions, and workshop staff have no login credentials. Duplicate usernames are rejected when editing accounts.
+
+Admin can use Settings → Backup & restore to download a verified `.dfpro` file or upload/check one before restoring. The file contains the PostgreSQL custom dump, uploaded photos/logo, and the local session signing key when present. It does not contain `.env` or external hardware credentials. Keep the file private. Restoration replaces database and uploaded files, invalidates sessions, and requires signing in with credentials saved in that backup.
+
+Backup/restore briefly pauses new shop requests and drains existing HTTP/background work. Restore first creates a verified safety copy under `backups/safety`, visible for download in Settings. Failed restore attempts recover that copy; an interrupted restore leaves a durable marker that triggers recovery before the server accepts requests on restart. Run only the supported single backend instance during these operations. External database clients or standalone maintenance scripts must not mutate the shop while a backup or restore runs.
+
+UI backups require the configured `DATABASE_URL` and working `pg_dump`/`pg_restore` binaries on the shop PC (`PG_DUMP_BIN`/`PG_RESTORE_BIN` can specify Windows paths). Use matching PostgreSQL tools. Restore accepts backups with the same latest migration version as the installed software, limits expanded data to 2 GiB, and validates archive paths/checksums before changing shop data. Nightly dual-drive backups remain a separate existing schedule; a UI download does not require its drive configuration. No new migration is introduced by this update.
+
+Validation: 30 integrity tests (including password-only authentication and backup access restrictions), 5 archive/restore tests, 17 browser scenarios, and production frontend build passed. Restore tests exercise real archives/files/maintenance with mocked PostgreSQL tool calls. A native PostgreSQL backup/restore acceptance test on the Windows shop installation remains required; these checks do not claim that the live shop database was restored.

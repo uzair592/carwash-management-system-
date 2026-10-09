@@ -24,12 +24,13 @@ async function run(binary, args, env) {
       stdio: ['ignore', 'ignore', 'pipe'],
       windowsHide: true
     });
+    const timer = setTimeout(() => { p.kill(); reject(new Error('PostgreSQL backup/restore command timed out.')); }, 15 * 60 * 1000);
     let error = '';
     p.stderr.on('data', b => {
       error += b.toString();
     });
-    p.on('error', reject);
-    p.on('exit', code => code === 0 ? resolve() : reject(new Error('PostgreSQL backup/restore command failed (' + code + ').')));
+    p.on('error', e => { clearTimeout(timer); reject(e); });
+    p.on('exit', code => { clearTimeout(timer); code === 0 ? resolve() : reject(new Error('PostgreSQL backup/restore command failed (' + code + ').')); });
   });
 }
 async function files(directory) {

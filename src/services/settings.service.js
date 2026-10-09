@@ -14,6 +14,7 @@ const settingsCache = new Map();
 async function initSettings() {
   try {
     const settings = await prisma.systemSetting.findMany();
+    settingsCache.clear();
     for (const item of settings) {
       settingsCache.set(item.key, Boolean(item.value));
     }

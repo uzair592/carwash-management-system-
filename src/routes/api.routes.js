@@ -177,6 +177,13 @@ router.post('/auth/logout', async (req, res, next) => {
   }
 });
 router.use(require('../services/permission.service').enforcePermissions);
+const backupController = require('../controllers/backup.controller');
+router.post('/backups/download', backupController.download);
+router.post('/backups/inspect', backupController.upload, backupController.inspect);
+router.post('/backups/:id/restore', backupController.restore);
+router.delete('/backups/:id', backupController.discard);
+router.get('/backups/safety', backupController.listSafety);
+router.get('/backups/safety/:name', backupController.safetyDownload);
 const permissionController = require('../controllers/permission.controller');
 router.get('/permissions', permissionController.listPermissions);
 router.patch('/permissions/:id', permissionController.updatePermissions);

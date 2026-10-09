@@ -266,7 +266,7 @@ function initEodCron() {
   const schedule = '59 23 * * *';
   cron.schedule(schedule, async () => {
     console.log('[EODCron] ⏰ 23:59 Triggered: Initiating scheduled daily financial settlement...');
-    await runEodReportNow();
+    await require('../services/maintenance.service').background(() => runEodReportNow());
   }, {
     timezone: 'Asia/Karachi'
   });

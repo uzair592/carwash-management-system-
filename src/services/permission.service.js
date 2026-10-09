@@ -33,6 +33,7 @@ function requiredPermission(req) {
   const p = req.path,
     read = req.method === 'GET';
   if (p === '/auth/me' || p === '/auth/logout' || p === '/auth/verify-pin' || p === '/admin/verify-pin') return null;
+  if (p.startsWith('/backups')) return 'ADMIN_ONLY';
   if (p.startsWith('/permissions')) return 'ADMIN_ONLY';
   if (p.startsWith('/staff')) return read ? 'ROSTER' : 'ADMIN_ONLY';
   if (p.startsWith('/users')) {
