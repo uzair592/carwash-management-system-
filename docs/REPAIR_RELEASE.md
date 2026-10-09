@@ -132,3 +132,12 @@ Existing payroll.read/payroll.manage permissions control overtime viewing and ch
 Before enabling on the shop PC: back up first, then run `npm run prisma:deploy`, `npm run prisma:generate`, rebuild the UI and restart the backend. Migration `20261009010000_staff_overtime` adds a default-zero hourly rate and overtime records without changing existing balances or salaries. UI backups created before this migration require the matching prior software version for restore.
 
 Overtime validation: 31 controller/integrity scenarios, 18 browser scenarios, production frontend build and fresh/legacy migration checks passed. Database locking concurrency and deployment on the shop PC remain acceptance checks.
+
+
+## Daily-use improvements and safe startup
+
+Staff performance and Workshop staff provide an Overtime & pay shortcut. Payroll uses shorter headings/readable tab labels. Balance collections focus the amount field, show the balance remaining, and allow Escape to close while idle.
+
+Windows: use install.bat only for an empty database; update-shop.bat for a reviewed existing installation; start-shop.bat for daily startup. Existing updates require verified dual-drive backups before migration and skip seed. Database setup fails closed on migration/backup errors. Daily startup only starts/saves PM2. Linux daily startup is also schema-neutral; follow the documented manual backup/migration procedure for installation/update. Windows Task Scheduler and power settings remain shop-PC configuration, not changes executed by this release.
+
+Validation for this update: 31 integrity scenarios, 19 browser scenarios, 5 setup/launcher control-flow tests (mocked system commands), production frontend build and whitespace checks. Real Windows installation, scheduled startup and hardware remain unverified here.

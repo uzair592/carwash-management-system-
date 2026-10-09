@@ -9,7 +9,7 @@ import AdminStaffTab from '../components/admin/AdminStaffTab';
 import AdminBanksTab from '../components/admin/AdminBanksTab';
 import AdminBrandingTab from '../components/admin/AdminBrandingTab';
 import { Tag, Building2, Landmark } from 'lucide-react';
-export default function AdminManagement() {
+export default function AdminManagement({ section }) {
   const {
     isAdmin,
     can
@@ -20,6 +20,8 @@ export default function AdminManagement() {
     else setPaymentBanks([]);
   }, [can('finance.read')]);
   const [activeAdminTab, setActiveAdminTab] = useState(can('inventory.read') ? 'inventory' : can('services.read') ? 'services' : 'banks'); // 'inventory' | 'services' | 'staff' | 'banks' | 'branding' | 'payroll' | 'dividends' | 'audit'
+
+  useEffect(() => { if (section === 'payroll' && can('payroll.read')) setActiveAdminTab('payroll'); }, [section]);
 
   // Common month selection (YYYY-MM)
   const [currentMonth, setCurrentMonth] = useState(() => new Date().toISOString().slice(0, 7));
@@ -423,7 +425,7 @@ export default function AdminManagement() {
           const isActive = activeAdminTab === tab.id;
           const activeClass = 'bg-blue-600 text-white';
           const inactiveClass = 'text-slate-600 hover:bg-slate-100 hover:text-slate-900';
-          return <button key={tab.id} onClick={tab.onClick || (() => setActiveAdminTab(tab.id))} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${isActive ? activeClass : inactiveClass}`}>
+          return <button key={tab.id} onClick={tab.onClick || (() => setActiveAdminTab(tab.id))} aria-pressed={isActive} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition ${isActive ? activeClass : inactiveClass}`}>
                 <IconComponent className="w-4 h-4" />
                 {tab.label}
                 {tab.badge}
@@ -436,7 +438,7 @@ export default function AdminManagement() {
       {/* NEW TABS: SERVICES, STAFF, BANKS, BRANDING */}
       {/* ============================================================== */}
       {activeAdminTab === 'services' && <AdminServicesTab onRefreshNeeded={fetchYieldData} />}
-      {activeAdminTab === 'staff' && <AdminStaffTab />}
+      {activeAdminTab === 'staff' && <AdminStaffTab onOvertime={() => setActiveAdminTab('payroll')} />}
       {activeAdminTab === 'banks' && <AdminBanksTab />}
       {activeAdminTab === 'branding' && <AdminBrandingTab />}
 
@@ -653,7 +655,7 @@ export default function AdminManagement() {
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Users className="w-5 h-5 text-sky-700" /> Monthly Staff Payroll & Commissions Engine
+                <Users className="w-5 h-5 text-sky-700" /> Monthly payroll
               </h3>
               <p className="text-xs text-slate-500 mt-1">
                 Automated compensation breakdown: Salary + commissions + recorded overtime.
@@ -672,7 +674,7 @@ export default function AdminManagement() {
                 <ChevronRight className="w-4 h-4" />
               </button>
 
-              <button onClick={() => fetchPayroll(currentMonth)} className="bg-sky-500 text-white hover:bg-sky-400 text-slate-950 p-2 rounded-xl transition" title="Refresh Payroll">
+              <button onClick={() => fetchPayroll(currentMonth)} className="bg-sky-500 text-white hover:bg-sky-400 text-slate-950 p-2 rounded-xl transition" aria-label="Refresh payroll" title="Refresh payroll">
                 <RefreshCw className={`w-4 h-4 ${isLoadingPayroll ? 'animate-spin' : ''}`} />
               </button>
             </div>
@@ -709,7 +711,7 @@ export default function AdminManagement() {
             </div>
 
             <div className="bg-gradient-to-br from-emerald-50 to-white border border-emerald-200 p-5 rounded-lg">
-              <span className="text-xs text-emerald-700 font-medium">Grand Total Payroll Payout</span>
+              <span className="text-xs text-emerald-700 font-medium">Total pay due</span>
               <p className="text-2xl font-semibold text-emerald-700 mt-2">
                 Rs. {(payrollData?.summary?.total_payroll_expense || 0).toLocaleString('en-US', {
               minimumFractionDigits: 0
@@ -723,9 +725,9 @@ export default function AdminManagement() {
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Staff Compensation Breakdown</h3>
+                <h3 className="text-lg font-bold text-slate-900">Pay breakdown</h3>
                 <p className="text-xs text-slate-500">
-                  Month Period: {payrollData?.month || currentMonth} • Direct integration with job card ledger
+                  Month: {payrollData?.month || currentMonth}
                 </p>
               </div>
             </div>
@@ -793,7 +795,7 @@ export default function AdminManagement() {
                       </td>
                     </tr>)}
                   {(!payrollData?.payroll || payrollData?.payroll.length === 0) && <tr>
-                      <td colSpan={9} className="text-center py-8 text-slate-500">
+                      <td colSpan={10} className="text-center py-8 text-slate-500">
                         No staff records found for month {currentMonth}.
                       </td>
                     </tr>}
