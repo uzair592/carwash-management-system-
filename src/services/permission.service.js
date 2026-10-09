@@ -10,13 +10,9 @@ function effectivePermissions(user) {
   if (role === 'ADMIN') return Object.fromEntries(KEYS.map(k => [k, true]));
   let allowed = [];
   if (role === 'ACCOUNTANT') allowed = KEYS.filter(k => !accountantDenied.has(k));
-  if (role === 'MANAGER') allowed = KEYS.filter(k => !['partners.manage', 'banks.manage'].includes(k));
-  if (role === 'CASHIER') allowed = ['intake.manage', 'workshop.read', 'workshop.manage', 'job.services', 'billing.read', 'billing.manage', 'print.use', 'customers.read', 'customers.manage', 'services.read', 'branding.read', 'finance.read'];
-  if (role === 'WORKER') allowed = ['workshop.read', 'workshop.manage', 'materials.manage', 'services.read', 'branding.read', 'inventory.read', 'staff.read'];
-  if (role === 'INVESTOR') allowed = ['overview.read', 'branding.read'];
   const result = Object.fromEntries(KEYS.map(k => [k, allowed.includes(k)]));
-  // Existing Workers/Investors remain constrained; only operator roles receive configurable grants.
-  if (['ACCOUNTANT', 'MANAGER', 'CASHIER'].includes(role)) for (const key of KEYS) if (typeof user?.permissions?.[key] === 'boolean') result[key] = user.permissions[key];
+  // Only the Accountant receives configurable grants; Admin access is fixed.
+  if (role === 'ACCOUNTANT') for (const key of KEYS) if (typeof user?.permissions?.[key] === 'boolean') result[key] = user.permissions[key];
   return result;
 }
 function can(user, key) {
@@ -38,6 +34,7 @@ function requiredPermission(req) {
     read = req.method === 'GET';
   if (p === '/auth/me' || p === '/auth/logout' || p === '/auth/verify-pin' || p === '/admin/verify-pin') return null;
   if (p.startsWith('/permissions')) return 'ADMIN_ONLY';
+  if (p.startsWith('/staff')) return read ? 'ROSTER' : 'ADMIN_ONLY';
   if (p.startsWith('/users')) {
     if (read) return 'ROSTER';
     if (p === `/users/${req.user.id}/reset-password`) return null;

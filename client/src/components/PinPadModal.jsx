@@ -7,7 +7,7 @@ export default function PinPadModal({
   onClose,
   onSuccess,
   title = 'Admin Authorization Required',
-  description = 'An Admin or Manager must physically enter their 4-digit PIN to authorize this sensitive action.',
+  description = 'Enter the Admin approval PIN for this restricted action.',
 }) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
@@ -23,15 +23,12 @@ export default function PinPadModal({
   if (!isOpen) return null;
 
   const handleDigit = (digit) => {
-    if (pin.length < 6) {
+    if (pin.length < 8) {
       const nextPin = pin + digit;
       setPin(nextPin);
       setError('');
 
-      // Auto-submit on 4 digits
-      if (nextPin.length === 4) {
-        verifyPin(nextPin);
-      }
+
     }
   };
 
@@ -47,7 +44,7 @@ export default function PinPadModal({
 
   const verifyPin = async (pinToVerify = pin) => {
     if (!pinToVerify || pinToVerify.length < 4) {
-      setError('Please enter your 4-digit PIN.');
+      setError('Enter the Admin PIN (4–8 digits).');
       return;
     }
 
@@ -91,7 +88,7 @@ export default function PinPadModal({
 
         {/* PIN Digit Indicators */}
         <div className="flex items-center justify-center gap-3 my-6">
-          {[0, 1, 2, 3].map((idx) => (
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((idx) => (
             <div
               key={idx}
               className={`w-4 h-4 rounded-full border-2 transition-all duration-200 ${

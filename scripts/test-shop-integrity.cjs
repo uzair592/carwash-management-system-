@@ -12,6 +12,10 @@ function matches(row, where = {}) {
   return Object.entries(where).every(([k, v]) => {
     const x = row[k];
     if (v && typeof v === 'object' && !(v instanceof Date)) {
+      if ('equals' in v) {
+        const value = v.path ? v.path.reduce((value, key) => value?.[key], x) : x;
+        return v.mode === 'insensitive' && typeof value === 'string' ? value.toLowerCase() === String(v.equals).toLowerCase() : value === v.equals;
+      }
       if ('in' in v) return v.in.includes(x);
       if ('startsWith' in v) return typeof x === 'string' && x.startsWith(v.startsWith);
       if ('gte' in v && x < v.gte) return false;
@@ -1201,4 +1205,22 @@ test('Inventory CRUD requires adjustment reasons, protects units/history and onl
   });
   assert.equal(state.inventory.length, 0);
   assert(state.auditLog.some(a => a.action === 'INVENTORY_DELETED'));
+});
+
+test('Only Admin and Accountant can log in; staff records cannot acquire login roles or credentials', async () => {
+  for (const role of ['Worker','Manager','Cashier','Investor']) {
+    state.user.push({ id: role, name: role, role, is_active: true, session_version: 0, password_hash: security.hashSecret('valid-password') });
+    assert.equal((await call(users.loginHandler, { username: role, password: 'valid-password' })).status, 403);
+    assert.equal((await call(auth.authenticateUser, {}, { headers: { authorization: 'Bearer ' + security.generateToken({ id: role, version: 0 }) } })).status, 403);
+    assert.equal((await call(users.createUserHandler, { name: 'New ' + role, role, password: 'valid-password', pin_code: '1234' })).status, 400);
+  }
+  const result = await call(users.createUserHandler, { name: 'Floor technician', role: 'Worker', base_salary: 30000 }, { staffRecord: true });
+  assert.equal(result.status, 201);
+  const worker = state.user.find(u => u.name === 'Floor technician');
+  assert.equal(worker.password_hash, null);
+  assert.equal(worker.pin_code, '');
+  assert.equal((await call(users.resetPasswordHandler, { new_password: 'valid-password' }, { params: { id: worker.id } })).status, 400);
+  const account = await call(users.createUserHandler, { name: 'Bookkeeper', role: 'Accountant', password: 'valid-password' });
+  assert.equal(account.status, 201);
+  assert.equal((await call(users.loginHandler, { username: 'Bookkeeper', password: 'valid-password' })).status, 200);
 });

@@ -23,6 +23,7 @@ async function authenticateUser(req, res, next) {
       status: 'error',
       message: 'Session expired. Please sign in again.'
     });
+    if (!['Admin', 'Accountant'].includes(user.role)) return res.status(403).json({ status: 'error', message: 'Only Admin and Accountant accounts can use this workspace.' });
     req.user = {
       id: user.id,
       name: user.name,
@@ -48,7 +49,7 @@ async function verifyAdminOrManagerPin(pin) {
   const users = await prisma.user.findMany({
     where: {
       role: {
-        in: ['Admin', 'Manager']
+        in: ['Admin']
       },
       is_active: true
     }

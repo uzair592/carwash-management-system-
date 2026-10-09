@@ -622,3 +622,10 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none;bor
 
 .overview-panels .receipt-row { display: flex; justify-content: space-between; gap: 12px; margin: 8px 0; font-size: 14px; }
 .overview-panels .receipt-row strong { text-align: right; }
+
+/* Compact account and workshop staff lists; operator choices live in Settings. */
+.operator-records-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px;border-bottom:1px solid #e2e8f0}
+.operator-records-header h2,.operator-editor h2{font-size:18px;font-weight:750;margin:0}.operator-records-header p{font-size:13px;color:#64748b;margin:3px 0 0}
+.operator-table{width:100%;text-align:left;font-size:14px}.operator-table th{background:#f8fafc;color:#64748b;font-size:12px;font-weight:700;padding:11px 16px;white-space:nowrap}.operator-table td{padding:13px 16px;border-top:1px solid #e2e8f0}.record-actions{display:flex;gap:6px;flex-wrap:wrap}.record-actions .btn{padding:6px 9px;font-size:12px}.record-status{font-size:12px;color:#64748b;background:#f1f5f9;padding:4px 8px;border-radius:5px}.record-status.active{color:#047857;background:#ecfdf5}
+.operator-editor{width:min(480px,100%);padding:20px;display:grid;gap:16px;max-height:90vh;overflow-y:auto}.staff-pay-fields{display:grid;grid-template-columns:1fr;gap:12px}
+@media(max-width:700px){.operator-records-header{align-items:flex-start;flex-direction:column}.operator-table td,.operator-table th{padding:10px 12px}.record-actions{min-width:170px}}

@@ -34,7 +34,12 @@ async function run() {
       INSERT INTO invoices (id,job_card_id,total_amount,paid_amount) VALUES ('i1','j1',1200,1200);
       INSERT INTO refunds (id,invoice_id,amount,reason,authorized_by_pin) VALUES ('r1','i1',100,'Test fixture','1234');
       INSERT INTO customer_deposits (id,vehicle_id,customer_name,amount,status) VALUES ('d1','v1','Test',500,'ACTIVE'),('d2','v1','Test',300,'APPLIED');`);
+    await legacy.exec(`INSERT INTO users (id,name,role,pin_code,password_hash,updated_at) VALUES ('oldcashier','Cashier','Cashier','1234','old-hash',now()), ('floor','Floor worker','Worker','1234','old-hash',now());`);
     for (const name of migrations.slice(1)) await apply(legacy, name);
+    assert.equal((await legacy.query(`SELECT role FROM users WHERE id='oldcashier'`)).rows[0].role, 'Accountant');
+    const staff = (await legacy.query(`SELECT role,password_hash,pin_code,is_active FROM users WHERE id='floor'`)).rows[0];
+    assert.equal(staff.role, 'Worker'); assert.equal(staff.password_hash, null); assert.equal(staff.pin_code, ''); assert.equal(staff.is_active, true);
+    console.log('PASS two-operator upgrade preserves workshop staff, clears staff logins and converts legacy cashiers');
     const balances = await legacy.query(`SELECT id,amount::text,remaining_amount::text FROM customer_deposits ORDER BY id`);
     assert.deepEqual(balances.rows.map(r => [r.amount,r.remaining_amount]), [['500.00','500.00'],['300.00','0.00']]);
     assert.equal((await legacy.query(`SELECT total_amount::text FROM invoices WHERE id='i1'`)).rows[0].total_amount, '1200.00');

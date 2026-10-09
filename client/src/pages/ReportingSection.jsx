@@ -263,7 +263,7 @@ export default function ReportingSection() {
                   <th className="py-3 px-4">Vehicle Plate</th>
                   <th className="py-3 px-4">Customer</th>
                   <th className="py-3 px-4">Tender</th>
-                  <th className="py-3 px-4">Cashier</th>
+                  <th className="py-3 px-4">Collected by</th>
                   <th className="py-3 px-4 text-right">Amount Paid</th>
                 </tr>
               </thead>

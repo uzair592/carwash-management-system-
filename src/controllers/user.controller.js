@@ -75,6 +75,7 @@ async function loginHandler(req, res, next) {
         message: 'Invalid user credentials or account is deactivated.'
       });
     }
+    if (!['Admin', 'Accountant'].includes(user.role)) return res.status(403).json({ status: 'error', message: 'Only Admin and Accountant accounts can sign in. Workshop staff do not need a login.' });
     let authenticated = false;
 
     // Verify Password if provided
@@ -143,6 +144,8 @@ async function listUsersHandler(req, res, next) {
     const where = include_inactive === 'true' ? {} : {
       is_active: true
     };
+    if (req.query.category === 'accounts') where.role = { in: ['Admin', 'Accountant'] };
+    if (req.query.category === 'staff' || req.staffRecord) where.role = 'Accountant';
     const users = await prisma.user.findMany({
       where,
       orderBy: [{
@@ -186,9 +189,9 @@ async function createUserHandler(req, res, next) {
         message: 'Staff member name is required.'
       });
     }
-    if (!['Admin', 'Accountant', 'Manager', 'Cashier', 'Worker', 'Investor'].includes(role)) return res.status(400).json({
+    if (!(req.staffRecord ? role === 'Worker' : ['Admin', 'Accountant'].includes(role))) return res.status(400).json({
       status: 'error',
-      message: 'Choose a valid role.'
+      message: 'Only Admin and Accountant login accounts are supported.'
     });
     const cleanName = String(name).trim();
 
@@ -212,7 +215,10 @@ async function createUserHandler(req, res, next) {
       message: 'A password of at least 8 characters is required.'
     });
     const initialPassword = password;
-    const passwordHash = hashSecret(initialPassword);
+    const passwordHash = role === 'Worker' ? null : hashSecret(initialPassword);
+    const F = require('../services/finance.service');
+    const pay = { base_salary: F.amount(base_salary, { zero: true }), flat_commission: F.amount(flat_commission, { zero: true }), commission_rate: F.amount(commission_rate, { zero: true }) };
+    if (pay.commission_rate > 100) throw F.error('Commission percentage cannot exceed 100.');
     if ((['Admin', 'Manager'].includes(role) || pin_code) && !/^\d{4,8}$/.test(String(pin_code || ''))) return res.status(400).json({
       status: 'error',
       message: 'PIN must contain 4 to 8 digits.'
@@ -224,9 +230,7 @@ async function createUserHandler(req, res, next) {
         role: role || 'Worker',
         password_hash: passwordHash,
         pin_code: pinHash,
-        commission_rate: parseFloat(commission_rate) || 0,
-        flat_commission: parseFloat(flat_commission) || 0,
-        base_salary: parseFloat(base_salary) || 0,
+        ...pay,
         is_active: true
       }
     });
@@ -269,7 +273,7 @@ async function updateUserHandler(req, res, next) {
       base_salary,
       is_active
     } = req.body;
-    if (role !== undefined && !['Admin', 'Accountant', 'Manager', 'Cashier', 'Worker', 'Investor'].includes(role)) throw F.error('Choose a valid role.');
+    if (role !== undefined && !(req.staffRecord ? role === 'Worker' : ['Admin', 'Accountant'].includes(role))) throw F.error('Only Admin and Accountant login accounts are supported.');
     if (is_active !== undefined && typeof is_active !== 'boolean') throw F.error('Active status must be a switch.');
     const data = {};
     if (name !== undefined) {
@@ -290,6 +294,7 @@ async function updateUserHandler(req, res, next) {
         }
       });
       if (!user) throw F.error('User not found.', 404);
+      if (req.staffRecord && user.role !== 'Worker' || !req.staffRecord && user.role === 'Worker') throw F.error('Edit workshop staff through the staff list.');
       if (user.role === 'Admin' && user.is_active && (role && role !== 'Admin' || is_active === false) && (await tx.user.count({
         where: {
           role: 'Admin',
@@ -353,6 +358,7 @@ async function resetPasswordHandler(req, res, next) {
         message: 'User not found.'
       });
     }
+    if (!['Admin', 'Accountant'].includes(targetUser.role)) return res.status(400).json({ status: 'error', message: 'Workshop staff do not have login credentials.' });
     const isSelf = req.user?.id === id;
     const isAdmin = req.user?.role === 'ADMIN' || req.user?.role === 'Admin';
     if (!isSelf && !isAdmin) return res.status(403).json({
@@ -433,6 +439,7 @@ async function updatePinHandler(req, res, next) {
         message: 'User not found.'
       });
     }
+    if (targetUser.role !== 'Admin') return res.status(400).json({ status: 'error', message: 'Approval PINs are only for the Admin.' });
     const pinHash = hashSecret(String(new_pin).trim());
     await prisma.user.update({
       where: {
