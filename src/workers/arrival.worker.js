@@ -42,7 +42,7 @@ async function reconcileArrivals() {
   }
 }
 function initArrivalWorker() {
-  timer = setInterval(() => reconcileArrivals().catch(e => console.error('[Arrival]', e.message)), 15000);
+  timer = setInterval(() => require('../services/maintenance.service').background(() => reconcileArrivals()).catch(e => console.error('[Arrival]', e.message)), 15000);
 }
 function stopArrivalWorker() {
   clearInterval(timer);

@@ -82,6 +82,7 @@ function verifyToken(token) {
   }
 }
 module.exports = {
+  resetSigningSecret: () => { installationSecret = undefined; },
   hashSecret,
   verifySecret,
   generateToken,

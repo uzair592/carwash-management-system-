@@ -35,40 +35,14 @@ function sanitizeUser(user) {
  */
 async function loginHandler(req, res, next) {
   try {
-    const {
-      username,
-      name,
-      password,
-      pin
-    } = req.body;
-    const identifier = String(username || name || '').trim();
-    if (!identifier && !pin && !password) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Username/Name and Password or PIN are required.'
-      });
+    const { username, password } = req.body;
+    const identifier = typeof username === 'string' ? username.trim() : '';
+    if (!identifier || typeof password !== 'string' || !password) {
+      return res.status(400).json({ status: 'error', message: 'Username and password are required.' });
     }
-    let user = null;
-    if (identifier) {
-      // Find active user by name (case-insensitive)
-      user = await prisma.user.findFirst({
-        where: {
-          name: {
-            equals: identifier,
-            mode: 'insensitive'
-          },
-          is_active: true
-        }
-      });
-    } else if (pin) {
-      // Fallback find by PIN
-      const allActive = await prisma.user.findMany({
-        where: {
-          is_active: true
-        }
-      });
-      user = allActive.find(u => verifySecret(pin, u.pin_code)) || null;
-    }
+    const user = await prisma.user.findFirst({
+      where: { name: { equals: identifier, mode: 'insensitive' }, is_active: true }
+    });
     if (!user) {
       return res.status(401).json({
         status: 'error',
@@ -76,26 +50,8 @@ async function loginHandler(req, res, next) {
       });
     }
     if (!['Admin', 'Accountant'].includes(user.role)) return res.status(403).json({ status: 'error', message: 'Only Admin and Accountant accounts can sign in. Workshop staff do not need a login.' });
-    let authenticated = false;
-
-    // Verify Password if provided
-    if (password) {
-      if (user.password_hash && verifySecret(password, user.password_hash)) {
-        authenticated = true;
-      }
-    }
-
-    // Or verify PIN if provided and not yet authenticated
-    if (!authenticated && pin) {
-      if (verifySecret(pin, user.pin_code)) {
-        authenticated = true;
-      }
-    }
-    if (!authenticated) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Incorrect password or approval PIN.'
-      });
+    if (!user.password_hash || !verifySecret(password, user.password_hash)) {
+      return res.status(401).json({ status: 'error', message: 'Incorrect username or password.' });
     }
 
     // Generate secure token
@@ -294,6 +250,10 @@ async function updateUserHandler(req, res, next) {
         }
       });
       if (!user) throw F.error('User not found.', 404);
+      if (data.name) {
+        const duplicate = await tx.user.findFirst({ where: { name: { equals: data.name, mode: 'insensitive' } } });
+        if (duplicate && duplicate.id !== user.id) throw F.error('This username is already in use.', 409);
+      }
       if (req.staffRecord && user.role !== 'Worker' || !req.staffRecord && user.role === 'Worker') throw F.error('Edit workshop staff through the staff list.');
       if (user.role === 'Admin' && user.is_active && (role && role !== 'Admin' || is_active === false) && (await tx.user.count({
         where: {

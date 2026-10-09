@@ -4,7 +4,7 @@ function initBackupCron() {
     console.warn('[Backup] Configure both backup drives before shop use.');
     return;
   }
-  const run = () => require('../../scripts/backup-shop').backupShop().catch(async e => {
+  const run = () => require('../services/maintenance.service').background(() => require('../../scripts/backup-shop').backupShop()).catch(async e => {
     console.error('[Backup]', e.message);
     await require('../prisma').alertOutbox.create({
       data: {

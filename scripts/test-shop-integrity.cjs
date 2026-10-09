@@ -1017,6 +1017,9 @@ test('HTTP API enforces Accountant permissions, including changes during an exis
     assert.equal((await fetch(base + '/banks')).status, 401);
     assert.equal((await request('/reports/summary', accountToken)).status, 403);
     assert.equal((await request('/permissions', accountToken)).status, 403);
+    assert.equal((await request('/backups/download', accountToken, 'POST', {})).status, 403);
+    assert.equal((await request('/backups/inspect', accountToken, 'POST', {})).status, 403);
+    assert.equal((await request('/backups/unknown/restore', accountToken, 'POST', { confirmation: 'RESTORE' })).status, 403);
     assert.equal((await request('/invoices/x/refund', accountToken, 'POST', {
       amount: 100
     })).status, 403);
@@ -1223,4 +1226,11 @@ test('Only Admin and Accountant can log in; staff records cannot acquire login r
   const account = await call(users.createUserHandler, { name: 'Bookkeeper', role: 'Accountant', password: 'valid-password' });
   assert.equal(account.status, 201);
   assert.equal((await call(users.loginHandler, { username: 'Bookkeeper', password: 'valid-password' })).status, 200);
+  assert.equal((await call(users.loginHandler, { username: 'Bookkeeper', password: 'wrong-password', pin: '1234' })).status, 401);
+  assert.equal((await call(users.loginHandler, { username: 'Bookkeeper', pin: '1234' })).status, 400);
+  assert.equal((await call(users.loginHandler, { password: 'valid-password' })).status, 400);
+  state.user.push({ id: 'admin-login', name: 'Admin', role: 'Admin', is_active: true, session_version: 0, password_hash: security.hashSecret('admin-password'), pin_code: security.hashSecret('1234') });
+  assert.equal((await call(users.loginHandler, { username: 'Admin', password: 'admin-password' })).status, 200);
+  await assert.rejects(call(users.updateUserHandler, { name: 'bookkeeper' }, { params: { id: 'admin-login' } }), /username is already in use/);
+  assert.equal((await call(users.loginHandler, { username: 'Admin', password: 'wrong-password', pin: '1234' })).status, 401);
 });

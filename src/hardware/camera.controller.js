@@ -165,6 +165,10 @@ class CameraController {
    * Ignores generic motion, and ignores exiting traffic.
    */
   async evaluateEvent(xml) {
+    return require('../services/maintenance.service').background(() => this.evaluateEventNow(xml));
+  }
+
+  async evaluateEventNow(xml) {
     // 1. Strict Event Type Filter: linedetection / LineDetection
     const isLineDetection = /<eventType>(linedetection|LineDetection)<\/eventType>/i.test(xml);
     if (!isLineDetection) {

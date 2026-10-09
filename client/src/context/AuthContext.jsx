@@ -64,12 +64,11 @@ export function AuthProvider({
     });
     return () => axios.interceptors.response.eject(id);
   }, []);
-  const login = async (identifier, password, pin) => {
+  const login = async (identifier, password) => {
     try {
       const r = await axios.post('/api/auth/login', {
         username: identifier,
-        password,
-        pin
+        password
       });
       const user = {
         ...r.data.user,

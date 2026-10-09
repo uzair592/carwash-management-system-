@@ -97,7 +97,7 @@ async function processOutboxQueue() {
 }
 function initOutboxWorker() {
   if (timer) clearInterval(timer);
-  timer = setInterval(() => processOutboxQueue().catch(e => console.error('[Outbox]', e.message)), 5000);
+  timer = setInterval(() => require('../services/maintenance.service').background(() => processOutboxQueue()).catch(e => console.error('[Outbox]', e.message)), 5000);
 }
 function stopOutboxWorker() {
   clearInterval(timer);

@@ -124,7 +124,7 @@ async function fixtures(route) {
   const request = route.request(),
     url = new URL(request.url()),
     endpoint = url.pathname;
-  const body = request.postDataJSON();
+  const body = request.headers()['content-type']?.includes('application/json') ? request.postDataJSON() : {};
   requests.push({
     query: Object.fromEntries(url.searchParams),
     endpoint,
@@ -149,7 +149,10 @@ async function fixtures(route) {
         role: fixtureRole
       })
     }
-  };else if (endpoint === '/api/users') data = [{ id: 'fixture-user', name: 'Shop Owner', role: 'Admin', is_active: true }, { id: 'accountant', name: 'Bookkeeper', role: 'Accountant', is_active: true }];
+  };else if (endpoint === '/api/backups/download') { await route.fulfill({status:200,contentType:'application/octet-stream',body:'fixture backup bytes'}); return; }
+  else if (endpoint === '/api/backups/safety') data=[];
+  else if (endpoint === '/api/backups/inspect') data={id:'backup-preview',created_at:'2026-10-09T07:00:00Z',schema_version:'20261009000000_two_operator_accounts',file_count:4,media_count:3,total_bytes:1024000};
+  else if (endpoint === '/api/users') data = [{ id: 'fixture-user', name: 'Shop Owner', role: 'Admin', is_active: true }, { id: 'accountant', name: 'Bookkeeper', role: 'Accountant', is_active: true }];
   else if (endpoint === '/api/staff') data = [{ id: 'worker', name: 'Test Technician', role: 'Worker', is_active: true, base_salary: 30000, flat_commission: 150 }];
   else if (endpoint === '/api/printer/settings') data = {
     mode: 'BROWSER',
@@ -882,7 +885,7 @@ async function noOverflow(page) {
       let dialog = page.getByRole('dialog', {name:'Edit shop account'});
       assert.equal(await dialog.locator('select').count(),0);
       assert.equal(await dialog.getByText('Monthly salary',{exact:true}).count(),0);
-      await dialog.getByLabel('Account name').fill('New Accountant');
+      await dialog.getByLabel('Username').fill('New Accountant');
       await dialog.getByLabel('Password',{exact:true}).fill('test-account-password');
       await dialog.getByRole('button',{name:'Save',exact:true}).click();
       assert(requests.some(r => r.endpoint === '/api/users' && r.body?.role === 'Accountant'));
@@ -915,6 +918,29 @@ async function noOverflow(page) {
       await page.waitForTimeout(150);
       assert(requests.slice(from).some(r => r.endpoint === '/api/auth/verify-pin' && r.body?.pin === '12345678'));
       await page.evaluate(() => {window.pinTestRoot.unmount(); window.pinTestHost.remove();});
+    });
+    await check('Admin can download and inspect a backup; restore requires confirmation and Accountant cannot see the tab', async () => {
+      await page.setViewportSize({width:1366,height:768});
+      await page.goto(base + '/#settings');
+      await page.getByRole('button',{name:'Backup & restore',exact:true}).click();
+      await page.getByRole('heading',{name:'Download backup',exact:true}).waitFor();
+      const downloaded=page.waitForEvent('download');
+      await page.getByRole('button',{name:'Download backup',exact:true}).click();
+      assert.match((await downloaded).suggestedFilename(), /DF-PRO.*\.dfpro$/);
+      await page.getByLabel('Backup file',{exact:true}).setInputFiles({name:'test.dfpro',mimeType:'application/octet-stream',buffer:Buffer.from('fixture backup bytes')});
+      await page.getByRole('button',{name:'Check backup',exact:true}).click();
+      await page.getByRole('heading',{name:'Verified backup',exact:true}).waitFor();
+      const restore=page.getByRole('button',{name:'Restore backup',exact:true});
+      assert(await restore.isDisabled());
+      await page.getByLabel('Type RESTORE to replace shop data').fill('RESTORE');
+      assert(await restore.isEnabled());
+      await noOverflow(page);
+      await page.screenshot({path:path.join(screenshots,'backup-restore-14inch.png')});
+      await page.getByRole('button',{name:'Cancel restore',exact:true}).click();
+      assert(requests.some(r=>r.endpoint==='/api/backups/backup-preview'&&r.method==='DELETE'));
+      fixtureRole='ACCOUNTANT';await page.reload();await page.waitForTimeout(250);
+      assert.equal(await page.getByRole('button',{name:'Backup & restore',exact:true}).count(),0);
+      fixtureRole='ADMIN';await page.reload();
     });
     await check('Service/server failures are visible and never invent catalogue items', async () => {
       failServices = true;
