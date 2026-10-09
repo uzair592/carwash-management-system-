@@ -1,14 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 const AuthContext = createContext();
-export const ROLES = {
-  ADMIN: 'ADMIN',
-  ACCOUNTANT: 'ACCOUNTANT',
-  MANAGER: 'MANAGER',
-  CASHIER: 'CASHIER',
-  WORKER: 'WORKER',
-  INVESTOR: 'INVESTOR'
-};
+export const ROLES = { ADMIN: 'ADMIN', ACCOUNTANT: 'ACCOUNTANT' };
 const clear = () => {
   for (const key of ['carwash_auth_token', 'carwash_user_role', 'carwash_user_name', 'carwash_user_id']) localStorage.removeItem(key);
   delete axios.defaults.headers.common.Authorization;
@@ -117,17 +110,13 @@ export function AuthProvider({
     const timer = setInterval(() => refreshUser().catch(() => {}), 30000);
     return () => clearInterval(timer);
   }, [currentUser?.id]);
-  const isAdmin = currentUser?.role === ROLES.ADMIN,
-    isManager = isAdmin || currentUser?.role === ROLES.MANAGER || currentUser?.role === ROLES.ACCOUNTANT,
-    isCashier = can('billing.manage') || can('intake.manage');
+  const isAdmin = currentUser?.role === ROLES.ADMIN;
   return <AuthContext.Provider value={{
     currentUser,
     loading,
     login,
     logout,
     isAdmin,
-    isManager,
-    isCashier,
     can,
     refreshUser,
     ROLES

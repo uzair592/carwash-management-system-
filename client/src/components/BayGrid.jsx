@@ -155,7 +155,7 @@ export default function BayGrid({ onCheckoutTrigger }) {
               className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 font-semibold py-2.5 px-3 rounded-lg text-xs flex items-center justify-center gap-1.5 transition active:scale-95 shadow-sm"
             >
               <Receipt className="w-4 h-4 text-slate-950" />
-              Cashier Checkout (Rs. {subtotal.toLocaleString()})
+              Collect payment (Rs. {subtotal.toLocaleString()})
             </button>
           )}
         </div>

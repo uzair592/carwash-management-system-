@@ -298,6 +298,22 @@ router.patch('/services/:id', updateServiceHandler);
 // ---------------------------------------------------------------------------
 // 7b. Staff User Management (Credentials, PINs, Roles, Status)
 // ---------------------------------------------------------------------------
+// Workshop personnel are roster records, never login accounts.
+const staffRecord = async (req, res, next) => {
+  try {
+    req.staffRecord = true;
+    if (req.params.id) {
+      const record = await prisma.user.findUnique({ where: { id: req.params.id } });
+      if (!record || record.role !== 'Worker') return res.status(404).json({ status: 'error', message: 'Workshop staff record not found.' });
+    }
+    req.body = { ...req.body, role: 'Worker', password: undefined, pin_code: undefined };
+    next();
+  } catch (e) { next(e); }
+};
+router.get('/staff', (req, res, next) => { req.staffRecord = true; next(); }, listUsersHandler);
+router.post('/staff', staffRecord, createUserHandler);
+router.put('/staff/:id', staffRecord, updateUserHandler);
+router.patch('/staff/:id/toggle-status', staffRecord, toggleUserStatusHandler);
 router.get('/users', listUsersHandler);
 router.post('/users', createUserHandler);
 router.put('/users/:id', updateUserHandler);

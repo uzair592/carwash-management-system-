@@ -78,8 +78,6 @@ export default function App() {
   const {
     currentUser,
     isAdmin,
-    isManager,
-    isCashier,
     logout,
     can
   } = useAuth();
@@ -209,7 +207,7 @@ export default function App() {
             {activeTab === 'leaderboard' && allowed('leaderboard') && <Leaderboard />}
             {activeTab === 'investor' && allowed('investor') && <InvestorDashboard />}
             {activeTab === 'admin' && allowed('admin') && <AdminManagement />}
-            {activeTab === 'settings' && allowed('settings') && <><section className="surface cash-reconciliation"><div><h2>Cash drawer reconciliation</h2><p>Use one shop cash drawer. Record its opening float or reconcile the counted cash.</p></div><button className="btn btn-secondary" disabled={!can('finance.manage')} onClick={() => registerData?.is_open ? setIsCloseShiftModalOpen(true) : setIsRegisterModalOpen(true)}><Wallet size={17} />{registerData?.is_open ? 'Reconcile cash drawer' : 'Set opening cash'}</button></section><SettingsToggle /></>}
+            {activeTab === 'settings' && allowed('settings') && <><SettingsToggle /><section className="surface cash-reconciliation"><div><h2>Cash drawer reconciliation</h2><p>Use one shop cash drawer. Record its opening float or reconcile the counted cash.</p></div><button className="btn btn-secondary" disabled={!can('finance.manage')} onClick={() => registerData?.is_open ? setIsCloseShiftModalOpen(true) : setIsRegisterModalOpen(true)}><Wallet size={17} />{registerData?.is_open ? 'Reconcile cash drawer' : 'Set opening cash'}</button></section></>}
           </div>
         </main>
       </div>

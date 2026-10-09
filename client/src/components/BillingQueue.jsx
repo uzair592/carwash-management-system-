@@ -307,7 +307,7 @@ export default function BillingQueue({
       <PinPadModal isOpen={isPinModalOpen} onClose={() => {
       setIsPinModalOpen(false);
       setRefundTargetInvoice(null);
-    }} onSuccess={handlePinSuccess} title="Authorize Ledger Refund" description={`Admin or Manager PIN required to reverse ledger and void Invoice ${refundTargetInvoice?.invoice_number || ''}`} />
+    }} onSuccess={handlePinSuccess} title="Authorize Ledger Refund" description={`Admin approval PIN required to reverse ledger and void Invoice ${refundTargetInvoice?.invoice_number || ''}`} />
 
       {/* Invoice Reprint Modal with Business Logo (Requirement 9 & User Request) */}
       {printInvoiceTarget && <div className="dialog-backdrop">

@@ -34,7 +34,7 @@ export default function InvestorDashboard() {
   const s = data?.today_summary || {},
     vault = data?.vault_balances || {},
     bays = data?.live_bays || {};
-  return <section className="space-y-4"><header className="surface compact-section-heading"><div><h2 className="text-xl font-bold">Business overview</h2><p className="muted text-sm">Today’s activity · Karachi time{data?.as_of ? ` · Updated ${new Date(data.as_of).toLocaleTimeString('en-GB', {
+  return <section className="space-y-4"><header className="surface compact-section-heading"><div><h2 className="text-xl font-bold">Today</h2><p className="muted text-sm">Today’s activity · Karachi time{data?.as_of ? ` · Updated ${new Date(data.as_of).toLocaleTimeString('en-GB', {
             timeZone: 'Asia/Karachi',
             hour: '2-digit',
             minute: '2-digit'

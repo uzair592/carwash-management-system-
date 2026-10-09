@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { InvoiceThermalReceipt, TokenThermalTicket, BOLD_RECEIPT_THEMES, TICKET_THEMES } from './ThermalTemplates';
 import { printThermal } from '../utils/print';
 import AdminServicesTab from './admin/AdminServicesTab';
+import AdminStaffTab from './admin/AdminStaffTab';
 import PermissionPanel from './PermissionPanel';
 import NotificationMonitor from './NotificationMonitor';
 const previewJob = {
@@ -90,12 +91,15 @@ export default function SettingsToggle() {
     id: 'devices',
     label: 'Connections'
   }, ...(isAdmin ? [{
+    id: 'accounts',
+    label: 'Accounts'
+  }, {
     id: 'permissions',
-    label: 'Permissions'
+    label: 'Accountant access'
   }] : [])];
   return <div className="settings-workspace space-y-4"><nav className="section-tabs" aria-label="Settings sections">{tabs.map(t => <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>{t.label}</button>)}</nav>
  {error && <p className="form-error" role="alert">{error}</p>}{message && <p className="success-note" role="status">{message}</p>}
- {tab === 'services' && can('services.read') && <AdminServicesTab />}{tab === 'permissions' && isAdmin && <PermissionPanel />}
+ {tab === 'accounts' && isAdmin && <AdminStaffTab mode="accounts" />}{tab === 'services' && can('services.read') && <AdminServicesTab />}{tab === 'permissions' && isAdmin && <PermissionPanel />}
  {tab === 'printing' && branding && printer && <div className="print-settings-grid"><div className="surface p-4 space-y-4"><h2 className="text-lg font-bold">Bills & work tickets</h2><fieldset disabled={!can('branding.manage')} className="space-y-3">
  <label className="field-label">Invoice design<select aria-label="Invoice design" className="field" value={branding.invoice_template || 'BOLD_TABLE'} onChange={e => setBranding({
               ...branding,

@@ -15,8 +15,9 @@ export default function AdminManagement() {
   } = useAuth();
   const [paymentBanks, setPaymentBanks] = useState([]);
   useEffect(() => {
-    axios.get('/api/banks').then(r => setPaymentBanks(r.data.data.accounts)).catch(() => {});
-  }, []);
+    if (can('finance.read')) axios.get('/api/banks').then(r => setPaymentBanks(r.data.data.accounts)).catch(() => {});
+    else setPaymentBanks([]);
+  }, [can('finance.read')]);
   const [activeAdminTab, setActiveAdminTab] = useState(can('inventory.read') ? 'inventory' : can('services.read') ? 'services' : 'banks'); // 'inventory' | 'services' | 'staff' | 'banks' | 'branding' | 'payroll' | 'dividends' | 'audit'
 
   // Common month selection (YYYY-MM)
@@ -368,27 +369,7 @@ export default function AdminManagement() {
           <span className="text-sm font-semibold">{toast.text}</span>
         </div>}
 
-      {/* Top Banner & Tab Navigation */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 shadow-sm ">
-        <div className="flex items-center gap-4">
-          <div className="p-3.5 bg-gradient-to-br from-indigo-500/20 to-sky-500/20 border border-indigo-500/30 rounded-lg text-indigo-700">
-            <Boxes className="w-8 h-8" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-2xl sm:text-2xl font-semibold text-slate-900 tracking-tight">
-                Inventory & finance
-              </h2>
-              <span className="bg-emerald-50 text-emerald-700 tabular-nums text-xs uppercase font-bold px-2 py-0.5 rounded border border-emerald-200">
-                Management
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Stock, service prices and shop accounts.
-            </p>
-          </div>
-        </div>
-
+      <div className="surface p-3">
         {/* Tab Toggle Buttons */}
         <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
           {[{
@@ -398,7 +379,7 @@ export default function AdminManagement() {
           color: 'blue'
         }, ...(true ? [{
           id: 'staff',
-          label: 'Accounts & staff',
+          label: 'Workshop staff',
           icon: Users,
           color: 'blue'
         }, {
@@ -439,13 +420,8 @@ export default function AdminManagement() {
         }] : [])].filter(tab => tab.id === 'staff' ? isAdmin : can(tabPermission[tab.id])).map(tab => {
           const IconComponent = tab.icon;
           const isActive = activeAdminTab === tab.id;
-          let activeClass = 'bg-blue-600 text-white shadow-sm';
-          if (tab.color === 'sky') activeClass = 'bg-sky-500 text-white text-slate-950 shadow-sm';
-          if (tab.color === 'emerald') activeClass = 'bg-emerald-500 text-white text-slate-950 shadow-sm';
-          if (tab.color === 'rose') activeClass = 'bg-rose-500 text-white shadow-sm';
-          let inactiveClass = 'text-slate-600 hover:text-slate-900';
-          if (tab.color === 'sky' || tab.color === 'emerald') inactiveClass = 'text-slate-500 hover:text-slate-900';
-          if (tab.color === 'rose') inactiveClass = 'text-rose-700/80 hover:text-rose-700 hover:bg-rose-50';
+          const activeClass = 'bg-blue-600 text-white';
+          const inactiveClass = 'text-slate-600 hover:bg-slate-100 hover:text-slate-900';
           return <button key={tab.id} onClick={tab.onClick || (() => setActiveAdminTab(tab.id))} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${isActive ? activeClass : inactiveClass}`}>
                 <IconComponent className="w-4 h-4" />
                 {tab.label}
@@ -707,7 +683,7 @@ export default function AdminManagement() {
               <p className="text-2xl font-semibold text-slate-900 mt-2">
                 {payrollData?.summary?.staff_count || 0} Members
               </p>
-              <p className="text-xs text-slate-500 mt-1">Admins, Cashiers & Bay Detailers</p>
+              <p className="text-xs text-slate-500 mt-1">Workshop staff and shop operators</p>
             </div>
 
             <div className="bg-white border border-slate-200 p-5 rounded-lg">
@@ -757,7 +733,7 @@ export default function AdminManagement() {
                 <thead className="bg-slate-50 text-slate-500 uppercase tabular-nums text-xs border-b border-slate-200">
                   <tr>
                     <th className="py-3 px-4">Staff Member</th>
-                    <th className="py-3 px-4">Role & Team</th>
+                    <th className="py-3 px-4">Staff type</th>
                     <th className="py-3 px-4 text-right">Base Salary</th>
                     <th className="py-3 px-4 text-center">Completed Jobs</th>
                     <th className="py-3 px-4 text-right">Revenue Generated</th>
@@ -772,7 +748,7 @@ export default function AdminManagement() {
                       <td className="py-3.5 px-4 font-bold text-slate-900">{staff.name}</td>
                       <td className="py-3.5 px-4">
                         <span className={`text-xs tabular-nums px-2 py-0.5 rounded font-bold ${staff.role === 'Admin' ? 'bg-purple-50 text-purple-700 border border-purple-200' : staff.role === 'Cashier' ? 'bg-sky-50 text-sky-700 border border-sky-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-                          {staff.role} {staff.team ? `(${staff.team})` : ''}
+                          {staff.role === 'Worker' ? 'Workshop staff' : staff.role} {staff.team ? `(${staff.team})` : ''}
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-right tabular-nums text-slate-700">

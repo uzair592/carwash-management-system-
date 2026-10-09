@@ -149,7 +149,9 @@ async function fixtures(route) {
         role: fixtureRole
       })
     }
-  };else if (endpoint === '/api/printer/settings') data = {
+  };else if (endpoint === '/api/users') data = [{ id: 'fixture-user', name: 'Shop Owner', role: 'Admin', is_active: true }, { id: 'accountant', name: 'Bookkeeper', role: 'Accountant', is_active: true }];
+  else if (endpoint === '/api/staff') data = [{ id: 'worker', name: 'Test Technician', role: 'Worker', is_active: true, base_salary: 30000, flat_commission: 150 }];
+  else if (endpoint === '/api/printer/settings') data = {
     mode: 'BROWSER',
     paper_width: 80,
     auto_cut: false,
@@ -768,13 +770,15 @@ async function noOverflow(page) {
         fullPage: true
       });
     });
-    await check('Worker navigation and role-scoped financial requests', async () => {
+    await check('Restricted Accountant navigation avoids unpermitted financial requests', async () => {
       await page.setViewportSize({
         width: 1366,
         height: 768
       });
       const from = requests.length;
-      fixtureRole = 'WORKER';
+      const savedGrants = { ...accountantGrants };
+      accountantGrants = Object.fromEntries(CATALOG.map(p => [p.key, ['workshop.read','services.read','branding.read'].includes(p.key)]));
+      fixtureRole = 'ACCOUNTANT';
       await page.reload();
       await page.waitForTimeout(350);
       assert.equal(await page.getByRole('button', {
@@ -784,6 +788,7 @@ async function noOverflow(page) {
         name: 'Billing & invoices'
       }).count(), 0);
       assert.equal(requests.slice(from).filter(r => ['/api/ledger', '/api/register/current'].includes(r.endpoint)).length, 0);
+      accountantGrants = savedGrants;
       fixtureRole = 'ADMIN';
       await page.reload();
     });
@@ -819,7 +824,7 @@ async function noOverflow(page) {
     await check('Accountant sees permitted tabs without repeated PINs; permissions are editable', async () => {
       await page.goto(base + '/#settings');
       await page.getByRole('button', {
-        name: 'Permissions',
+        name: 'Accountant access',
         exact: true
       }).click();
       await page.getByLabel('Reports', {
@@ -840,7 +845,7 @@ async function noOverflow(page) {
         exact: true
       }).count(), 0);
       assert.equal(await page.getByRole('button', {
-        name: 'Permissions',
+        name: 'Accountant access',
         exact: true
       }).count(), 0);
       await page.getByRole('button', {
@@ -861,6 +866,55 @@ async function noOverflow(page) {
       }).count(), 0);
       fixtureRole = 'ADMIN';
       await page.reload();
+    });
+    await check('Only Admin and Accountant logins appear; workshop staff have no credential or role controls', async () => {
+      await page.setViewportSize({width:1366,height:768});
+      await page.goto(base + '/#settings');
+      await page.getByRole('button', {name:'Accounts',exact:true}).click();
+      await page.getByRole('heading', {name:'Shop accounts',exact:true}).waitFor();
+      const accountTable = page.locator('.operator-records');
+      assert.match(await accountTable.innerText(), /Admin/);
+      assert.match(await accountTable.innerText(), /Accountant/);
+      assert.doesNotMatch(await accountTable.innerText(), /Worker|Cashier|Manager|Investor|Credential Security/);
+      await noOverflow(page);
+      await page.screenshot({path:path.join(screenshots,'accounts-clean-14inch.png')});
+      await page.getByRole('button', {name:'Add accountant',exact:true}).click();
+      let dialog = page.getByRole('dialog', {name:'Edit shop account'});
+      assert.equal(await dialog.locator('select').count(),0);
+      assert.equal(await dialog.getByText('Monthly salary',{exact:true}).count(),0);
+      await dialog.getByLabel('Account name').fill('New Accountant');
+      await dialog.getByLabel('Password',{exact:true}).fill('test-account-password');
+      await dialog.getByRole('button',{name:'Save',exact:true}).click();
+      assert(requests.some(r => r.endpoint === '/api/users' && r.body?.role === 'Accountant'));
+      await page.getByRole('button',{name:'Inventory & finance',exact:true}).click();
+      await page.getByRole('button',{name:'Workshop staff',exact:true}).click();
+      await page.getByRole('heading',{name:'Workshop staff',exact:true}).waitFor();
+      await page.getByRole('button',{name:'Add worker',exact:true}).click();
+      dialog = page.getByRole('dialog',{name:'Edit workshop staff'});
+      assert.equal(await dialog.locator('input[type=password],select').count(),0);
+      await dialog.getByLabel('Worker name').fill('Workshop helper');
+      await dialog.getByRole('button',{name:'Save',exact:true}).click();
+      assert(requests.some(r => r.endpoint === '/api/staff' && r.body?.name === 'Workshop helper' && !r.body?.password && !r.body?.role));
+      await page.screenshot({path:path.join(screenshots,'staff-clean-14inch.png')});
+    });
+    await check('Admin approval accepts 4–8 digits without auto-submitting a partial PIN', async () => {
+      const from = requests.length;
+      await page.evaluate(async () => {
+        const reactModule = await import('/node_modules/.vite/deps/react.js');
+        const React = reactModule.default || reactModule;
+        const dom = await import('/node_modules/.vite/deps/react-dom_client.js');
+        const createRoot = dom.createRoot || dom.default.createRoot;
+        const { default: PinPad } = await import('/src/components/PinPadModal.jsx');
+        const host = document.createElement('div'); document.body.append(host);
+        window.pinTestRoot = createRoot(host); window.pinTestHost = host;
+        window.pinTestRoot.render(React.createElement(PinPad, { isOpen: true, onClose: () => {}, onSuccess: () => {} }));
+      });
+      for (const digit of '12345678') await page.getByRole('button', {name:digit,exact:true}).click();
+      assert.equal(requests.slice(from).filter(r => r.endpoint === '/api/auth/verify-pin').length,0);
+      await page.getByRole('button', {name:'Authorize Action',exact:true}).click();
+      await page.waitForTimeout(150);
+      assert(requests.slice(from).some(r => r.endpoint === '/api/auth/verify-pin' && r.body?.pin === '12345678'));
+      await page.evaluate(() => {window.pinTestRoot.unmount(); window.pinTestHost.remove();});
     });
     await check('Service/server failures are visible and never invent catalogue items', async () => {
       failServices = true;

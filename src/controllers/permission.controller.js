@@ -10,7 +10,7 @@ async function listPermissions(req, res, next) {
     const users = await prisma.user.findMany({
       where: {
         role: {
-          in: ['Admin', 'Accountant', 'Manager', 'Cashier']
+          in: ['Admin', 'Accountant']
         },
         is_active: true
       },
@@ -45,7 +45,7 @@ async function updatePermissions(req, res, next) {
           id: req.params.id
         }
       });
-      if (!user || !['Accountant', 'Manager', 'Cashier'].includes(user.role)) throw F.error('Admin access is fixed; configure an operator account instead.');
+      if (!user || user.role !== 'Accountant') throw F.error('Admin access is fixed; configure an operator account instead.');
       const permissions = {
         ...effectivePermissions(user),
         ...grants
