@@ -17,29 +17,32 @@ export async function savedUser(){const profile=await safeStore('get','profile')
 export function markOffline(){offline=true;emit();}
 function cacheKey(config){const url=new URL(config.url,location.origin);for(const [key,value]of Object.entries(config.params||{}))if(value!==undefined)url.searchParams.set(key,String(value));url.searchParams.sort();return user.id+':'+url.pathname+url.search;}
 function cacheable(config){return user&&persist&&(config.method||'get').toLowerCase()==='get'&&READ.test(new URL(config.url,location.origin).pathname)&&!config.responseType;}
+export function guardOfflineMutation(config){
+ if(offline&&!['get','head','options'].includes((config.method||'get').toLowerCase())&&!config.url?.includes('/auth/'))throw Object.assign(new Error('Offline viewing only. Reconnect to record payments or make changes.'),{offlineBlocked:true,response:{status:503,data:{message:'Offline viewing only. Reconnect to record payments or make changes.'}}});
+ config._offlineOwner=user?.id;return config;
+}
+export async function handleOfflineResponseError(error){
+ // HTTP authentication, permission, validation and server failures must remain failures.
+ if(error.response||error.offlineBlocked)throw error;
+ markOffline();
+ if(error.config?._offlineOwner===user?.id&&cacheable(error.config)){
+  const cached=await safeStore('get',cacheKey(error.config));
+  if(cached){lastSync=cached.saved_at;emit();return {data:cached.data,status:200,statusText:'Saved offline data',headers:{},config:error.config,offline:true,savedAt:cached.saved_at};}
+ }
+ throw error;
+}
 export async function setOfflineSaving(value){persist=value;localStorage.setItem('dfpro_offline_enabled',String(value));await safeStore('clear');if(value&&user)await safeStore('put','profile',{user,validated_at:new Date().toISOString()});emit();}
 export function installOffline(){
  persist=localStorage.getItem('dfpro_offline_enabled')!=='false';
  axios.defaults.timeout=10000;
- axios.interceptors.request.use(config=>{
-  if(offline&&!['get','head','options'].includes((config.method||'get').toLowerCase())&&!config.url?.includes('/auth/'))throw Object.assign(new Error('Offline viewing only. Reconnect to record payments or make changes.'),{offlineBlocked:true,response:{status:503,data:{message:'Offline viewing only. Reconnect to record payments or make changes.'}}});
-  config._offlineOwner=user?.id;return config;
- });
+ axios.interceptors.request.use(guardOfflineMutation);
  axios.interceptors.response.use(async response=>{
   if(response.config.url==='/api/auth/me')return response;
   if(response.config._offlineOwner===user?.id&&cacheable(response.config)){
     lastSync=new Date().toISOString();offline=false;
     await safeStore('put',cacheKey(response.config),{data:response.data,saved_at:lastSync});emit();
   }return response;
- },async error=>{
-  // Never turn permission/auth/server errors into apparently successful cached responses.
-  if(error.response||error.offlineBlocked)throw error;
-  markOffline();
-  if(error.config?._offlineOwner===user?.id&&cacheable(error.config)){
-   const cached=await safeStore('get',cacheKey(error.config));
-   if(cached){lastSync=cached.saved_at;emit();return {data:cached.data,status:200,statusText:'Saved offline data',headers:{},config:error.config,offline:true,savedAt:cached.saved_at};}
-  }throw error;
- });
+ },handleOfflineResponseError);
  window.addEventListener('offline',markOffline);
 }
 
