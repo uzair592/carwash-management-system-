@@ -287,7 +287,7 @@ export default function BillingQueue({
                       </span>}
                   </td>
                   <td className="py-3 px-3 text-right">
-                    <div className="flex items-center justify-end gap-1.5">{Number(inv.balance_due) > 0 && <button className="btn btn-secondary" onClick={() => setBalanceTarget(inv)}>Collect Rs. {money(inv.balance_due)}</button>}
+                    <div className="flex items-center justify-end gap-1.5">{can('billing.manage') && Number(inv.balance_due) > 0 && <button className="btn btn-secondary" onClick={() => setBalanceTarget(inv)}>Collect Rs. {money(inv.balance_due)}</button>}
                       <button type="button" onClick={() => setPrintInvoiceTarget(inv)} className="btn-print text-xs font-semibold text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1">
                         <Printer className="w-3.5 h-3.5" />
                         Print Invoice

@@ -8,6 +8,8 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(require('./services/maintenance.service').trackHttp);
+app.set('trust proxy', 'loopback');
+app.use('/api', (req,res,next)=>{res.set('Cache-Control','no-store');next();});
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({
@@ -86,7 +88,7 @@ app.use('/uploads', authenticateUser, express.static(path.join(publicPath, 'uplo
 // Static Client Serving (Single-Port Local Mode)
 const clientDistPath = path.join(__dirname, '../client/dist');
 if (fs.existsSync(clientDistPath)) {
-  app.use(express.static(clientDistPath));
+  app.use(express.static(clientDistPath,{setHeaders:(res,file)=>{if(file.endsWith('sw.js')||file.endsWith('index.html')||file.endsWith('manifest.webmanifest'))res.setHeader('Cache-Control','no-cache');}}));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/public')) return next();
     res.sendFile(path.join(clientDistPath, 'index.html'));

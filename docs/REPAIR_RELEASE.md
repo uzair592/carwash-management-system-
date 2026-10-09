@@ -141,3 +141,9 @@ Staff performance and Workshop staff provide an Overtime & pay shortcut. Payroll
 Windows: use install.bat only for an empty database; update-shop.bat for a reviewed existing installation; start-shop.bat for daily startup. Existing updates require verified dual-drive backups before migration and skip seed. Database setup fails closed on migration/backup errors. Daily startup only starts/saves PM2. Linux daily startup is also schema-neutral; follow the documented manual backup/migration procedure for installation/update. Windows Task Scheduler and power settings remain shop-PC configuration, not changes executed by this release.
 
 Validation for this update: 31 integrity scenarios, 19 browser scenarios, 5 setup/launcher control-flow tests (mocked system commands), production frontend build and whitespace checks. Real Windows installation, scheduled startup and hardware remain unverified here.
+
+## Installable app / offline viewing
+
+Production builds now include a manifest, app icons and an offline app shell. Account-scoped IndexedDB supports saved GET viewing, with offline mutations blocked. Authentication/server errors never fall back to cached success; sign-out/session rejection clears saved data. Saved profiles expire after seven days without online validation. Save latest for offline stores supported summaries and up to 250 recent invoices, not a full database/photos backup. See docs/MOBILE_APP.md for HTTPS install, tunnel/access setup and acceptance.
+
+PWA checks: production service-worker offline reload/reconnection/rejected-session purge passed; 31 integrity scenarios, 19 browser scenarios and frontend build passed. Live HTTPS/domain provisioning and installation on the shop phone remain pending.
