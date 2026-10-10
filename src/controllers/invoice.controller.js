@@ -276,8 +276,10 @@ async function collectPaymentHandler(req, res, next) {
         }
       });
       if (!invoice) throw F.error('Invoice not found.', 404);
-      const credited = invoice.refunds.reduce((s, r) => s + F.cents(r.amount), 0);
-      const entries = normalizePayments(req.body, Number(invoice.balance_due));
+      // paid_amount is already net of recorded refunds. Recompute the due from the
+      // bill total so legacy invoices with an understated balance are corrected too.
+      const outstanding = (F.cents(invoice.total_amount) - F.cents(invoice.paid_amount)) / 100;
+      const entries = normalizePayments(req.body, outstanding);
       if (!entries.length) throw F.error('Enter a payment.');
       await collect(tx, req, invoice, entries, requestKey);
       const added = entries.reduce((s, p) => s + F.cents(p.amount), 0);
@@ -288,8 +290,8 @@ async function collectPaymentHandler(req, res, next) {
         },
         data: {
           paid_amount: paid,
-          balance_due: (F.cents(invoice.total_amount) - credited - F.cents(paid)) / 100,
-          status: F.cents(paid) === F.cents(invoice.total_amount) - credited ? 'PAID' : 'PARTIAL'
+          balance_due: (F.cents(invoice.total_amount) - F.cents(paid)) / 100,
+          status: F.cents(paid) >= F.cents(invoice.total_amount) ? 'PAID' : F.cents(paid) > 0 ? 'PARTIAL' : 'UNPAID'
         }
       });
       await F.audit(tx, req, 'PAYMENT_COLLECTED', 'Outstanding invoice payment collected.', {

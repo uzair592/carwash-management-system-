@@ -186,6 +186,8 @@ const F = require('../src/services/finance.service');
 const expense = require('../src/controllers/expense.controller');
 const material = require('../src/controllers/material.controller');
 const invoice = require('../src/controllers/invoice.controller');
+const physicalBays = require('../src/controllers/physical-bays.controller');
+const permissions = require('../src/services/permission.service');
 const deposit = require('../src/controllers/deposit.controller');
 const users = require('../src/controllers/user.controller');
 const outbox = require('../src/workers/outbox.worker');
@@ -436,6 +438,52 @@ test('Split checkout allocates each payment to its actual account', async () => 
   assert.equal(state.invoice[0].paid_amount, 1000);
   assert.equal(state.invoice[0].balance_due, 0);
 });
+test('Refunding a part-paid invoice restores the true outstanding balance', async () => {
+  state.invoice = [{
+    id: 'invoice',
+    job_card_id: 'job',
+    total_amount: 100,
+    paid_amount: 40,
+    balance_due: 60,
+    discount_amount: 0,
+    status: 'PARTIAL',
+    payment_method: 'Cash',
+    line_snapshot: []
+  }];
+  state.payment = [{
+    id: 'payment-original',
+    invoice_id: 'invoice',
+    amount: 40,
+    payment_method: 'Cash',
+    bank_account_id: null,
+    request_key: 'original-payment'
+  }];
+  await call(physicalBays.issueRefundHandler, {
+    amount: 40,
+    reason: 'Return part payment'
+  }, { params: { id: 'invoice' } });
+  assert.equal(state.invoice[0].paid_amount, 0);
+  assert.equal(state.invoice[0].balance_due, 100);
+
+  await call(invoice.collectPaymentHandler, {
+    collected_amount: 60
+  }, {
+    params: { id: 'invoice' },
+    headers: { 'idempotency-key': 'payment-request-234' }
+  });
+  assert.equal(state.invoice[0].paid_amount, 60);
+  assert.equal(state.invoice[0].balance_due, 40);
+  assert.equal(state.invoice[0].status, 'PARTIAL');
+});
+
+test('Salary editing is restricted to administrators even if payroll editing is allowed', () => {
+  assert.equal(permissions.requiredPermission({
+    path: '/payroll/users/staff-1/salary',
+    method: 'PATCH',
+    user: { id: 'accountant', role: 'ACCOUNTANT' }
+  }), 'ADMIN_ONLY');
+});
+
 test('Material shortage rolls back; retry does not issue stock twice', async () => {
   state.jobCard[0].status = 'IN_PROGRESS';
   state.inventory = [{
@@ -464,6 +512,45 @@ test('Material shortage rolls back; retry does not issue stock twice', async () 
   assert.equal(state.materialIssuance.length, 1);
   assert.equal(state.materialIssuance[0].unit_cost, 20);
 });
+test('Configured service consumables are deducted once at completion', async () => {
+  state.jobCard[0].status = 'IN_PROGRESS';
+  state.jobCardService = [{
+    id: 'job-service',
+    job_card_id: 'job',
+    service_id: 'wash',
+    price_charged: 100
+  }];
+  state.service = [{
+    id: 'wash',
+    name: 'Wash',
+    linked_inventory_id: 'stock',
+    inventory_deduction_amount: 10,
+    service_inventories: [{
+      id: 'mapping',
+      service_id: 'wash',
+      inventory_id: 'stock',
+      deduction_amount: 10
+    }]
+  }];
+  state.inventory = [{
+    id: 'stock',
+    item_name: 'Shampoo',
+    current_stock: 40,
+    cost_per_unit: 2,
+    low_stock_threshold: 5
+  }];
+
+  await call(physicalBays.completeJobCardHandler, {}, { params: { id: 'job' } });
+  assert.equal(state.inventory[0].current_stock, 30);
+  assert.equal(state.materialIssuance.length, 1);
+  assert.equal(state.materialIssuance[0].quantity_issued, 10);
+
+  // Retrying completion must not consume the same service material a second time.
+  await call(physicalBays.completeJobCardHandler, {}, { params: { id: 'job' } });
+  assert.equal(state.inventory[0].current_stock, 30);
+  assert.equal(state.materialIssuance.length, 1);
+});
+
 test('Unsent alerts remain failed and are retried to delivery', async () => {
   await F.alert(db, 'Test alert', 'test-alert');
   await outbox.processOutboxQueue();

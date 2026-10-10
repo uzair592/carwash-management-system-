@@ -431,6 +431,20 @@ async function completeJobCardHandler(req, res, next) {
         include: {
           invoice: true,
           vehicle: true,
+          services: {
+            include: {
+              service: {
+                include: {
+                  service_inventories: {
+                    include: {
+                      inventory: true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          material_issuances: true,
           assigned_workers: {
             include: {
               user: true
@@ -443,6 +457,67 @@ async function completeJobCardHandler(req, res, next) {
       if (job.invoice) throw F.error('An invoiced job is locked.');
       if (job.status === 'READY_FOR_BILLING') return job;
       if (!['IN_PROGRESS', 'In_Progress'].includes(job.status)) throw F.error('Start work before marking it complete.');
+
+      // Consume configured service yield once. Explicit material issues count toward
+      // the configured quantity to prevent charging stock twice for the same job.
+      const requiredByInventory = new Map();
+      for (const line of job.services || []) {
+        const service = line.service;
+        const mappings = service?.service_inventories?.length
+          ? service.service_inventories
+          : service?.linked_inventory_id && service?.inventory_deduction_amount != null
+            ? [{ inventory_id: service.linked_inventory_id, deduction_amount: service.inventory_deduction_amount }]
+            : [];
+        for (const mapping of mappings) {
+          const inventoryId = mapping.inventory_id || mapping.inventory?.id;
+          if (!inventoryId) continue;
+          const amount = F.amount(mapping.deduction_amount, { zero: true });
+          if (amount <= 0) continue;
+          requiredByInventory.set(inventoryId, (requiredByInventory.get(inventoryId) || 0) + F.cents(amount));
+        }
+      }
+      const manuallyIssued = new Map();
+      for (const issuance of job.material_issuances || []) {
+        if (!issuance.inventory_id) continue;
+        manuallyIssued.set(issuance.inventory_id, (manuallyIssued.get(issuance.inventory_id) || 0) + F.cents(issuance.quantity_issued));
+      }
+      for (const inventoryId of [...requiredByInventory.keys()].sort()) {
+        const quantityCents = Math.max(0, requiredByInventory.get(inventoryId) - (manuallyIssued.get(inventoryId) || 0));
+        if (!quantityCents) continue;
+        await F.lock(tx, 'stock:' + inventoryId);
+        const requestKey = 'service_use_' + job.id + '_' + inventoryId;
+        const previousIssue = await tx.materialIssuance.findUnique({ where: { request_key: requestKey } });
+        if (previousIssue) continue;
+        const item = await tx.inventory.findUnique({ where: { id: inventoryId } });
+        if (!item) throw F.error('A configured service inventory item no longer exists. Correct the service mapping before completing this job.', 409);
+        if (F.cents(item.current_stock) < quantityCents) throw F.error('Insufficient stock to complete this job. Restock inventory or correct the service deduction.', 409);
+        const quantity = quantityCents / 100;
+        await tx.materialIssuance.create({
+          data: {
+            job_card_id: job.id,
+            inventory_id: inventoryId,
+            quantity_issued: quantity,
+            unit_cost: item.cost_per_unit,
+            issued_by_id: req.user.id,
+            notes: 'Automatic service consumption at workshop completion.',
+            request_key: requestKey
+          }
+        });
+        const stockAfter = await tx.inventory.update({
+          where: { id: inventoryId },
+          data: { current_stock: { decrement: quantity } }
+        });
+        await F.audit(tx, req, 'SERVICE_MATERIAL_CONSUMED', 'Configured service consumables deducted at workshop completion.', {
+          job_card_id: job.id,
+          inventory_id: inventoryId,
+          quantity,
+          unit_cost: Number(item.cost_per_unit)
+        });
+        if (Number(stockAfter.current_stock) <= Number(item.low_stock_threshold)) {
+          await F.alert(tx, 'Low stock: ' + item.item_name + ' — ' + stockAfter.current_stock, requestKey);
+        }
+      }
+
       const assigned = job.assigned_workers.length ? job.assigned_workers.map(w => w.user) : job.worker ? [job.worker] : [];
       const snapshot = assigned.map(w => ({
         id: w.id,
@@ -754,6 +829,8 @@ async function issueRefundHandler(req, res, next) {
         },
         data: {
           paid_amount: paid,
+          // A refund is money returned, not a discount against the customer's bill.
+          balance_due: (F.cents(invoice.total_amount) - F.cents(paid)) / 100,
           status: paid ? 'PARTIAL_REFUND' : 'REFUNDED'
         }
       });
