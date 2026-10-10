@@ -46,7 +46,9 @@ app.get('/', (req, res, next) => {
 // Mount API routes
 const authAttempts = new Map();
 app.use('/api', (req, res, next) => {
-  if (req.method === 'POST' && (['/auth/login', '/auth/verify-pin', '/admin/verify-pin'].includes(req.path) || req.body?.admin_pin)) {
+  const loginOrVerifyAttempt = req.method === 'POST' && ['/auth/login', '/auth/verify-pin', '/admin/verify-pin'].includes(req.path);
+  const approvalPinAttempt = Boolean(req.body?.admin_pin);
+  if (loginOrVerifyAttempt || approvalPinAttempt) {
     const k = req.ip;
     const now = Date.now();
     const row = authAttempts.get(k) || {
