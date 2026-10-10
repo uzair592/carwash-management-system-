@@ -67,6 +67,7 @@ function requiredPermission(req) {
   if (p.startsWith('/services')) return read ? 'services.read' : 'services.manage';
   if (p.startsWith('/inventory/yield-mappings')) return read ? 'inventory.read' : 'inventory.manage';
   if (p.startsWith('/inventory')) return read ? 'inventory.read' : 'inventory.manage';
+  if (/^\/payroll\/users\/[^/]+\/salary$/.test(p)) return 'ADMIN_ONLY';
   if (p.startsWith('/financials/payroll') || p.startsWith('/payroll')) return read ? 'payroll.read' : 'payroll.manage';
   if (p.startsWith('/financials') || p.startsWith('/partners') || p.startsWith('/partner-transactions')) return read ? 'partners.read' : 'partners.manage';
   if (p.startsWith('/audit')) return 'audit.read';
